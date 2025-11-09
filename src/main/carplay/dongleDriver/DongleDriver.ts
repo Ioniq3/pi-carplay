@@ -8,7 +8,9 @@ import {
   SendOpen,
   SendBoolean,
   SendBoxSettings,
+  SendIconConfig,
   SendCommand,
+  SendString,
   HeartBeat
 } from '../messages/sendable.js'
 
@@ -35,6 +37,7 @@ export type DongleConfig = {
   phoneWorkMode: number
   nightMode: boolean
   carName: string
+  oemName: string
   hand: HandDriveType
   mediaDelay: number
   mediaSound: 0 | 1
@@ -58,6 +61,7 @@ export const DEFAULT_CONFIG: DongleConfig = {
   phoneWorkMode: 2,
   packetMax: 49152,
   carName: 'pi-carplay',
+  oemName: 'pi-carplay',
   nightMode: true,
   hand: HandDriveType.LHD,
   mediaDelay: 1000,
@@ -200,11 +204,16 @@ export class DongleDriver extends EventEmitter {
 
     if (!this._readerActive) void this.readLoop()
 
+    const ui = (cfg.oemName ?? '').trim()
+    const label = ui.length > 0 ? ui : cfg.carName
+
     const messages: SendableMessage[] = [
       new SendNumber(cfg.dpi, FileAddress.DPI),
       new SendOpen(cfg),
       new SendBoolean(cfg.nightMode, FileAddress.NIGHT_MODE),
       new SendNumber(cfg.hand, FileAddress.HAND_DRIVE_MODE),
+      new SendString(label, FileAddress.BOX_NAME),
+      new SendIconConfig({ oemName: cfg.oemName }),
       new SendBoolean(true, FileAddress.CHARGE_MODE),
       new SendCommand(cfg.wifiType === '5ghz' ? 'wifi5g' : 'wifi24g'),
       new SendBoxSettings(cfg),

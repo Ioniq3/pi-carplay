@@ -183,6 +183,9 @@ export enum FileAddress {
   CHARGE_MODE = '/tmp/charge_mode',
   OEM_ICON = '/etc/oem_icon.png',
   AIRPLAY_CONFIG = '/etc/airplay.conf',
+  BOX_NAME = '/etc/box_name',
+  AIRPLAY_CAR_CONFIG = '/etc/airplay_car.conf',
+  CARPLAY_LOGO_TYPE = '/etc/carplay_logo_type',
   ICON_120 = '/etc/icon_120x120.png',
   ICON_180 = '/etc/icon_180x180.png',
   ICON_250 = '/etc/icon_256x256.png',
@@ -205,10 +208,10 @@ export class SendBoolean extends SendNumber {
 
 export class SendString extends SendFile {
   constructor(content: string, file: FileAddress) {
-    if (content.length > 16) {
-      console.error('string too long')
-    }
-    const message = Buffer.from(content, 'ascii')
+    let clean = content.normalize('NFKD').replace(/[^\u0020-\u007E]/g, '?')
+    clean = clean.replace(/[\r\n]+/g, '').slice(0, 16)
+
+    const message = Buffer.from(clean, 'ascii')
     super(message, file)
   }
 }
@@ -259,6 +262,8 @@ type BoxSettingsBody = {
   autoConn: boolean
   wifiName: string
   btName: string
+  boxName: string
+  OemName: string
 }
 
 export class SendBoxSettings extends SendableMessageWithPayload {
@@ -286,7 +291,9 @@ export class SendBoxSettings extends SendableMessageWithPayload {
       autoPlay: cfg.autoPlay,
       autoConn: cfg.autoConn,
       wifiName: cfg.carName,
-      btName: cfg.carName
+      btName: cfg.carName,
+      boxName: cfg.oemName ?? cfg.carName,
+      OemName: cfg.oemName ?? cfg.carName
     }
 
     return Buffer.from(JSON.stringify(body), 'ascii')
@@ -321,7 +328,7 @@ export class SendLogoType extends SendableMessageWithPayload {
 }
 
 export class SendIconConfig extends SendFile {
-  constructor(config: { label?: string }) {
+  constructor(config: { oemName?: string }) {
     const valueMap: {
       oemIconVisible: number
       name: string
@@ -335,12 +342,13 @@ export class SendIconConfig extends SendFile {
       oemIconPath: FileAddress.OEM_ICON
     }
 
-    if (config.label) {
-      valueMap.oemIconLabel = config.label
+    const label = (config.oemName ?? '').trim()
+    if (label) {
+      valueMap.oemIconLabel = label
     }
 
     const fileData = Object.entries(valueMap)
-      .map((e) => `${e[0]} = ${e[1]}`)
+      .map(([k, v]) => `${k} = ${v}`)
       .join('\n')
 
     super(Buffer.from(fileData + '\n', 'ascii'), FileAddress.AIRPLAY_CONFIG)

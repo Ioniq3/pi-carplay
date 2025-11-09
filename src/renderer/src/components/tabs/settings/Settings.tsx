@@ -48,13 +48,23 @@ const MEDIA_DELAY_MIN = 300
 const MEDIA_DELAY_MAX = 2000
 const HEIGHT_MIN = 200
 const MIN_WIDTH = 400
+const MAX_WIDTH = 4096
+const MAX_HEIGHT = 2160
+const DEFAULT_WIDTH = 800
+const DEFAULT_HEIGHT = 480
 
 const UI_DEBOUNCED_KEYS = new Set<keyof ExtraConfig>(['primaryColorDark', 'primaryColorLight'])
 
 const CAR_NAME_MAX = 20
+const OEM_LABEL_MAX = 13
+
 function normalizeCarName(input: string): string {
   const ascii = input.replace(/[^\x20-\x7E]/g, '')
   return ascii.slice(0, CAR_NAME_MAX)
+}
+function normalizeOemLabel(input: string): string {
+  const ascii = input.replace(/[^\x20-\x7E]/g, '')
+  return ascii.slice(0, OEM_LABEL_MAX)
 }
 
 type UsbEvent = { type?: string } & Record<string, unknown>
@@ -136,6 +146,13 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
   const [openAdvanced, setOpenAdvanced] = useState(false)
   const [micResetPending, setMicResetPending] = useState(false)
 
+  const [draftWidth, setDraftWidth] = useState<string>(() => String(activeSettings.width))
+  const [draftHeight, setDraftHeight] = useState<string>(() => String(activeSettings.height))
+  useEffect(() => {
+    setDraftWidth(String(activeSettings.width))
+    setDraftHeight(String(activeSettings.height))
+  }, [activeSettings.width, activeSettings.height])
+
   const saveSettings = useCarplayStore((s) => s.saveSettings)
   const isDongleConnected = useStatusStore((s) => s.isDongleConnected)
   const setCameraFound = useStatusStore((s) => s.setCameraFound)
@@ -179,6 +196,7 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
     'wifiType',
     'audioTransferMode',
     'carName',
+    'oemName',
     'mediaSound',
     'autoPlay'
   ]
@@ -229,16 +247,39 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
     } else if (requiresRestartParams.includes(key)) {
       if (hasSettings) {
         const prev = settings!
-        const pending = requiresRestartParams.some((param) => updated[param] !== prev[param])
-        setHasChanges(pending)
+        const pending = requiresRestartParams.some((param) => {
+          if (param === 'width') return String(draftWidth) !== String(prev.width)
+          if (param === 'height') return String(draftHeight) !== String(prev.height)
+          return updated[param] !== prev[param]
+        })
+        setHasChanges(
+          pending ||
+            String(draftWidth) !== String(activeSettings.width) ||
+            String(draftHeight) !== String(activeSettings.height)
+        )
       } else {
         setHasChanges(false)
       }
     }
   }
 
+  const isValidInt = (n: unknown) => Number.isFinite(n) && Math.floor(Number(n)) === Number(n)
+  const validateResolutionOrDefault = (wRaw: string, hRaw: string) => {
+    const wNum = Number(wRaw)
+    const hNum = Number(hRaw)
+    const wOk = isValidInt(wNum) && wNum >= MIN_WIDTH && wNum <= MAX_WIDTH
+    const hOk = isValidInt(hNum) && hNum >= HEIGHT_MIN && hNum <= MAX_HEIGHT
+    return {
+      width: wOk ? Math.round(wNum) : DEFAULT_WIDTH,
+      height: hOk ? Math.round(hNum) : DEFAULT_HEIGHT
+    }
+  }
+
   const handleSave = async () => {
     const needsReset = hasChanges || micResetPending
+
+    const { width: finalW, height: finalH } = validateResolutionOrDefault(draftWidth, draftHeight)
+    const next: ExtraConfig = { ...activeSettings, width: finalW, height: finalH }
 
     try {
       debouncedSave.flush()
@@ -247,7 +288,12 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
       debouncedSave.cancel()
     } catch {}
 
-    await saveSettings(activeSettings)
+    await saveSettings(next)
+    startTransition(() => {
+      setActiveSettings(next)
+      setDraftWidth(String(next.width))
+      setDraftHeight(String(next.height))
+    })
 
     if (needsReset) {
       setIsResetting(true)
@@ -343,6 +389,7 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
       case 'camera':
       case 'microphone':
       case 'carName':
+      case 'oemName':
         return (raw === undefined ? undefined : String(raw)) as ExtraConfig[K]
 
       case 'bindings':
@@ -546,11 +593,16 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
                   size="small"
                   label="WIDTH"
                   type="number"
-                  value={activeSettings.width}
-                  onChange={(e) => settingsChange('width', Number(e.target.value))}
-                  InputProps={{
-                    inputProps: { min: MIN_WIDTH, step: 1 },
-                    endAdornment: <InputAdornment position="end">px</InputAdornment>
+                  value={draftWidth}
+                  onChange={(e) => {
+                    setDraftWidth(e.target.value)
+                    setHasChanges(true)
+                  }}
+                  slotProps={{
+                    input: {
+                      inputProps: { min: MIN_WIDTH, max: MAX_WIDTH, step: 1 },
+                      endAdornment: <InputAdornment position="end">px</InputAdornment>
+                    }
                   }}
                   sx={{ width: 136 }}
                 />
@@ -559,11 +611,16 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
                   size="small"
                   label="HEIGHT"
                   type="number"
-                  value={activeSettings.height}
-                  onChange={(e) => settingsChange('height', Number(e.target.value))}
-                  InputProps={{
-                    inputProps: { min: HEIGHT_MIN, step: 1 },
-                    endAdornment: <InputAdornment position="end">px</InputAdornment>
+                  value={draftHeight}
+                  onChange={(e) => {
+                    setDraftHeight(e.target.value)
+                    setHasChanges(true)
+                  }}
+                  slotProps={{
+                    input: {
+                      inputProps: { min: HEIGHT_MIN, max: MAX_HEIGHT, step: 1 },
+                      endAdornment: <InputAdornment position="end">px</InputAdornment>
+                    }
                   }}
                   sx={{ width: 136 }}
                 />
@@ -594,9 +651,11 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
                   type="number"
                   value={activeSettings.mediaDelay}
                   onChange={(e) => settingsChange('mediaDelay', Number(e.target.value))}
-                  InputProps={{
-                    inputProps: { min: MEDIA_DELAY_MIN, max: MEDIA_DELAY_MAX, step: 50 },
-                    endAdornment: <InputAdornment position="end">ms</InputAdornment>
+                  slotProps={{
+                    input: {
+                      inputProps: { min: MEDIA_DELAY_MIN, max: MEDIA_DELAY_MAX, step: 50 },
+                      endAdornment: <InputAdornment position="end">ms</InputAdornment>
+                    }
                   }}
                   sx={{ width: 136 }}
                 />
@@ -760,7 +819,7 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
                           checked={item.visualChecked}
                           onChange={item.onChange}
                           sx={{ mx: 0 }}
-                          inputProps={{ 'aria-label': item.title }}
+                          slotProps={{ input: { 'aria-label': item.title } }}
                         />
                       }
                     />
@@ -857,9 +916,32 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
                     const v = normalizeCarName(e.target.value)
                     settingsChange('carName', v)
                   }}
-                  inputProps={{ maxLength: CAR_NAME_MAX }}
+                  slotProps={{
+                    input: { inputProps: { maxLength: CAR_NAME_MAX } },
+                    formHelperText: { sx: { textAlign: 'right', m: 0, mt: 0.5 } }
+                  }}
                   helperText={`${activeSettings.carName?.length ?? 0}/${CAR_NAME_MAX}`}
-                  FormHelperTextProps={{ sx: { textAlign: 'right', m: 0, mt: 0.5 } }}
+                />
+              </Grid>
+
+              <Grid
+                size={{ xs: 12, sm: 4 }}
+                sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}
+              >
+                <TextField
+                  size="small"
+                  fullWidth
+                  label="UI LABEL"
+                  value={activeSettings.oemName ?? ''}
+                  onChange={(e) => {
+                    const v = normalizeOemLabel(e.target.value)
+                    settingsChange('oemName', v as unknown as ExtraConfig['oemName'])
+                  }}
+                  slotProps={{
+                    input: { inputProps: { maxLength: OEM_LABEL_MAX } },
+                    formHelperText: { sx: { textAlign: 'right', m: 0, mt: 0.5 } }
+                  }}
+                  helperText={`${activeSettings.oemName?.length ?? 0}/${OEM_LABEL_MAX}`}
                 />
               </Grid>
 
@@ -940,10 +1022,10 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
 
       <Dialog
         open={openBindings}
-        TransitionComponent={Transition}
         keepMounted
-        PaperProps={{ sx: { minHeight: '80%', minWidth: '80%' } }}
         onClose={() => setOpenBindings(false)}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { sx: { minHeight: '80%', minWidth: '80%' } } }}
       >
         <DialogTitle>Key Bindings</DialogTitle>
         <DialogContent>
@@ -953,15 +1035,17 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
 
       <Dialog
         open={openAdvanced}
-        TransitionComponent={Transition}
         keepMounted
         onClose={() => setOpenAdvanced(false)}
         maxWidth={false}
-        PaperProps={{
-          sx: {
-            width: 320,
-            maxWidth: 'calc(100vw - 48px)',
-            borderRadius: 2
+        slots={{ transition: Transition }}
+        slotProps={{
+          paper: {
+            sx: {
+              width: 320,
+              maxWidth: 'calc(100vw - 48px)',
+              borderRadius: 2
+            }
           }
         }}
       >
@@ -979,6 +1063,7 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
             <TextField
               size="small"
               label={isDarkMode ? 'PRIMARY (DARK)' : 'PRIMARY (LIGHT)'}
+              type="color"
               value={currentPrimary}
               onChange={(e) =>
                 settingsChange(
@@ -987,7 +1072,6 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
                 )
               }
               InputProps={{
-                inputProps: { type: 'color' },
                 endAdornment: (
                   <InputAdornment position="end">
                     <Button
@@ -1006,7 +1090,7 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
                   </InputAdornment>
                 )
               }}
-              InputLabelProps={{ shrink: true }}
+              slotProps={{ inputLabel: { shrink: true } }}
               fullWidth
               sx={{ gridColumn: '1 / span 2' }}
             />
@@ -1017,9 +1101,11 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
               margin="dense"
               value={activeSettings.dpi}
               onChange={(e) => settingsChange('dpi', Number(e.target.value))}
-              InputLabelProps={{ shrink: true }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: { inputProps: { tabIndex: openAdvanced ? 0 : -1 } }
+              }}
               autoFocus={openAdvanced}
-              inputProps={{ tabIndex: openAdvanced ? 0 : -1 }}
               sx={{ width: 120 }}
             />
             <TextField
@@ -1029,7 +1115,7 @@ export const Settings: React.FC<SettingsProps> = ({ settings }) => {
               margin="dense"
               value={activeSettings.format}
               onChange={(e) => settingsChange('format', Number(e.target.value))}
-              InputLabelProps={{ shrink: true }}
+              slotProps={{ inputLabel: { shrink: true } }}
               sx={{ width: 120 }}
             />
           </Box>

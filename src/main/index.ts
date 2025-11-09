@@ -179,14 +179,14 @@ const DEFAULT_BINDINGS: KeyBindings = {
   down: 'ArrowDown',
   left: 'ArrowLeft',
   right: 'ArrowRight',
-  selectUp: 'KeyB',
-  selectDown: 'Space',
+  selectUp: 'KeyU',
+  selectDown: 'Enter',
   back: 'Backspace',
   home: 'KeyH',
   play: 'KeyP',
-  pause: 'KeyO',
-  next: 'KeyM',
-  prev: 'KeyN'
+  pause: 'KeyS',
+  next: 'KeyN',
+  prev: 'KeyB'
 }
 
 function loadConfig(): ExtraConfig {
