@@ -617,7 +617,7 @@ export const Settings: React.FC = () => {
               flexWrap: 'nowrap'
             }}
           >
-            <Grid container spacing={2} sx={{ px: 1, width: '100%' }}>
+            <Grid container spacing={2} sx={{ width: '100%' }}>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <SectionHeader sx={{ mb: 2.25 }}>VIDEO SETTINGS</SectionHeader>
 
