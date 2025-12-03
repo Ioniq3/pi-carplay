@@ -2,8 +2,7 @@ import { SettingsLayout } from '@renderer/components/layouts/SettingsLayout'
 import { useCarplayStore } from '@store/store'
 import { useSmartSettings } from '../../hooks/useSmartSettings'
 import { phoneWorkModeSettingKey } from './types'
-import { TextField } from '@mui/material'
-import { CAR_NAME_MAX } from '../../../settings/constants'
+import NumberSpinner from '../../components/numberSpinner/numberSpinner'
 
 export const PhoneWorkMode: React.FC = () => {
   // FIXME types
@@ -19,20 +18,13 @@ export const PhoneWorkMode: React.FC = () => {
 
   return (
     <SettingsLayout onSave={save}>
-      <TextField
+      <NumberSpinner
         style={{ marginTop: 16 }}
         id="phoneWorkMode"
-        size="small"
-        fullWidth
         label="phoneWorkMode"
-        value={settingsState.phoneWorkMode ?? ''}
-        slotProps={{
-          input: { inputProps: { maxLength: CAR_NAME_MAX } },
-          formHelperText: { sx: { textAlign: 'right', m: 0, mt: 0.5 } }
-        }}
-        helperText={
-          "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s,"
-        }
+        size="small"
+        value={settingsState.iBoxVersion}
+        onValueChange={(v) => onChange('phoneWorkMode', v)}
       />
     </SettingsLayout>
   )

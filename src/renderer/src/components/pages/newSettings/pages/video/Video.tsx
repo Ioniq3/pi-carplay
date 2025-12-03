@@ -16,8 +16,6 @@ export const Video = () => {
     height: settings?.height
   }
 
-  console.log(settings)
-
   const {
     state: settingsState,
     handleFieldChange,
@@ -34,8 +32,6 @@ export const Video = () => {
     <SettingsLayout onSave={save}>
       {(Object.keys(videoSettingsUIConfig) as VideoSettingKey[]).map((item, index) => {
         const onClick = () => handleFieldChange(item, !settingsState[item])
-
-        console.log(111, item)
 
         return (
           <SettingsItemRow
