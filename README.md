@@ -1,4 +1,8 @@
 <p align="center">
+  <img alt='pi-carplay' src='documentation/images/banner.png' width="1200" />
+</p>
+
+<p align="center">
   <!-- Release -->
   <img alt="Release" src="https://img.shields.io/github/v/release/f-io/pi-carplay?label=release"> &nbsp;&nbsp;&nbsp;
   <!-- MAIN -->
@@ -11,9 +15,9 @@
   <img alt="Build Dev" src="https://img.shields.io/github/actions/workflow/status/f-io/pi-carplay/build.yml?branch=dev&label=build%20dev&style=flat">
 </p>
 
-# <img src="assets/icons/linux/pi-carplay.png" alt="pi-carplay" width="25px" /> pi-carplay
+# pi-carplay
 
-pi-carplay enables **Apple CarPlay and Android Auto on Raspberry Pi**, standard Linux systems (ARM/x86), and **macOS (ARM)** using Carlinkit / AutoBox adapters. 
+pi-carplay enables **Apple CarPlay and Android Auto on Raspberry Pi**, standard Linux systems (ARM/x86), and **macOS (ARM)** using Carlinkit / AutoBox adapters.
 
 It is a standalone cross-platform Electron head unit with hardware-accelerated video decoding, low-latency audio, multitouch + D-Pad navigation, and support for very small embedded/OEM displays.
 
@@ -26,22 +30,6 @@ It is a standalone cross-platform Electron head unit with hardware-accelerated v
 ![electron](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/f-io/pi-carplay/version/.github/badges/main-electron.json)
 ![chrome](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/f-io/pi-carplay/version/.github/badges/main-electron-date.json)
 ![release](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/f-io/pi-carplay/version/.github/badges/main-electron-chromium.json)
-
-## Images
-
-<p align="center">
-  <img src="documentation/images/carplay.png" alt="CarPlay" width="58%" />
-</p>
-<p align="center">
-  <img src="documentation/images/carplay_no_phone.png" alt="No Phone" width="48%" align="top" />
-  &emsp;
-  <img src="documentation/images/media.png" alt="Media" width="48%" align="top" />
-</p>
-<p align="center">
-  <img src="documentation/images/info.png" alt="Info" width="48%" align="top" />
-  &emsp;
-  <img src="documentation/images/settings.png" alt="Settings" width="48%" align="top" />
-</p>
 
 # Installation
 
@@ -61,7 +49,7 @@ The `setup-pi.sh` script performs the following tasks:
 4. creates an autostart entry, so the application will launch automatically on boot
 5. creates a desktop shortcut for easy access to the application
 
-*Not actively tested on other Linux distributions.*
+_Not actively tested on other Linux distributions._
 
 ---
 
@@ -103,6 +91,7 @@ xattr -cr /Applications/pi-carplay.app
 ```
 
 For microphone support, please install Sound eXchange (SoX) via brew.
+
 ```bash
 brew install sox
 ```
@@ -135,12 +124,31 @@ git clone --branch main --single-branch https://github.com/f-io/pi-carplay.git \
 
 ## Android Auto
 
-> **Provisioning not supported.** This app does **not** perform the Android Auto first-time provisioning/pairing flow.  
+> **Provisioning not supported.** This app does **not** perform the Android Auto first-time provisioning/pairing flow.
 > Your phone must already be paired/enrolled **on the dongle**.
 
 **How to provision AA on the dongle:**
+
 1. Use the dongle with a regular head unit **or** the vendor’s mobile app to add your phone once.
 2. After the dongle knows your phone, connect the dongle to pi-carplay — it will attach without running provisioning again.
+
+---
+
+## Images
+
+<p align="center">
+  <img src="documentation/images/carplay.png" alt="CarPlay" width="58%" />
+</p>
+<p align="center">
+  <img src="documentation/images/carplay_no_phone.png" alt="No Phone" width="48%" align="top" />
+  &emsp;
+  <img src="documentation/images/media.png" alt="Media" width="48%" align="top" />
+</p>
+<p align="center">
+  <img src="documentation/images/info.png" alt="Info" width="48%" align="top" />
+  &emsp;
+  <img src="documentation/images/settings.png" alt="Settings" width="48%" align="top" />
+</p>
 
 ---
 
