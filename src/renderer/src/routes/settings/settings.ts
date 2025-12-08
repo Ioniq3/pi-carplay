@@ -18,6 +18,7 @@ import { Dpi } from '../../components/pages/newSettings/pages/dpi'
 import { Format } from '../../components/pages/newSettings/pages/format'
 import { ScreenResolution } from '../../components/pages/newSettings/pages/screenResolution'
 import { Fps } from '../../components/pages/newSettings/pages/fps'
+import { Audio } from '../../components/pages/newSettings/pages/audio'
 
 export const settingsSubRoutes: RouteProps[] = [
   {
@@ -30,6 +31,12 @@ export const settingsSubRoutes: RouteProps[] = [
     path: settingsPaths.video,
     component: Video,
     title: 'Video',
+    level: 1
+  },
+  {
+    path: settingsPaths.audio,
+    component: Audio,
+    title: 'Audio',
     level: 1
   },
   // Other first level
