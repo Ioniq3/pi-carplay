@@ -15,13 +15,14 @@
   <img alt="Build Dev" src="https://img.shields.io/github/actions/workflow/status/f-io/pi-carplay/build.yml?branch=dev&label=build%20dev&style=flat">
 </p>
 
-# pi-carplay
+# Apple CarPlay & Android Auto on Linux (x86, ARM)
 
-pi-carplay enables **Apple CarPlay and Android Auto on Raspberry Pi**, standard Linux systems (ARM/x86), and **macOS (ARM)** using Carlinkit / AutoBox adapters.
+This project acts as a standalone Apple CarPlay and Android Auto receiver (head unit) for Linux systems. 
 
-It is a standalone cross-platform Electron head unit with hardware-accelerated video decoding, low-latency audio, multitouch + D-Pad navigation, and support for very small embedded/OEM displays.
+It is implemented as a cross-platform Electron application with
+hardware-accelerated video decoding, low-latency audio, multitouch, D-Pad navigation, and support for very small embedded/OEM displays.
 
-> **Supported adapters:** Carlinkit **CPC200-CCPA** (wireless/wired) and **CPC200-CCPW** (wired)
+> **Supported adapters:** Carlinkit CPC200-CCPA (wireless/wired) and CPC200-CCPW (wired)
 
 ## Build Environment
 
