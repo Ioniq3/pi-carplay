@@ -6,7 +6,7 @@ import ArrowBackIosOutlinedIcon from '@mui/icons-material/ArrowBackIosOutlined'
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
 import { SettingsLayoutProps } from './types'
 
-export const SettingsLayout = ({ children, onSave }: SettingsLayoutProps) => {
+export const SettingsLayout = ({ children, onSave, isDirty }: SettingsLayoutProps) => {
   const navigate = useNavigate()
   const handleNavigate = () => {
     navigate(-1)
@@ -33,7 +33,9 @@ export const SettingsLayout = ({ children, onSave }: SettingsLayoutProps) => {
           justifyContent: 'space-between'
         }}
       >
-        <Stack spacing={0}>{children}</Stack>
+        <Stack spacing={0} sx={{ overflow: 'auto', height: '100%' }}>
+          {children}
+        </Stack>
 
         <div
           style={{
@@ -67,6 +69,7 @@ export const SettingsLayout = ({ children, onSave }: SettingsLayoutProps) => {
                 justifyContent: 'space-between',
                 gap: '0.5rem'
               }}
+              disabled={!isDirty}
             >
               <SaveOutlinedIcon />
               Save

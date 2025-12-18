@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { requiresRestartParams } from '../../settings/constants'
-// import { useCarplayStore } from '@store/store'
+import { getValueByPath, setValueByPath } from '../utils'
 
 type OverrideConfig<T> = {
   transform?: (value: any, prev: T) => T
@@ -9,51 +9,59 @@ type OverrideConfig<T> = {
 
 type Overrides<T> = Partial<Record<keyof T, OverrideConfig<T>>>
 
-export function useSmartSettings<T extends Record<string, any>, K extends keyof T>(
+export function useSmartSettings<T extends Record<string, any>>(
   initial: T,
   settings: T,
-  options?: {
-    overrides?: Overrides<T>
-  }
+  options?: { overrides?: Overrides<T> }
 ) {
-  // const saveSettings = useCarplayStore((s) => s.saveSettings)
   const overrides = options?.overrides ?? {}
-
-  const [state, setState] = useState<T>(initial)
+  const [state, setState] = useState<T>(() => ({ ...initial }))
   const [isRequireReset, setIsRequireReset] = useState(false)
 
-  const evaluateNeedRestart = (key: K, nextValue: T[K]) => {
-    return requiresRestartParams.includes(key) && settings[key] !== nextValue
-  }
-
-  const handleFieldChange = <K extends keyof T>(key: K, rawValue: T[K] | any) => {
-    const prevValue = state[key]
-
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const override: OverrideConfig<T[K]> | undefined = overrides[key]
-
-    // transform
-    const transformedValue = override?.transform?.(rawValue, prevValue) ?? rawValue
-
-    // validate
-    if (override?.validate && !override.validate(transformedValue)) return
-
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const needRestart = evaluateNeedRestart(key, transformedValue)
-
-    setIsRequireReset(needRestart)
-    setState((prev) => ({ ...prev, [key]: transformedValue }))
-  }
-
-  const resetState = () => {
-    setState(initial)
+  useEffect(() => {
+    setState({ ...initial })
     setIsRequireReset(false)
+  }, [initial])
+
+  const isDirty = useMemo(
+    () =>
+      Object.keys(state).some((path) => {
+        return getValueByPath(settings, path) !== state[path]
+      }),
+    [state, settings]
+  )
+
+  const evaluateNeedRestart = (path: string, nextValue: any) => {
+    const key = path.split('.').at(-1) as any
+    return requiresRestartParams.includes(key)
   }
+
+  const handleFieldChange = (path: string, rawValue: any) => {
+    const prevValue = state[path]
+    const override = overrides[path]
+
+    const nextValue = override?.transform?.(rawValue, prevValue) ?? rawValue
+
+    if (override?.validate && !override.validate(nextValue)) return
+
+    if (evaluateNeedRestart(path, nextValue)) {
+      setIsRequireReset(true)
+    }
+
+    setState((prev) => ({
+      ...prev,
+      [path]: nextValue
+    }))
+  }
+
+  const resetState = () => setState(initial)
 
   const save = () => {
-    const newSettings = { ...settings, ...overrides }
+    const newSettings = structuredClone(settings ?? {})
+
+    Object.entries(state).forEach(([path, value]) => {
+      setValueByPath(newSettings, path, value)
+    })
 
     console.log('saved settings:', newSettings)
 
@@ -63,7 +71,7 @@ export function useSmartSettings<T extends Record<string, any>, K extends keyof 
 
   return {
     state,
-    isRequireReset,
+    isDirty,
     handleFieldChange,
     resetState,
     save

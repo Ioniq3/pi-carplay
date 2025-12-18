@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Typography } from '@mui/material'
+import { useCarplayStore } from '@store/store'
 
 type CameraId = string
 
 interface CameraProps {
-  settings: { camera: CameraId } | null
   width?: number
   height?: number
   allowFallback?: boolean
@@ -19,13 +19,13 @@ type OpenStatus =
   | { state: 'error'; message: string }
 
 export const Camera: React.FC<CameraProps> = ({
-  settings,
   width = 800,
   height,
   allowFallback = true,
   showFallbackNotice = true,
   withAudio = false
 }) => {
+  const settings = useCarplayStore((s) => s.settings)
   const videoRef = useRef<HTMLVideoElement>(null)
   const currentStreamRef = useRef<MediaStream | null>(null)
   const [status, setStatus] = useState<OpenStatus>({ state: 'idle' })

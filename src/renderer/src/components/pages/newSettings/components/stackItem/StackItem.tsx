@@ -2,7 +2,7 @@ import { styled } from '@mui/material/styles'
 import Paper from '@mui/material/Paper'
 import ArrowForwardIosOutlinedIcon from '@mui/icons-material/ArrowForwardIosOutlined'
 import { themeColors } from '@renderer/themeColors'
-import { StackItemProps } from '../../pages/types'
+import { StackItemProps } from '../../type'
 
 const Item = styled(Paper)(({ theme }) => ({
   ...theme.typography.body2,
