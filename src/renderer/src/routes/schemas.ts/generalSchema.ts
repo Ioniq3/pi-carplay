@@ -1,4 +1,3 @@
-import { About } from '../../components/pages/newSettings/pages/about'
 import { KeyBindings } from '../../components/pages/newSettings/pages/keybindings'
 import { Camera } from '../../components/pages/newSettings/pages/camera'
 import { SettingsNode } from '../types'
@@ -206,20 +205,6 @@ export const generalSchema: SettingsNode<ExtraConfig> = {
           type: 'custom',
           label: 'Keybindings',
           component: KeyBindings
-        }
-      ]
-    },
-    {
-      type: 'route',
-      label: 'About',
-      route: 'about',
-      path: '',
-      children: [
-        {
-          path: 'about',
-          type: 'custom',
-          label: 'About',
-          component: About
         }
       ]
     }

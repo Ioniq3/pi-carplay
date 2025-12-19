@@ -10,10 +10,6 @@ export const appRoutes = [
     element: <Layout />,
     children: [
       {
-        path: `/${RoutePath.Info}`,
-        element: <Info />
-      },
-      {
         path: `/${RoutePath.Camera}`,
         element: <Camera />
       },
