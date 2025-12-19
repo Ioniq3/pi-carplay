@@ -26,11 +26,11 @@ export const appRoutes = [
         element: <Home />
       },
       {
-        path: `/${RoutePath.Settings}/*`,
+        path: `/${RoutePath.OldSettings}/*`,
         element: <Settings />
       },
       {
-        path: `/${RoutePath.NewSettings}/*`,
+        path: `/${RoutePath.Settings}/*`,
         element: <NewSettingsPage />,
         children: settingsRoutes?.children ?? []
       }

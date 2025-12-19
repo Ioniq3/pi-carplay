@@ -1,10 +1,9 @@
-import { ComponentType } from 'react'
 import { SettingsCustomPageProps } from '../components/pages/newSettings/pages/streamResolution/types'
 
 export enum RoutePath {
   Home = 'home',
+  OldSettings = 'old-settings',
   Settings = 'settings',
-  NewSettings = 'new-settings',
   Camera = 'camera',
   Media = 'media',
   Info = 'info'
