@@ -95,6 +95,11 @@ export class RendererWorker {
 
     await this.evaluateRendererCapabilities()
 
+    if (!this.selectedRenderer) {
+      console.warn('[RENDER.WORKER] No suitable renderer found')
+      return
+    }
+
     if (this.selectedRenderer === 'webgl2') {
       this.renderer = new WebGL2Renderer(event.canvas)
     } else if (this.selectedRenderer === 'webgpu') {
@@ -117,7 +122,7 @@ export class RendererWorker {
     const isArm = ua.includes('aarch64') || ua.includes('arm64')
 
     const rendererPriority = isMac
-      ? ['webgpu', 'webgl2'] // macOS -> WebGPU first
+      ? ['webgl2', 'webgpu'] // macOS -> WebGL2 first
       : isLinux && !isArm
         ? ['webgl2', 'webgpu'] // Linux x64 -> WebGL2 first
         : ['webgl2', 'webgpu'] // Linux ARM -> WebGL2 first
@@ -140,6 +145,7 @@ export class RendererWorker {
       }
     }
 
+    this.hardwareAccelerationTested = true
     console.warn('[RENDER.WORKER] No suitable renderer found')
   }
 
@@ -156,6 +162,20 @@ export class RendererWorker {
         context = canvas.getContext('webgpu')
       } catch {
         context = null
+      }
+
+      if (context) {
+        try {
+          const adapter = await navigator.gpu?.requestAdapter()
+          if (!adapter) {
+            console.debug('[RENDER.WORKER] WebGPU -> adapter is null')
+            return { hw: false, sw: false, available: false }
+          }
+          await adapter.requestDevice()
+        } catch (e) {
+          console.debug('[RENDER.WORKER] WebGPU -> adapter/device init failed', e)
+          return { hw: false, sw: false, available: false }
+        }
       }
     }
 
