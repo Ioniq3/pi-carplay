@@ -35,6 +35,7 @@ type ControlsProps = {
   iconPx: number
   iconMainPx: number
 }
+
 export const Controls = ({
   ctrlGap,
   ctrlSize,
@@ -52,70 +53,72 @@ export const Controls = ({
   iconMainPx
 }: ControlsProps) => {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 80px', alignItems: 'center' }}>
-      <div />
-      <div style={{ justifySelf: 'center' }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: ctrlGap,
-            alignItems: 'center',
-            height: Math.round(ctrlSize * 1.1)
-          }}
+    <div
+      style={{
+        width: '100%',
+        display: 'flex',
+        justifyContent: 'center'
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          gap: ctrlGap,
+          alignItems: 'center',
+          height: Math.round(ctrlSize * 1.1)
+        }}
+      >
+        <button
+          ref={prevBtnRef}
+          onMouseUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
+          onFocus={() => setFocus((f) => ({ ...f, prev: true }))}
+          onBlur={() => setFocus((f) => ({ ...f, prev: false }))}
+          onClick={onPrev}
+          title="Previous"
+          aria-label="Previous"
+          style={circleBtnStyle(ctrlSize, press.prev, focus.prev)}
         >
-          <button
-            ref={prevBtnRef}
-            onMouseUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
-            onFocus={() => setFocus((f) => ({ ...f, prev: true }))}
-            onBlur={() => setFocus((f) => ({ ...f, prev: false }))}
-            onClick={onPrev}
-            title="Previous"
-            aria-label="Previous"
-            style={circleBtnStyle(ctrlSize, press.prev, focus.prev)}
-          >
-            <SkipPreviousIcon sx={{ fontSize: iconPx, display: 'block', lineHeight: 0 }} />
-          </button>
+          <SkipPreviousIcon sx={{ fontSize: iconPx, display: 'block', lineHeight: 0 }} />
+        </button>
 
-          <button
-            ref={playBtnRef}
-            onMouseUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
-            onFocus={() => setFocus((f) => ({ ...f, play: true }))}
-            onBlur={() => setFocus((f) => ({ ...f, play: false }))}
-            onClick={onPlayPause}
-            title={uiPlaying ? 'Pause' : 'Play'}
-            aria-label="Play/Pause"
-            aria-pressed={uiPlaying}
-            style={circleBtnStyle(Math.round(ctrlSize * 1.1), press.play, focus.play)}
-          >
-            {uiPlaying ? (
-              <PauseIcon sx={{ fontSize: iconMainPx, display: 'block', lineHeight: 0 }} />
-            ) : (
-              <PlayArrowIcon
-                sx={{
-                  fontSize: iconMainPx,
-                  display: 'block',
-                  lineHeight: 0,
-                  transform: 'translateX(1px)'
-                }}
-              />
-            )}
-          </button>
+        <button
+          ref={playBtnRef}
+          onMouseUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
+          onFocus={() => setFocus((f) => ({ ...f, play: true }))}
+          onBlur={() => setFocus((f) => ({ ...f, play: false }))}
+          onClick={onPlayPause}
+          title={uiPlaying ? 'Pause' : 'Play'}
+          aria-label="Play/Pause"
+          aria-pressed={uiPlaying}
+          style={circleBtnStyle(Math.round(ctrlSize * 1.1), press.play, focus.play)}
+        >
+          {uiPlaying ? (
+            <PauseIcon sx={{ fontSize: iconMainPx, display: 'block', lineHeight: 0 }} />
+          ) : (
+            <PlayArrowIcon
+              sx={{
+                fontSize: iconMainPx,
+                display: 'block',
+                lineHeight: 0,
+                transform: 'translateX(1px)'
+              }}
+            />
+          )}
+        </button>
 
-          <button
-            ref={nextBtnRef}
-            onMouseUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
-            onFocus={() => setFocus((f) => ({ ...f, next: true }))}
-            onBlur={() => setFocus((f) => ({ ...f, next: false }))}
-            onClick={onNext}
-            title="Next"
-            aria-label="Next"
-            style={circleBtnStyle(ctrlSize, press.next, focus.next)}
-          >
-            <SkipNextIcon sx={{ fontSize: iconPx, display: 'block', lineHeight: 0 }} />
-          </button>
-        </div>
+        <button
+          ref={nextBtnRef}
+          onMouseUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
+          onFocus={() => setFocus((f) => ({ ...f, next: true }))}
+          onBlur={() => setFocus((f) => ({ ...f, next: false }))}
+          onClick={onNext}
+          title="Next"
+          aria-label="Next"
+          style={circleBtnStyle(ctrlSize, press.next, focus.next)}
+        >
+          <SkipNextIcon sx={{ fontSize: iconPx, display: 'block', lineHeight: 0 }} />
+        </button>
       </div>
-      <div />
     </div>
   )
 }

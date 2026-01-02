@@ -8,18 +8,36 @@ type ProgressProps = {
 }
 
 export const ProgressBar = ({ elapsedMs, progressH, totalMs, pct }: ProgressProps) => {
+  const left = msToClock(elapsedMs)
+  const right = `-${msToClock(Math.max(0, totalMs - elapsedMs))}`
+
   return (
     <div
       style={{
+        width: '100%',
+        maxWidth: '100%',
         display: 'grid',
-        gridTemplateColumns: '80px 1fr 80px',
+        gridTemplateColumns: 'minmax(3.5em, max-content) minmax(0, 1fr) minmax(3.5em, max-content)',
         alignItems: 'center',
-        columnGap: 12
+        columnGap: 12,
+        boxSizing: 'border-box'
       }}
     >
-      <div style={{ fontSize: 14, opacity: 0.85 }}>{msToClock(elapsedMs)}</div>
       <div
         style={{
+          fontSize: 14,
+          opacity: 0.85,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'clip'
+        }}
+      >
+        {left}
+      </div>
+
+      <div
+        style={{
+          minWidth: 0,
           height: progressH,
           borderRadius: progressH / 1.6,
           background: 'rgba(255,255,255,0.28)',
@@ -35,8 +53,18 @@ export const ProgressBar = ({ elapsedMs, progressH, totalMs, pct }: ProgressProp
           }}
         />
       </div>
-      <div style={{ fontSize: 14, opacity: 0.85, textAlign: 'right' }}>
-        -{msToClock(Math.max(0, totalMs - elapsedMs))}
+
+      <div
+        style={{
+          fontSize: 14,
+          opacity: 0.85,
+          textAlign: 'right',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'clip'
+        }}
+      >
+        {right}
       </div>
     </div>
   )

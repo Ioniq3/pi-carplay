@@ -10,12 +10,7 @@ import {
 } from './hooks'
 import { clamp } from './utils'
 import { ProgressBar, Controls } from './components'
-import {
-  EXTRA_SMALL_SCREEN,
-  MIN_SCREEN_SIZE_FOR_ATRWORK,
-  MIN_SCREEN_SIZE_FOR_PROGRESSBAR,
-  MIN_TEXT_COL
-} from './constants'
+import { EXTRA_SMALL_SCREEN, MIN_SCREEN_SIZE_FOR_ATRWORK, MIN_TEXT_COL } from './constants'
 import { flash } from './utils/flash'
 import { mediaScaleOps } from './utils/mediaScaleOps'
 import { mediaLayoutArtworksOps } from './utils/mediaLayoutArtworksOps'
@@ -29,21 +24,39 @@ export const Media = () => {
   const [rootRef, { w, h }] = useElementSize<HTMLDivElement>()
   const { snap, livePlayMs } = useMediaState(isStreaming)
 
-  // Scales
+  // Scales (base)
   const { titlePx, artistPx, albumPx, pagePad, colGap, sectionGap, ctrlSize, ctrlGap, progressH } =
     mediaScaleOps({ w, h })
 
-  // Layout + artwork
+  // Tiny-screen helpers (e.g. 320x240)
+  const isTinyHeight = h > 0 && h <= 320
+  const textScale = isTinyHeight ? 0.88 : 1
+
+  // Clamp padding on tiny screens, otherwise the progress bar has no space left
+  const pagePadClamped = isTinyHeight ? Math.min(pagePad, 10) : pagePad
+
+  const titlePxScaled = Math.max(12, Math.round(titlePx * textScale))
+  const artistPxScaled = Math.max(11, Math.round(artistPx * textScale))
+  const albumPxScaled = Math.max(10, Math.round(albumPx * textScale))
+  const appPxScaled = Math.max(10, Math.round(12 * textScale))
+
+  // Slightly slimmer bar on tiny screens
+  const progressHScaled = Math.max(6, Math.round(progressH * (isTinyHeight ? 0.85 : 1)))
+
+  // Compute usable inner width (hard clamp) for anything that must not overflow
+  const innerMaxWidth = Math.max(0, Math.floor(w - pagePadClamped * 2))
+
+  // Layout + artwork (use scaled values + clamped padding so no “in-between” glitches)
   const { canTwoCol, artPx, innerW } = mediaLayoutArtworksOps({
     ctrlSize,
-    progressH,
+    progressH: progressHScaled,
     w,
     h,
-    pagePad,
+    pagePad: pagePadClamped,
     colGap,
-    titlePx,
-    artistPx,
-    albumPx
+    titlePx: titlePxScaled,
+    artistPx: artistPxScaled,
+    albumPx: albumPxScaled
   })
 
   // Media projection
@@ -94,6 +107,7 @@ export const Media = () => {
     const handler = (e: Event) => {
       const cmd = (e as CustomEvent<{ command?: string }>).detail?.command?.toLowerCase()
       if (!cmd) return
+
       if (
         cmd === MediaEventType.PLAY ||
         cmd === MediaEventType.PAUSE ||
@@ -110,6 +124,7 @@ export const Media = () => {
         allowBackwardOnceRef.current = true
       }
     }
+
     window.addEventListener('car-media-key', handler as EventListener)
     return () => window.removeEventListener('car-media-key', handler as EventListener)
   }, [bump])
@@ -141,6 +156,7 @@ export const Media = () => {
     () => [title, artist, album, totalMs].join('␟'),
     [title, artist, album, totalMs]
   )
+
   if (trackSig !== lastTrackSigRef.current) {
     lastTrackSigRef.current = trackSig
     lastProgressRef.current = 0
@@ -166,7 +182,12 @@ export const Media = () => {
 
   const iconPx = Math.round(ctrlSize * 0.46)
   const iconMainPx = Math.round(ctrlSize * 0.52)
-  const textSidePad = Math.max(8, Math.round(pagePad * 0.75))
+
+  // Slightly reduce side padding for text on tiny screens
+  const textSidePad = Math.max(6, Math.round(pagePadClamped * 0.75))
+
+  // Always show progress bar (unless payload error)
+  const showProgressBar = !mediaPayloadError
 
   return (
     <div
@@ -182,8 +203,9 @@ export const Media = () => {
         display: 'flex',
         flexDirection: 'column',
         minHeight: 0,
-        padding: pagePad,
-        boxSizing: 'border-box'
+        padding: pagePadClamped,
+        boxSizing: 'border-box',
+        overflow: 'hidden'
       }}
     >
       {/* CONTENT */}
@@ -210,22 +232,42 @@ export const Media = () => {
                 paddingLeft: textSidePad
               }}
             >
-              <div>
+              <div style={{ maxWidth: innerMaxWidth, overflow: 'hidden' }}>
                 <div
                   style={{
-                    fontSize: `${titlePx}px`,
+                    fontSize: `${titlePxScaled}px`,
                     fontWeight: 800,
                     lineHeight: 1.08,
-                    letterSpacing: 0.2
+                    letterSpacing: 0.2,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
                   }}
                 >
                   {title}
                 </div>
-                <div style={{ opacity: 0.9, fontSize: `${artistPx}px`, marginTop: 8 }}>
+                <div
+                  style={{
+                    opacity: 0.9,
+                    fontSize: `${artistPxScaled}px`,
+                    marginTop: 8,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}
+                >
                   {artist}
                 </div>
-                <div style={{ opacity: 0.7, fontSize: `${albumPx}px`, marginTop: 4 }}>{album}</div>
-                <div style={{ opacity: 0.55, fontSize: 12, marginTop: 4 }}>{appName}</div>
+                <div
+                  style={{
+                    opacity: 0.7,
+                    fontSize: `${albumPxScaled}px`,
+                    marginTop: 4,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}
+                >
+                  {album}
+                </div>
+                <div style={{ opacity: 0.55, fontSize: appPxScaled, marginTop: 4 }}>{appName}</div>
               </div>
             </div>
 
@@ -266,29 +308,48 @@ export const Media = () => {
               paddingRight: textSidePad
             }}
           >
-            <div>
+            <div style={{ maxWidth: innerMaxWidth, overflow: 'hidden' }}>
               <div
                 style={{
-                  fontSize: `${titlePx}px`,
+                  fontSize: `${titlePxScaled}px`,
                   fontWeight: 800,
                   lineHeight: 1.08,
-                  letterSpacing: 0.2
+                  letterSpacing: 0.2,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}
               >
                 {title}
               </div>
+
               {innerW > EXTRA_SMALL_SCREEN && (
                 <>
-                  <div style={{ opacity: 0.9, fontSize: `${artistPx}px`, marginTop: 8 }}>
+                  <div
+                    style={{
+                      opacity: 0.9,
+                      fontSize: `${artistPxScaled}px`,
+                      marginTop: 8,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
                     {artist}
                   </div>
-                  <div style={{ opacity: 0.7, fontSize: `${albumPx}px`, marginTop: 4 }}>
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      fontSize: `${albumPxScaled}px`,
+                      marginTop: 4,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
                     {album}
                   </div>
                 </>
               )}
 
-              <div style={{ opacity: 0.55, fontSize: 12, marginTop: 4 }}>
+              <div style={{ opacity: 0.55, fontSize: appPxScaled, marginTop: 4 }}>
                 {innerW > EXTRA_SMALL_SCREEN || !artist ? appName : artist}
               </div>
             </div>
@@ -324,26 +385,46 @@ export const Media = () => {
       </div>
 
       {/* BOTTOM DOCK */}
-      <div style={{ display: 'grid', gridAutoRows: 'auto', rowGap: 10, paddingBottom: '1rem' }}>
-        <Controls
-          ctrlGap={ctrlGap}
-          ctrlSize={ctrlSize}
-          prevBtnRef={prevBtnRef}
-          playBtnRef={playBtnRef}
-          nextBtnRef={nextBtnRef}
-          onSetFocus={setFocus}
-          onPrev={onPrev}
-          onPlayPause={onPlayPause}
-          onNext={onNext}
-          uiPlaying={uiPlaying}
-          press={press}
-          focus={focus}
-          iconPx={iconPx}
-          iconMainPx={iconMainPx}
-        />
+      <div
+        style={{
+          display: 'grid',
+          gridAutoRows: 'auto',
+          rowGap: isTinyHeight ? 8 : 10,
+          paddingBottom: isTinyHeight ? 6 : '1rem',
+          width: '100%',
+          boxSizing: 'border-box'
+        }}
+      >
+        {/* Always center controls */}
+        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <Controls
+            ctrlGap={ctrlGap}
+            ctrlSize={ctrlSize}
+            prevBtnRef={prevBtnRef}
+            playBtnRef={playBtnRef}
+            nextBtnRef={nextBtnRef}
+            onSetFocus={setFocus}
+            onPrev={onPrev}
+            onPlayPause={onPlayPause}
+            onNext={onNext}
+            uiPlaying={uiPlaying}
+            press={press}
+            focus={focus}
+            iconPx={iconPx}
+            iconMainPx={iconMainPx}
+          />
+        </div>
 
-        {!mediaPayloadError && innerW > MIN_SCREEN_SIZE_FOR_PROGRESSBAR && (
-          <ProgressBar elapsedMs={elapsedMs} progressH={progressH} totalMs={totalMs} pct={pct} />
+        {/* Always render progress bar (unless payload error) – hard width clamp */}
+        {showProgressBar && (
+          <div style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+            <ProgressBar
+              elapsedMs={elapsedMs}
+              progressH={progressHScaled}
+              totalMs={totalMs}
+              pct={pct}
+            />
+          </div>
         )}
       </div>
     </div>
