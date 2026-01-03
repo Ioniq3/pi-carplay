@@ -6,7 +6,7 @@ import { AppLayoutProps } from './types'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import WifiIcon from '@mui/icons-material/Wifi'
-import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt'
+import WifiOffIcon from '@mui/icons-material/WifiOff'
 import { useBlinkingTime } from '../../hooks/useBlinkingTime'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 import { ROUTES } from '../../constants'
@@ -67,18 +67,9 @@ export const AppLayout: FC<PropsWithChildren<AppLayoutProps>> = ({
                 <div>
                   {network.type === 'wifi' ? (
                     <WifiIcon fontSize="small" style={{ fontSize: '1rem' }} />
-                  ) : (
-                    <>
-                      {(network.type === 'cellular' || network.effectiveType) && (
-                        <div style={{ display: 'flex', flexDirection: 'row' }}>
-                          <SignalCellularAltIcon fontSize="small" style={{ fontSize: '1rem' }} />
-                          <Typography style={{ fontSize: '0.75rem' }}>
-                            {network.effectiveType?.toUpperCase()}
-                          </Typography>
-                        </div>
-                      )}
-                    </>
-                  )}
+                  ) : !network.online ? (
+                    <WifiOffIcon fontSize="small" style={{ fontSize: '1rem', opacity: 0.7 }} />
+                  ) : null}
                 </div>
               </Box>
             </div>

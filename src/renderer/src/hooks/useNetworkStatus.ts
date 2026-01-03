@@ -1,30 +1,62 @@
 import { useEffect, useState } from 'react'
 
-export function useNetworkStatus() {
-  const getConnection = () => {
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+type NetworkStatus = {
+  type: 'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown'
+  effectiveType: string | null
+  online: boolean
+}
 
-    if (!connection) {
-      return { type: 'unknown', effectiveType: null }
+export function useNetworkStatus(): NetworkStatus {
+  const read = (): NetworkStatus => {
+    const online = typeof navigator !== 'undefined' ? navigator.onLine : true
+
+    const c: any =
+      (navigator as any).connection ||
+      (navigator as any).mozConnection ||
+      (navigator as any).webkitConnection
+
+    // If the API is missing, we can only reliably know "online/offline".
+    if (!c) {
+      return { type: online ? 'unknown' : 'none', effectiveType: null, online }
     }
 
-    return {
-      type: connection.type || 'WiFi',
-      effectiveType: connection.effectiveType || null
-    }
+    const rawType = typeof c.type === 'string' ? c.type.toLowerCase() : ''
+    const type =
+      rawType === 'wifi'
+        ? 'wifi'
+        : rawType === 'cellular'
+          ? 'cellular'
+          : rawType === 'ethernet'
+            ? 'ethernet'
+            : online
+              ? 'unknown'
+              : 'none'
+
+    const effectiveType = typeof c.effectiveType === 'string' ? c.effectiveType.toLowerCase() : null
+
+    return { type, effectiveType, online }
   }
 
-  const [network, setNetwork] = useState(getConnection())
+  const [network, setNetwork] = useState<NetworkStatus>(() => read())
 
   useEffect(() => {
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+    const c: any =
+      (navigator as any).connection ||
+      (navigator as any).mozConnection ||
+      (navigator as any).webkitConnection
 
-    if (!connection) return
+    const update = () => setNetwork(read())
 
-    const update = () => setNetwork(getConnection())
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
 
-    connection.addEventListener('change', update)
-    return () => connection.removeEventListener('change', update)
+    if (c?.addEventListener) c.addEventListener('change', update)
+
+    return () => {
+      window.removeEventListener('online', update)
+      window.removeEventListener('offline', update)
+      if (c?.removeEventListener) c.removeEventListener('change', update)
+    }
   }, [])
 
   return network
