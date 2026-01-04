@@ -47,8 +47,6 @@ export const Nav = ({ receivingVideo }: NavProps) => {
   // TODO move it to global UI constants
   const isXSIcons = window.innerHeight <= 320
 
-  console.log(window.innerHeight)
-
   const tabSx = {
     minWidth: 0,
     flex: '1 1 0',

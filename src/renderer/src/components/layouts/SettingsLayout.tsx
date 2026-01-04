@@ -4,7 +4,7 @@ import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import ArrowBackIosOutlinedIcon from '@mui/icons-material/ArrowBackIosOutlined'
 import RestartAltOutlinedIcon from '@mui/icons-material/RestartAltOutlined'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { SettingsLayoutProps } from './types'
 import { useTheme } from '@mui/material/styles'
 
@@ -16,8 +16,11 @@ export const SettingsLayout = ({
 }: SettingsLayoutProps) => {
   const navigate = useNavigate()
   const theme = useTheme()
+  const location = useLocation()
 
   const handleNavigate = () => navigate(-1)
+
+  const isShouldShowBackButton = location.pathname !== '/settings'
 
   return (
     <Box
@@ -29,60 +32,78 @@ export const SettingsLayout = ({
         minHeight: 0,
         overflow: 'hidden',
         boxSizing: 'border-box',
-        px: 'clamp(12px, 3.5vw, 28px)',
-        pt: 'clamp(8px, 2.2vh, 18px)',
-        pb: 'clamp(10px, 2.2vh, 18px)'
+        pl: 'clamp(12px, 1.5dvw, 28px)',
+        pr: 'clamp(12px, 3.5dvw, 28px)',
+        pt: 'clamp(8px, 2.2dvh, 18px)',
+        pb: 'clamp(10px, 2.2dvh, 18px)',
+        gap: '0.75rem'
       }}
     >
       {/* HEADER */}
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: 'clamp(36px, 6vw, 56px) 1fr clamp(36px, 6vw, 56px)',
+          gridTemplateColumns:
+            !isShouldShowBackButton && !showRestart
+              ? '1fr'
+              : 'clamp(36px, 6dvw, 56px) 1fr clamp(36px, 8dvw, 100px)',
           alignItems: 'center',
           flex: '0 0 auto',
-          mb: 'clamp(8px, 1.5vh, 16px)'
+          padding: '0, 0.5rem',
+          height: 'clamp(32px, 5.5dvw, 44px)'
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton
-            onClick={handleNavigate}
-            aria-label="Back"
-            sx={{
-              width: 'clamp(32px, 5.5vw, 44px)',
-              height: 'clamp(32px, 5.5vw, 44px)'
-            }}
-          >
-            <ArrowBackIosOutlinedIcon />
-          </IconButton>
-        </Box>
+        {isShouldShowBackButton && (
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconButton
+              onClick={handleNavigate}
+              aria-label="Back"
+              sx={{
+                width: 'clamp(32px, 5.5dvw, 44px)'
+              }}
+            >
+              <ArrowBackIosOutlinedIcon />
+            </IconButton>
+          </Box>
+        )}
 
         <Typography
           sx={{
             textAlign: 'center',
             fontWeight: 800,
             lineHeight: 1.05,
-            fontSize: 'clamp(16px, 3.6vh, 34px)'
+            fontSize: 'clamp(16px, 3.6dvh, 34px)'
           }}
         >
           {title}
         </Typography>
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-          <IconButton
-            onClick={onRestart}
-            aria-label="Restart dongle"
-            sx={{
-              width: 'clamp(32px, 5.5vw, 44px)',
-              height: 'clamp(32px, 5.5vw, 44px)',
-              opacity: showRestart ? 1 : 0,
-              pointerEvents: showRestart ? 'auto' : 'none',
-              color: showRestart ? theme.palette.primary.main : 'inherit'
-            }}
-          >
-            <RestartAltOutlinedIcon />
-          </IconButton>
-        </Box>
+        {showRestart && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+            <IconButton
+              onClick={onRestart}
+              aria-label="Restart dongle"
+              sx={{
+                width: '100%',
+                color: theme.palette.primary.main
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  whiteSpace: 'nowrap',
+                  fontSize: '1rem',
+                  gap: '0.5rem'
+                }}
+              >
+                <span>Save</span>
+                <RestartAltOutlinedIcon />
+              </div>
+            </IconButton>
+          </Box>
+        )}
       </Box>
 
       <Box
@@ -95,7 +116,7 @@ export const SettingsLayout = ({
           touchAction: 'pan-y'
         }}
       >
-        <Stack spacing={0} sx={{ minHeight: 0 }}>
+        <Stack spacing={0} sx={{ minHeight: 0, padding: '0 0 0 0.5rem' }}>
           {children}
         </Stack>
       </Box>
