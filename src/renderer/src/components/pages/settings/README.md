@@ -23,6 +23,7 @@ Navigation, pages, lists, and fields are automatically generated from a JSON-lik
 Each schema element is a `SettingsNode`.
 
 It can be:
+
 - a section (`route`)
 - a field (`string`, `number`, `checkbox`, `slider`, `select`, `color`)
 - a custom page (`custom`)
@@ -40,6 +41,7 @@ export const settingsSchema: SettingsNode = {
   children: [generalSchema, audioSchema, videoSchema, appearanceSchema]
 }
 ```
+
 - route — URL segment
 - label — displayed name
 - children — nested sections or fields
@@ -51,10 +53,13 @@ From this schema, the system automatically:
 - renders pages
 
 ### Navigation
+
 ```ts
 export const settingsRoutes = generateRoutes(settingsSchema)
 ```
+
 ## ❗ Do not manually add routes
+
 ### Everything should go through the schema
 
 ## Node Types
@@ -69,9 +74,11 @@ export const settingsRoutes = generateRoutes(settingsSchema)
 | `select`   | Dropdown            | Label + arrow if `page` | Select / dropdown      |
 | `color`    | Color picker        | Color preview           | Input or picker        |
 | `custom`   | Custom component    | Rendered as-is          | Rendered as-is         |
+
 Items with page property always open a dedicated page on click.
 
 ## Example Nodes
+
 ```ts
 {
   type: 'route',
@@ -80,10 +87,12 @@ Items with page property always open a dedicated page on click.
   children: []
 }
 ```
+
 - creates a menu item
 - can contain other sections or fields
 
 ### Simple Field
+
 ```ts
 {
   type: 'checkbox',
@@ -91,11 +100,13 @@ Items with page property always open a dedicated page on click.
   path: 'kiosk'
 }
 ```
+
 - path — path in the store (settings.kiosk)
 - automatically rendered in the list
 - value synchronized with the store
 
 ### Field with dedicated page
+
 ```ts
 {
   type: 'string',
@@ -107,12 +118,15 @@ Items with page property always open a dedicated page on click.
   }
 }
 ```
+
 Behavior:
+
 - in list → shows as an item with arrow
 - on click → opens dedicated page
 - editable via universal control
 
 ### Select (dropdown)
+
 ```ts
 {
   type: 'select',
@@ -129,7 +143,9 @@ Behavior:
 ```
 
 ### Custom Page (custom)
+
 Use only if standard fields are not enough.
+
 ```ts
 {
   path: 'about',
@@ -138,12 +154,15 @@ Use only if standard fields are not enough.
   component: About
 }
 ```
+
 - component — React component
 - fully controls its own UI
 - does NOT participate in automatic syncing
 
 ## Nested Sections
+
 #### Nesting is unlimited:
+
 ```ts
 {
   type: 'route',
@@ -165,13 +184,17 @@ Use only if standard fields are not enough.
   ]
 }
 ```
+
 URL will be:
+
 ```ts
-/settings/general/connections/wifi
+;/settings/aeeglnr / connections / wifi
 ```
 
 ## Adding a New Setting
+
 #### Add a simple field
+
 ```ts
 {
   type: 'number',
@@ -183,19 +206,23 @@ URL will be:
   }
 }
 ```
+
 - appears in the list
 - opens a dedicated page
 - value is saved in the store
 
 ## Move a setting
+
 #### Just move the object in the schema:
+
 ```ts
-- generalSchema.children.push(fpsNode)
-+ videoSchema.children.push(fpsNode)
+;-generalSchema.children.push(fpsNode) + videoSchema.children.push(fpsNode)
 ```
+
 #### No other code changes needed
 
 ## Add a new section
+
 ```ts
 {
   type: 'route',
@@ -206,6 +233,7 @@ URL will be:
 ```
 
 # How state works
+
 - All values come from useCarplayStore
 - Local state:
 - - initialized from the schema
@@ -213,12 +241,15 @@ URL will be:
 - Save button is active only if there are changes
 
 # When to use custom
+
 ### Use custom only if:
+
 - complex layout is needed
 - graphs / lists / preview
 - non-standard behavior
 
 In 90% of cases, standard types are enough:
+
 - string
 - number
 - checkbox
@@ -227,6 +258,7 @@ In 90% of cases, standard types are enough:
 - color
 
 # Summary
+
 - Schema = source of truth
 - 🧭 Navigation generated automatically
 - ♻ Reusable UI controls

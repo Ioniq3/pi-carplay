@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
-import { requiresRestartParams } from '../../settings/constants'
+import { requiresRestartParams } from '../constants'
 import { getValueByPath, setValueByPath } from '../utils'
 import { useCarplayStore, useStatusStore } from '@store/store'
 

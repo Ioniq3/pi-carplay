@@ -1,6 +1,6 @@
 import { SettingsNode } from '../types'
 import { ExtraConfig } from '../../../../main/Globals'
-import { IconUploaderPage } from '../../components/pages/newSettings/pages/system/IconUploaderPage'
+import { IconUploaderPage } from '../../components/pages/settings/pages/system/IconUploaderPage'
 
 export const appearanceSchema: SettingsNode<ExtraConfig> = {
   type: 'route',

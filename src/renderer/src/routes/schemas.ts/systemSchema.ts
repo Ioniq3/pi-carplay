@@ -1,7 +1,7 @@
 import { Info } from '../../components/pages/info'
-import { About } from '../../components/pages/newSettings/pages/about'
-import { Restart } from '../../components/pages/newSettings/pages/system/Restart'
-import { PowerOff } from '../../components/pages/newSettings/pages/system/PowerOff'
+import { About } from '../../components/pages/settings/pages/about'
+import { Restart } from '../../components/pages/settings/pages/system/Restart'
+import { PowerOff } from '../../components/pages/settings/pages/system/PowerOff'
 import type { SettingsNode } from '../types'
 import type { ExtraConfig } from '@main/Globals'
 

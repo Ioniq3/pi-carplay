@@ -1,5 +1,5 @@
-import { KeyBindings } from '../../components/pages/newSettings/pages/keybindings'
-import { Camera } from '../../components/pages/newSettings/pages/camera'
+import { KeyBindings } from '../../components/pages/settings/pages/keybindings'
+import { Camera } from '../../components/pages/settings/pages/camera'
 import { SettingsNode } from '../types'
 import { ExtraConfig } from '../../../../main/Globals'
 
