@@ -120,7 +120,7 @@ export const audioSchema: SettingsNode<ExtraConfig> = {
     },
     {
       type: 'checkbox',
-      label: 'Disable CarPlay Audio',
+      label: 'Disable Audio',
       path: 'audioTransferMode'
     }
   ]
