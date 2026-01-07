@@ -61,10 +61,6 @@ export const Camera: React.FC<SettingsCustomPageProps<ExtraConfig, string>> = ({
   return (
     <>
       <div style={{ marginTop: 16 }}>
-        <Typography variant="h6" gutterBottom>
-          Camera
-        </Typography>
-
         {cameraOptions.length ? (
           <>
             <Select

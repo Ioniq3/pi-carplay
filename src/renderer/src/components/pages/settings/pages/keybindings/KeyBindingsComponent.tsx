@@ -70,9 +70,6 @@ export function KeyBindings({ state, updateKey }: KeyBindingsProps) {
 
   return (
     <>
-      <Typography variant="h6" gutterBottom>
-        Key bindings
-      </Typography>
       <Grid container spacing={2}>
         {Object.entries(state?.bindings ?? {}).map(([action, code]) => (
           <Grid size={{ xs: 3 }} key={action}>
