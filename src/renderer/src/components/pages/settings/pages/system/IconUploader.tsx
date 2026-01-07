@@ -45,7 +45,7 @@ const resizeImageToBase64Png = (img: HTMLImageElement, size: number): string => 
   return dataUrl.replace(/^data:image\/png;base64,/, '')
 }
 
-export function IconUploaderPage(props: SettingsCustomPageProps<ExtraConfig, unknown>) {
+export function IconUploader(props: SettingsCustomPageProps<ExtraConfig, unknown>) {
   const { requestRestart } = props
 
   const settings = useCarplayStore((s) => s.settings)
@@ -159,8 +159,6 @@ export function IconUploaderPage(props: SettingsCustomPageProps<ExtraConfig, unk
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Typography variant="h6">UI Icon</Typography>
-
       <Box
         role="button"
         tabIndex={0}
