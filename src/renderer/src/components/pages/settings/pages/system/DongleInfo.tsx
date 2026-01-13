@@ -160,27 +160,49 @@ export function DongleInfo() {
   )
 
   const renderRows = (rows: Row[]) => (
-    <Stack spacing={0.75}>
-      {rows.map((r) => (
-        <Stack key={r.label} direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
-          <Typography sx={{ minWidth: 140 }} color="text.secondary">
-            {r.label}:
-          </Typography>
+    <Stack spacing={0.5}>
+      {rows.map((r) => {
+        const text = r.value != null && String(r.value).trim() ? String(r.value) : '—'
+        const title = r.tooltip ?? (typeof r.value === 'string' ? r.value : '')
 
-          <Typography
-            title={r.tooltip ?? (typeof r.value === 'string' ? r.value : '')}
+        return (
+          <Box
+            key={r.label}
+            tabIndex={0}
+            role="listitem"
+            aria-label={`${r.label}: ${text}`}
             sx={{
-              ...(r.mono ? Mono : null),
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: '52ch'
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 1,
+              px: 1,
+              py: 0.75,
+              borderRadius: 1.25,
+              outline: 'none',
+              '&:focus-visible': {
+                bgcolor: 'action.selected'
+              }
             }}
           >
-            {r.value != null && String(r.value).trim() ? String(r.value) : '—'}
-          </Typography>
-        </Stack>
-      ))}
+            <Typography sx={{ minWidth: 140 }} color="text.secondary">
+              {r.label}:
+            </Typography>
+
+            <Typography
+              title={title}
+              sx={{
+                ...(r.mono ? Mono : null),
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '52ch'
+              }}
+            >
+              {text}
+            </Typography>
+          </Box>
+        )
+      })}
     </Stack>
   )
 

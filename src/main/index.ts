@@ -141,6 +141,22 @@ interface GhRelease {
   assets?: GhAsset[]
 }
 
+const NULL_DELETES: (keyof ExtraConfig)[] = [
+  'primaryColorDark',
+  'primaryColorLight',
+  'highlightColorDark',
+  'highlightColorLight'
+  // add more explicit “reset-to-default” keys here
+]
+
+function applyNullDeletes(merged: ExtraConfig, next: Partial<ExtraConfig>) {
+  for (const key of NULL_DELETES) {
+    if ((next as any)[key] === null) {
+      delete (merged as any)[key]
+    }
+  }
+}
+
 app.on('before-quit', async (e) => {
   if (isQuitting) return
   isQuitting = true
@@ -838,6 +854,8 @@ function saveSettings(next: Partial<ExtraConfig>) {
       ...(next.bindings ?? {})
     }
   } as ExtraConfig
+
+  applyNullDeletes(merged, next)
 
   try {
     writeFileSync(configPath, JSON.stringify(merged, null, 2))
