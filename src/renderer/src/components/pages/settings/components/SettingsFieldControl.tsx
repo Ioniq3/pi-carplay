@@ -122,7 +122,7 @@ export const SettingsFieldControl = <T,>({ node, value, onChange }: Props<T>) =>
           <IconButton
             size="small"
             disabled={!hasCustom}
-            onClick={() => onChange(undefined as unknown as T)}
+            onClick={() => onChange(null as unknown as T)}
           >
             <RestartAltOutlinedIcon fontSize="small" />
           </IconButton>
