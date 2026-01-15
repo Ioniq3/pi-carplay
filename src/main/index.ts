@@ -742,6 +742,19 @@ app.whenReady().then(() => {
       : app.quit()
   )
 
+  // App Quit
+  ipcMain.handle('app:quitApp', () => {
+    if (isQuitting) return
+    app.quit()
+  })
+
+  // App Restart
+  ipcMain.handle('app:restartApp', () => {
+    if (isQuitting) return
+    app.relaunch()
+    app.quit()
+  })
+
   ipcMain.handle('settings:get-kiosk', () => currentKiosk())
   ipcMain.handle('getSettings', () => config)
   ipcMain.handle('save-settings', (_evt, settings: Partial<ExtraConfig>) => {

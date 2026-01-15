@@ -71,7 +71,7 @@
     "@typescript-eslint/eslint-plugin": "^8.53.0",
     "@typescript-eslint/parser": "^8.53.0",
     "@vitejs/plugin-react": "^5.1.2",
-    "@webgpu/types": "^0.1.68",
+    "@webgpu/types": "^0.1.69",
     "electron": "^39.2.7",
     "electron-builder": "^26.4.0",
     "electron-to-chromium": "^1.5.267",

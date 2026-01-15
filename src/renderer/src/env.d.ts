@@ -61,6 +61,31 @@ type MediaPayload = {
   }
 } | null
 
+type DongleFirmwareAction = 'check' | 'download' | 'upload' | 'status'
+
+type DongleFirmwareCheckResult =
+  | {
+      ok: true
+      hasUpdate: boolean
+      latestVer?: string
+      notes?: string
+      size?: number
+      id?: string
+      token?: string
+      request?: {
+        lang: number
+        code: number
+        appVer: string
+        ver: string
+        uuid: string
+        mfd: string
+        fwn: string
+        model: string
+      }
+      raw: unknown
+    }
+  | { ok: false; error: string }
+
 declare global {
   interface Navigator {
     usb: {
@@ -99,6 +124,7 @@ declare global {
         start(): Promise<void>
         stop(): Promise<void>
         sendFrame(): Promise<void>
+        dongleFirmware(action: DongleFirmwareAction): Promise<DongleFirmwareCheckResult>
         sendTouch(x: number, y: number, action: number): void
         sendMultiTouch(points: MultiTouchPoint[]): void
         sendKeyCommand(key: string): void
@@ -112,6 +138,8 @@ declare global {
     }
 
     app: {
+      quitApp(): Promise<void>
+      restartApp(): Promise<void>
       getVersion(): Promise<string>
       getLatestRelease(): Promise<{ version?: string; url?: string }>
       performUpdate(imageUrl?: string): Promise<void>

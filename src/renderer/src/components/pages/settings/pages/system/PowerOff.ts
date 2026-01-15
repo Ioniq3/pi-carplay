@@ -1,4 +1,4 @@
 export function PowerOff(): null {
-  window.carplay.quit().catch(console.error)
+  window.app.quitApp().catch(console.error)
   return null
 }

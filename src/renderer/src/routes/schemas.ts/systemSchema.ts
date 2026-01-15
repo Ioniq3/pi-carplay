@@ -1,5 +1,5 @@
 import { SoftwareUpdate } from '../../components/pages/settings/pages/system/SoftwareUpdate'
-import { DongleInfo } from '../../components/pages/settings/pages/system/DongleInfo'
+import { USBDongle } from '../../components/pages/settings/pages/system/USBDongle'
 import { About } from '../../components/pages/settings/pages/system/About'
 import { Restart } from '../../components/pages/settings/pages/system/Restart'
 import { PowerOff } from '../../components/pages/settings/pages/system/PowerOff'
@@ -21,10 +21,10 @@ export const systemSchema: SettingsNode<ExtraConfig> = {
     },
     {
       type: 'route',
-      label: 'Dongle Info',
-      route: 'songleInfo',
+      label: 'USB Dongle',
+      route: 'USBDongle',
       path: '',
-      children: [{ type: 'custom', label: 'Dongle Info', path: 'carName', component: DongleInfo }]
+      children: [{ type: 'custom', label: 'USB Dongle', path: 'carName', component: USBDongle }]
     },
     {
       type: 'route',

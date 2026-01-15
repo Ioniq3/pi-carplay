@@ -207,7 +207,6 @@ const CarplayComponent: React.FC<CarplayProps> = ({
   const isDongleConnected = useStatusStore((s) => s.isDongleConnected)
   const resetInfo = useCarplayStore((s) => s.resetInfo)
   const setDeviceInfo = useCarplayStore((s) => s.setDeviceInfo)
-  const setDongleInfo = useCarplayStore((s) => s.setDongleInfo)
   const setAudioInfo = useCarplayStore((s) => s.setAudioInfo)
   const setPcmData = useCarplayStore((s) => s.setPcmData)
 
@@ -603,6 +602,34 @@ const CarplayComponent: React.FC<CarplayProps> = ({
 
   // Settings/events from main
   useEffect(() => {
+    const mergeBoxInfo = (prev: unknown, next: unknown): unknown => {
+      if (next == null) return prev
+      if (typeof next === 'string') {
+        const s = next.trim()
+        if (!s) return prev
+        try {
+          next = JSON.parse(s)
+        } catch {
+          return prev
+        }
+      }
+      if (typeof prev === 'string') {
+        const s = prev.trim()
+        if (s) {
+          try {
+            prev = JSON.parse(s)
+          } catch {
+            prev = null
+          }
+        } else {
+          prev = null
+        }
+      }
+      if (prev && typeof prev === 'object' && next && typeof next === 'object') {
+        return { ...(prev as any), ...(next as any) }
+      }
+      return next
+    }
     const handler = (_evt: unknown, data: unknown) => {
       const d = (data ?? {}) as Record<string, unknown>
       const t = typeof d.type === 'string' ? d.type : undefined
@@ -628,7 +655,10 @@ const CarplayComponent: React.FC<CarplayProps> = ({
         case 'dongleInfo': {
           const p = d.payload as { dongleFwVersion?: string; boxInfo?: unknown } | undefined
           if (!p) break
-          setDongleInfo({ dongleFwVersion: p.dongleFwVersion, boxInfo: p.boxInfo })
+          useCarplayStore.setState((s) => ({
+            dongleFwVersion: p.dongleFwVersion ?? s.dongleFwVersion,
+            boxInfo: mergeBoxInfo(s.boxInfo, p.boxInfo)
+          }))
           break
         }
         case 'audioInfo': {

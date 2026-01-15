@@ -1,4 +1,4 @@
 export function Restart(): null {
-  window.carplay.quit().catch(console.error)
+  window.app.restartApp().catch(console.error)
   return null
 }

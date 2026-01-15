@@ -79,6 +79,8 @@ const api = {
     start: (): Promise<void> => ipcRenderer.invoke('carplay-start'),
     stop: (): Promise<void> => ipcRenderer.invoke('carplay-stop'),
     sendFrame: (): Promise<void> => ipcRenderer.invoke('carplay-sendframe'),
+    dongleFirmware: (action: 'check' | 'download' | 'upload' | 'status'): Promise<unknown> =>
+      ipcRenderer.invoke('dongle-fw', { action }),
     sendTouch: (x: number, y: number, action: number): void =>
       ipcRenderer.send('carplay-touch', { x, y, action }),
     sendMultiTouch: (points: MultiTouchPoint[]): void =>
@@ -150,7 +152,9 @@ const appApi = {
   }> => ipcRenderer.invoke('settings:reset-dongle-icons'),
 
   beginInstall: (): Promise<void> => ipcRenderer.invoke('app:beginInstall'),
-  abortUpdate: (): Promise<void> => ipcRenderer.invoke('app:abortUpdate')
+  abortUpdate: (): Promise<void> => ipcRenderer.invoke('app:abortUpdate'),
+  quitApp: (): Promise<void> => ipcRenderer.invoke('app:quitApp'),
+  restartApp: (): Promise<void> => ipcRenderer.invoke('app:restartApp')
 }
 
 contextBridge.exposeInMainWorld('app', appApi)

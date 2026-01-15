@@ -19,6 +19,8 @@ import {
   SendCloseDongle,
   FileAddress,
   DongleDriver,
+  BoxUpdateProgress,
+  BoxUpdateState,
   DEFAULT_CONFIG
 } from '../messages'
 import { ExtraConfig } from '@main/Globals'
@@ -30,6 +32,7 @@ import { APP_START_TS, DEFAULT_MEDIA_DATA_RESPONSE } from './constants'
 import { readMediaFile } from './utils/readMediaFile'
 import { asDomUSBDevice } from './utils/asDomUSBDevice'
 import { CarplayAudio, LogicalStreamKey } from './CarplayAudio'
+import { FirmwareUpdateService, FirmwareCheckResult } from './FirmwareUpdateService'
 
 let dongleConnected = false
 
@@ -38,6 +41,31 @@ type VolumeConfig = {
   navVolume?: number
   siriVolume?: number
   callVolume?: number
+}
+
+type DongleFirmwareAction = 'check' | 'download' | 'upload' | 'status'
+type DongleFirmwareRequest = { action: DongleFirmwareAction }
+
+// Renderer expects this shape (USBDongle.tsx -> isDongleFwCheckResponse)
+type DongleFwApiRaw = {
+  err: number
+  token?: string
+  ver?: string
+  size?: string | number
+  id?: string
+  notes?: string
+  msg?: string
+  error?: string
+}
+
+type DongleFwCheckResponse = {
+  ok: boolean
+  hasUpdate: boolean
+  size: string | number
+  token?: string
+  request?: Record<string, unknown>
+  raw: DongleFwApiRaw
+  error?: string
 }
 
 export class CarplayService {
@@ -61,6 +89,7 @@ export class CarplayService {
   private dongleFwVersion?: string
   private boxInfo?: unknown
   private lastDongleInfoEmitKey = ''
+  private firmware = new FirmwareUpdateService()
 
   private audio: CarplayAudio
 
@@ -83,6 +112,19 @@ export class CarplayService {
     )
 
     this.driver.on('message', (msg) => {
+      // Always keep updater-relevant state, even if renderer is not attached yet.
+      if (msg instanceof SoftwareVersion) {
+        this.dongleFwVersion = msg.version
+        this.emitDongleInfoIfChanged()
+        return
+      }
+
+      if (msg instanceof BoxInfo) {
+        this.boxInfo = mergePreferExisting(this.boxInfo, msg.settings)
+        this.emitDongleInfoIfChanged()
+        return
+      }
+
       if (!this.webContents) return
 
       if (msg instanceof Plugged) {
@@ -95,6 +137,45 @@ export class CarplayService {
         this.webContents.send('carplay-event', { type: 'unplugged' })
         if (!this.shuttingDown && !this.stopping) {
           this.stop().catch(() => {})
+        }
+      } else if (msg instanceof BoxUpdateProgress) {
+        // 0xb1 payload: int32 progress
+        this.webContents.send('carplay-event', {
+          type: 'fwUpdate',
+          stage: 'upload:progress',
+          progress: msg.progress
+        })
+      } else if (msg instanceof BoxUpdateState) {
+        // 0xbb payload: int32 status (start/success/fail, ota variants)
+        this.webContents.send('carplay-event', {
+          type: 'fwUpdate',
+          stage: 'upload:state',
+          status: msg.status,
+          statusText: msg.statusText,
+          isOta: msg.isOta,
+          isTerminal: msg.isTerminal,
+          ok: msg.ok
+        })
+
+        if (msg.isTerminal) {
+          // Terminal state decides done vs error
+          this.webContents.send('carplay-event', {
+            type: 'fwUpdate',
+            stage: msg.ok ? 'upload:done' : 'upload:error',
+            message: msg.statusText || (msg.ok ? 'Update finished' : 'Update failed'),
+            status: msg.status,
+            isOta: msg.isOta
+          })
+
+          // Ensure the next SoftwareVersion/BoxInfo triggers a fresh emit.
+          this.lastDongleInfoEmitKey = ''
+
+          // Force a fresh dongleInfo emit AFTER the dongle reports new SoftwareVersion/BoxInfo.
+          try {
+            this.driver.send(new SendCommand('frame'))
+          } catch {
+            // ignore
+          }
         }
       } else if (msg instanceof VideoData) {
         if (!this.firstFrameLogged) {
@@ -118,8 +199,6 @@ export class CarplayService {
       } else if (msg instanceof AudioData) {
         this.audio.handleAudioData(msg)
 
-        // Forward command-only AudioData messages to renderer so UI can react
-        // (call ringing, siri start/stop, nav start/stop, etc)
         if (msg.command != null) {
           this.webContents.send('carplay-event', {
             type: 'audio',
@@ -154,12 +233,6 @@ export class CarplayService {
         fs.writeFileSync(file, JSON.stringify(out, null, 2), 'utf8')
       } else if (msg instanceof Command) {
         this.webContents.send('carplay-event', { type: 'command', message: msg })
-      } else if (msg instanceof SoftwareVersion) {
-        this.dongleFwVersion = msg.version
-        this.emitDongleInfoIfChanged()
-      } else if (msg instanceof BoxInfo) {
-        this.boxInfo = msg.settings
-        this.emitDongleInfoIfChanged()
       }
     })
 
@@ -207,7 +280,7 @@ export class CarplayService {
       }
     })
 
-    ipcMain.on('carplay-key-command', (_, command) => {
+    ipcMain.on('carplay-key-command', (_evt, command) => {
       this.driver.send(new SendCommand(command))
     })
 
@@ -227,6 +300,246 @@ export class CarplayService {
       }
     })
 
+    // ============================
+    // Dongle firmware updater IPC
+    // ============================
+    ipcMain.handle(
+      'dongle-fw',
+      async (_evt, req: DongleFirmwareRequest): Promise<DongleFwCheckResponse> => {
+        await this.reloadConfigFromDisk()
+
+        const asError = (message: string): DongleFwCheckResponse => ({
+          ok: false,
+          hasUpdate: false,
+          size: 0,
+          error: message,
+          raw: { err: -1, msg: message }
+        })
+
+        const toRendererShape = (r: FirmwareCheckResult): DongleFwCheckResponse => {
+          if (!r.ok) return asError(r.error || 'Unknown error')
+
+          const rawObj: any = r.raw && typeof r.raw === 'object' ? r.raw : { err: 0 }
+
+          return {
+            ok: true,
+            hasUpdate: Boolean(r.hasUpdate),
+            size: typeof r.size === 'number' ? r.size : 0,
+            token: r.token,
+            request: (r.request as any) ?? undefined,
+            raw: {
+              err: typeof rawObj.err === 'number' ? rawObj.err : 0,
+              token: r.token ?? rawObj.token,
+              ver: r.latestVer ?? rawObj.ver,
+              size: (typeof r.size === 'number' ? r.size : rawObj.size) ?? 0,
+              id: r.id ?? rawObj.id,
+              notes: r.notes ?? rawObj.notes,
+              msg: rawObj.msg,
+              error: rawObj.error
+            }
+          }
+        }
+
+        const action = req?.action
+
+        if (action === 'check') {
+          this.webContents?.send('carplay-event', { type: 'fwUpdate', stage: 'check:start' })
+
+          const result = await this.firmware.checkForUpdate({
+            appVer: this.getApkVer(),
+            dongleFwVersion: this.dongleFwVersion ?? null,
+            boxInfo: this.boxInfo
+          })
+
+          const shaped = toRendererShape(result)
+
+          this.webContents?.send('carplay-event', {
+            type: 'fwUpdate',
+            stage: 'check:done',
+            result: shaped
+          })
+
+          return shaped
+        }
+
+        if (action === 'download') {
+          try {
+            this.webContents?.send('carplay-event', { type: 'fwUpdate', stage: 'download:start' })
+
+            const check = await this.firmware.checkForUpdate({
+              appVer: this.getApkVer(),
+              dongleFwVersion: this.dongleFwVersion ?? null,
+              boxInfo: this.boxInfo
+            })
+
+            const shapedCheck = toRendererShape(check)
+
+            if (!check.ok) {
+              const msg = check.error || 'checkForUpdate failed'
+              this.webContents?.send('carplay-event', {
+                type: 'fwUpdate',
+                stage: 'download:error',
+                message: msg
+              })
+              return asError(msg)
+            }
+
+            if (!check.hasUpdate) {
+              this.webContents?.send('carplay-event', {
+                type: 'fwUpdate',
+                stage: 'download:done',
+                path: null,
+                bytes: 0
+              })
+              return shapedCheck
+            }
+
+            const dl = await this.firmware.downloadFirmwareToHost(check, {
+              overwrite: true,
+              onProgress: (p) => {
+                this.webContents?.send('carplay-event', {
+                  type: 'fwUpdate',
+                  stage: 'download:progress',
+                  received: p.received,
+                  total: p.total,
+                  percent: p.percent
+                })
+              }
+            })
+
+            if (!dl.ok) {
+              const msg = dl.error || 'download failed'
+              this.webContents?.send('carplay-event', {
+                type: 'fwUpdate',
+                stage: 'download:error',
+                message: msg
+              })
+              return asError(msg)
+            }
+
+            this.webContents?.send('carplay-event', {
+              type: 'fwUpdate',
+              stage: 'download:done',
+              path: dl.path,
+              bytes: dl.bytes
+            })
+
+            return shapedCheck
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            this.webContents?.send('carplay-event', {
+              type: 'fwUpdate',
+              stage: 'download:error',
+              message: msg
+            })
+            return asError(msg)
+          }
+        }
+
+        if (action === 'upload') {
+          try {
+            if (!this.started) return asError('CarPlay not started / dongle not connected')
+
+            this.webContents?.send('carplay-event', { type: 'fwUpdate', stage: 'upload:start' })
+
+            const st: any = await this.firmware.getLocalFirmwareStatus({
+              appVer: this.getApkVer(),
+              dongleFwVersion: this.dongleFwVersion ?? null,
+              boxInfo: this.boxInfo
+            })
+
+            if (!st || st.ok !== true) {
+              const msg = String(st?.error || 'Local firmware status failed')
+              this.webContents?.send('carplay-event', {
+                type: 'fwUpdate',
+                stage: 'upload:error',
+                message: msg
+              })
+              return asError(msg)
+            }
+
+            if (!st.ready) {
+              const msg = String(st.reason || 'No firmware ready to upload')
+              this.webContents?.send('carplay-event', {
+                type: 'fwUpdate',
+                stage: 'upload:error',
+                message: msg
+              })
+              return asError(msg)
+            }
+
+            const fwBuf = await fs.promises.readFile(st.path)
+            const remotePath = `/tmp/${path.basename(st.path)}`
+
+            const ok = await this.driver.send(new SendFile(fwBuf, remotePath))
+            if (!ok) {
+              const msg = 'Dongle upload failed (SendFile returned false)'
+              this.webContents?.send('carplay-event', {
+                type: 'fwUpdate',
+                stage: 'upload:error',
+                message: msg
+              })
+              return asError(msg)
+            }
+
+            this.webContents?.send('carplay-event', {
+              type: 'fwUpdate',
+              stage: 'upload:file-sent',
+              path: remotePath,
+              bytes: fwBuf.length
+            })
+            return {
+              ok: true,
+              hasUpdate: true,
+              size: fwBuf.length,
+              token: undefined,
+              request: { uploadedTo: remotePath, local: st },
+              raw: { err: 0, msg: 'upload:file-sent', size: fwBuf.length }
+            }
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            this.webContents?.send('carplay-event', {
+              type: 'fwUpdate',
+              stage: 'upload:error',
+              message: msg
+            })
+            return asError(msg)
+          }
+        }
+
+        if (action === 'status') {
+          const st: any = await this.firmware.getLocalFirmwareStatus({
+            appVer: this.getApkVer(),
+            dongleFwVersion: this.dongleFwVersion ?? null,
+            boxInfo: this.boxInfo
+          })
+
+          if (!st || st.ok !== true) {
+            return asError(String(st?.error || 'Local firmware status failed'))
+          }
+
+          const latestVer = typeof st.latestVer === 'string' ? st.latestVer : undefined
+          const bytes = typeof st.bytes === 'number' ? st.bytes : 0
+
+          return {
+            ok: true,
+            hasUpdate: Boolean(latestVer),
+            size: bytes,
+            token: undefined,
+            request: { local: st },
+            raw: {
+              err: 0,
+              ver: latestVer,
+              size: bytes,
+              msg: st.ready ? 'local:ready' : 'local:not-ready'
+            }
+          }
+        }
+
+        return asError(`Unknown action: ${String(action)}`)
+      }
+    )
+
     ipcMain.on(
       'carplay-set-volume',
       (_evt, payload: { stream: LogicalStreamKey; volume: number }) => {
@@ -239,6 +552,21 @@ export class CarplayService {
     ipcMain.on('carplay-set-visualizer-enabled', (_evt, enabled: boolean) => {
       this.audio.setVisualizerEnabled(Boolean(enabled))
     })
+  }
+
+  private async reloadConfigFromDisk(): Promise<void> {
+    try {
+      const configPath = path.join(app.getPath('userData'), 'config.json')
+      if (!fs.existsSync(configPath)) return
+      const userConfig = JSON.parse(fs.readFileSync(configPath, 'utf8')) as ExtraConfig
+      this.config = { ...this.config, ...userConfig }
+    } catch {
+      // ignore
+    }
+  }
+
+  private getApkVer(): string {
+    return this.config.apkVer
   }
 
   private uploadIcons() {
@@ -330,22 +658,15 @@ export class CarplayService {
     this.isStarting = true
     this.startPromise = (async () => {
       try {
-        const configPath = path.join(app.getPath('userData'), 'config.json')
-        try {
-          const userConfig = JSON.parse(fs.readFileSync(configPath, 'utf8')) as ExtraConfig
-          this.config = { ...this.config, ...userConfig }
+        await this.reloadConfigFromDisk()
 
-          const ext = this.config as VolumeConfig
-
-          this.audio.setInitialVolumes({
-            music: typeof ext.audioVolume === 'number' ? ext.audioVolume : undefined,
-            nav: typeof ext.navVolume === 'number' ? ext.navVolume : undefined,
-            siri: typeof ext.siriVolume === 'number' ? ext.siriVolume : undefined,
-            call: typeof ext.callVolume === 'number' ? ext.callVolume : undefined
-          })
-        } catch {
-          // defaults
-        }
+        const ext = this.config as VolumeConfig
+        this.audio.setInitialVolumes({
+          music: typeof ext.audioVolume === 'number' ? ext.audioVolume : undefined,
+          nav: typeof ext.navVolume === 'number' ? ext.navVolume : undefined,
+          siri: typeof ext.siriVolume === 'number' ? ext.siriVolume : undefined,
+          call: typeof ext.callVolume === 'number' ? ext.callVolume : undefined
+        })
 
         this.audio.resetForSessionStart()
 
@@ -410,7 +731,6 @@ export class CarplayService {
     }
 
     if (ok) await new Promise((r) => setTimeout(r, 150))
-
     return ok
   }
 
@@ -506,4 +826,52 @@ export class CarplayService {
       offset = end
     }
   }
+}
+
+function asObject(input: unknown): Record<string, unknown> | null {
+  if (!input) return null
+
+  if (typeof input === 'object' && input !== null) return input as Record<string, unknown>
+
+  if (typeof input === 'string') {
+    const s = input.trim()
+    if (!s) return null
+    try {
+      const parsed = JSON.parse(s)
+      if (parsed && typeof parsed === 'object') return parsed as Record<string, unknown>
+    } catch {
+      // ignore
+    }
+  }
+
+  return null
+}
+
+function isMeaningful(v: unknown): boolean {
+  if (v == null) return false
+  if (typeof v === 'string') return v.trim().length > 0
+  return true
+}
+
+function mergePreferExisting(prev: unknown, next: unknown): unknown {
+  const p = asObject(prev)
+  const n = asObject(next)
+
+  if (!p && !n) return next ?? prev
+  if (!p && n) return next
+  if (p && !n) return prev
+
+  // both objects
+  const out: Record<string, unknown> = { ...p }
+
+  for (const [k, v] of Object.entries(n!)) {
+    if (isMeaningful(v)) {
+      out[k] = v
+    } else {
+      // keep existing if present
+      if (!(k in out)) out[k] = v
+    }
+  }
+
+  return out
 }

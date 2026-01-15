@@ -39,6 +39,7 @@ export type DongleConfig = {
   dpi: number
   format: number
   iBoxVersion: number
+  apkVer: string
   packetMax: number
   phoneWorkMode: number
   nightMode: boolean
@@ -64,6 +65,7 @@ export const DEFAULT_CONFIG: DongleConfig = {
   dpi: 160,
   format: 5,
   iBoxVersion: 2,
+  apkVer: '2025.03.19.1126',
   phoneWorkMode: 2,
   packetMax: 49152,
   carName: 'pi-carplay',
