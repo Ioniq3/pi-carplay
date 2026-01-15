@@ -81,6 +81,7 @@ function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
                     'radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0) 60%)'
                 })
           },
+
           '.fft-surface-inner': {
             width: '100%',
             height: '100%',
@@ -88,16 +89,19 @@ function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
             alignItems: 'center',
             justifyContent: 'center'
           },
+
           '.artwork-surface': {
             backgroundColor: isLight
               ? themeColors.artworkSurfaceLight
               : themeColors.artworkSurfaceDark
           },
+
           ':focus': {
             outline: 'none'
           }
         }
       },
+
       MuiTabs: {
         styleOverrides: {
           root: {
@@ -110,21 +114,30 @@ function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
           }
         }
       },
+
       MuiTab: {
         styleOverrides: {
           root: tabItemBase
         }
       },
+
       MuiButtonBase: {
         styleOverrides: {
-          root: buttonBaseRoot
+          root: {
+            ...buttonBaseRoot,
+            '& .MuiTouchRipple-child': {
+              backgroundColor: `${alpha(highlight, 0.45)} !important`
+            }
+          }
         }
       },
+
       MuiSvgIcon: {
         styleOverrides: {
           root: svgIconRoot
         }
       },
+
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
@@ -145,6 +158,50 @@ function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
           }
         }
       },
+
+      MuiIconButton: {
+        defaultProps: {
+          disableRipple: false,
+          disableFocusRipple: false,
+          disableTouchRipple: false
+        },
+        styleOverrides: {
+          root: {
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+            outline: 'none',
+
+            '&:hover': { backgroundColor: 'transparent' },
+            '&.Mui-focusVisible': { backgroundColor: 'transparent' }
+          }
+        }
+      },
+
+      MuiSwitch: {
+        defaultProps: {
+          disableRipple: false,
+          disableFocusRipple: false,
+          disableTouchRipple: false
+        },
+        styleOverrides: {
+          switchBase: {
+            '&.Mui-checked': {
+              color: `${primary} !important`
+            },
+
+            '&.Mui-checked + .MuiSwitch-track': {
+              backgroundColor: `${primary} !important`,
+              opacity: 1
+            },
+            '&.Mui-focusVisible': {
+              backgroundColor: 'transparent'
+            }
+          },
+          thumb: { boxShadow: 'none' },
+          track: { opacity: 1 }
+        }
+      },
+
       MuiInputLabel: {
         styleOverrides: {
           root: {
@@ -154,6 +211,7 @@ function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
           }
         }
       },
+
       MuiButton: {
         styleOverrides: {
           containedPrimary: {
@@ -184,6 +242,7 @@ function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
           }
         }
       },
+
       MuiAppBar: {
         styleOverrides: {
           root: {
@@ -192,6 +251,7 @@ function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
           }
         }
       },
+
       MuiCard: {
         styleOverrides: {
           root: {
@@ -234,6 +294,15 @@ export function buildRuntimeTheme(
     CSSObject
   >
   const buttonSO = (base.components?.MuiButton?.styleOverrides ?? {}) as Record<string, CSSObject>
+  const buttonBaseSO = (base.components?.MuiButtonBase?.styleOverrides ?? {}) as Record<
+    string,
+    CSSObject
+  >
+  const iconButtonSO = (base.components?.MuiIconButton?.styleOverrides ?? {}) as Record<
+    string,
+    CSSObject
+  >
+  const switchSO = (base.components?.MuiSwitch?.styleOverrides ?? {}) as Record<string, CSSObject>
   const cssBaselineSO = (base.components?.MuiCssBaseline?.styleOverrides ?? {}) as Record<
     string,
     any
@@ -245,6 +314,12 @@ export function buildRuntimeTheme(
   const inputLabelRoot = (inputLabelSO.root ?? {}) as CSSObject
   const btnContainedPrimary = (buttonSO.containedPrimary ?? {}) as CSSObject
   const btnRoot = (buttonSO.root ?? {}) as CSSObject
+  const btnBaseRoot = (buttonBaseSO.root ?? {}) as CSSObject
+
+  const iconBtnRoot = (iconButtonSO.root ?? {}) as CSSObject
+  const swSwitchBase = (switchSO.switchBase ?? {}) as CSSObject
+  const swThumb = (switchSO.thumb ?? {}) as CSSObject
+  const swTrack = (switchSO.track ?? {}) as CSSObject
 
   return createTheme({
     ...base,
@@ -258,7 +333,8 @@ export function buildRuntimeTheme(
 
       MuiCssBaseline: {
         styleOverrides: {
-          ...cssBaselineSO
+          ...cssBaselineSO,
+          ':focus': { outline: 'none' }
         }
       },
 
@@ -287,6 +363,20 @@ export function buildRuntimeTheme(
           root: {
             ...inputLabelRoot,
             '&.Mui-focused': { color: highlight! }
+          }
+        }
+      },
+
+      MuiButtonBase: {
+        styleOverrides: {
+          ...buttonBaseSO,
+          root: {
+            ...btnBaseRoot,
+            cursor: 'default',
+
+            '& .MuiTouchRipple-child': {
+              backgroundColor: `${alpha(highlight!, 0.45)} !important`
+            }
           }
         }
       },
@@ -323,6 +413,55 @@ export function buildRuntimeTheme(
               boxShadow: `0 0 0 2px ${alpha(highlight!, 0.85)} inset, 0 0 20px ${alpha(highlight!, 0.7)}`
             }
           }
+        }
+      },
+
+      MuiIconButton: {
+        defaultProps: {
+          disableRipple: false,
+          disableFocusRipple: false,
+          disableTouchRipple: false
+        },
+        styleOverrides: {
+          ...iconButtonSO,
+          root: {
+            ...iconBtnRoot,
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+            outline: 'none',
+
+            '&:hover': { backgroundColor: 'transparent' },
+            '&.Mui-focusVisible': { backgroundColor: 'transparent' }
+          }
+        }
+      },
+
+      MuiSwitch: {
+        defaultProps: {
+          disableRipple: false,
+          disableFocusRipple: false,
+          disableTouchRipple: false
+        },
+        styleOverrides: {
+          ...switchSO,
+          switchBase: {
+            ...swSwitchBase,
+
+            '&.Mui-checked': {
+              color: `${primary!} !important`
+            },
+
+            '&.Mui-checked + .MuiSwitch-track': {
+              backgroundColor: `${primary!} !important`,
+              opacity: 1
+            },
+
+            '&.Mui-focusVisible': {
+              backgroundColor: 'transparent'
+            }
+          },
+          thumb: { ...swThumb, boxShadow: 'none' },
+          track: { ...swTrack, opacity: 1 }
         }
       }
     }

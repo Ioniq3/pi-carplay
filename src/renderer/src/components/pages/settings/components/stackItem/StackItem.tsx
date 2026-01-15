@@ -37,7 +37,16 @@ const Item = styled(Paper)(({ theme }) => {
       a: { color: activeColor },
       svg: { right: '3px', color: activeColor }
     },
+
+    '&:focus-visible': {
+      outline: 'none',
+      borderBottom: `2px solid ${activeColor}`,
+      a: { color: activeColor },
+      svg: { right: '3px', color: activeColor }
+    },
+
     '&:focus': {
+      outline: 'none',
       borderBottom: `2px solid ${activeColor}`,
       a: { color: activeColor },
       svg: { right: '3px', color: activeColor }
