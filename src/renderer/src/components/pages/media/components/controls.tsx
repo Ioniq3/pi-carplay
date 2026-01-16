@@ -3,7 +3,8 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import PauseIcon from '@mui/icons-material/Pause'
 import SkipNextIcon from '@mui/icons-material/SkipNext'
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious'
-import { RefObject, SetStateAction } from 'react'
+import { RefObject, SetStateAction, useState } from 'react'
+import { useTheme } from '@mui/material/styles'
 
 type ControlsProps = {
   ctrlGap: number
@@ -52,6 +53,15 @@ export const Controls = ({
   iconPx,
   iconMainPx
 }: ControlsProps) => {
+  const theme = useTheme()
+  const ringColor = theme.palette.primary.main
+
+  const [hover, setHover] = useState<{ play: boolean; next: boolean; prev: boolean }>({
+    play: false,
+    next: false,
+    prev: false
+  })
+
   return (
     <div
       style={{
@@ -68,29 +78,45 @@ export const Controls = ({
           height: Math.round(ctrlSize * 1.1)
         }}
       >
+        {/* PREVIOUS */}
         <button
           ref={prevBtnRef}
           onMouseUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
           onFocus={() => setFocus((f) => ({ ...f, prev: true }))}
           onBlur={() => setFocus((f) => ({ ...f, prev: false }))}
+          onMouseEnter={() => setHover((h) => ({ ...h, prev: true }))}
+          onMouseLeave={() => setHover((h) => ({ ...h, prev: false }))}
           onClick={onPrev}
           title="Previous"
           aria-label="Previous"
-          style={circleBtnStyle(ctrlSize, press.prev, focus.prev)}
+          style={circleBtnStyle(ctrlSize, {
+            pressed: !!press.prev,
+            focused: !!focus.prev,
+            hovered: hover.prev,
+            ringColor
+          })}
         >
           <SkipPreviousIcon sx={{ fontSize: iconPx, display: 'block', lineHeight: 0 }} />
         </button>
 
+        {/* PLAY / PAUSE */}
         <button
           ref={playBtnRef}
           onMouseUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
           onFocus={() => setFocus((f) => ({ ...f, play: true }))}
           onBlur={() => setFocus((f) => ({ ...f, play: false }))}
+          onMouseEnter={() => setHover((h) => ({ ...h, play: true }))}
+          onMouseLeave={() => setHover((h) => ({ ...h, play: false }))}
           onClick={onPlayPause}
           title={uiPlaying ? 'Pause' : 'Play'}
           aria-label="Play/Pause"
           aria-pressed={uiPlaying}
-          style={circleBtnStyle(Math.round(ctrlSize * 1.1), press.play, focus.play)}
+          style={circleBtnStyle(Math.round(ctrlSize * 1.1), {
+            pressed: !!press.play,
+            focused: !!focus.play,
+            hovered: hover.play,
+            ringColor
+          })}
         >
           {uiPlaying ? (
             <PauseIcon sx={{ fontSize: iconMainPx, display: 'block', lineHeight: 0 }} />
@@ -106,15 +132,23 @@ export const Controls = ({
           )}
         </button>
 
+        {/* NEXT */}
         <button
           ref={nextBtnRef}
           onMouseUp={(e) => (e.currentTarget as HTMLButtonElement).blur()}
           onFocus={() => setFocus((f) => ({ ...f, next: true }))}
           onBlur={() => setFocus((f) => ({ ...f, next: false }))}
+          onMouseEnter={() => setHover((h) => ({ ...h, next: true }))}
+          onMouseLeave={() => setHover((h) => ({ ...h, next: false }))}
           onClick={onNext}
           title="Next"
           aria-label="Next"
-          style={circleBtnStyle(ctrlSize, press.next, focus.next)}
+          style={circleBtnStyle(ctrlSize, {
+            pressed: !!press.next,
+            focused: !!focus.next,
+            hovered: hover.next,
+            ringColor
+          })}
         >
           <SkipNextIcon sx={{ fontSize: iconPx, display: 'block', lineHeight: 0 }} />
         </button>
