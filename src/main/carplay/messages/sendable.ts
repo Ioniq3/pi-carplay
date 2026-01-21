@@ -314,12 +314,11 @@ export class SendBoxSettings extends SendableMessageWithPayload {
       OemName: cfg.oemName ?? cfg.carName
     }
 
-    // Add navigation screen info if enabled (CarPlay Dashboard/Instrument Cluster)
-    if (cfg.naviScreen?.enabled) {
+    if (cfg.naviScreenEnabled) {
       body.naviScreenInfo = {
-        width: cfg.naviScreen.width,
-        height: cfg.naviScreen.height,
-        fps: cfg.naviScreen.fps
+        width: cfg.width,
+        height: cfg.height,
+        fps: cfg.fps
       }
     }
 

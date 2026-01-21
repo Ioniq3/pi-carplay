@@ -236,6 +236,14 @@ const CarplayComponent: React.FC<CarplayProps> = ({
 
   const attentionBackPathRef = useRef<string | null>(null)
   const attentionSwitchedByRef = useRef<AttentionKind | null>(null)
+  const siriReleaseTimerRef = useRef<number | null>(null)
+
+  const clearSiriReleaseTimer = useCallback(() => {
+    if (siriReleaseTimerRef.current != null) {
+      window.clearTimeout(siriReleaseTimerRef.current)
+      siriReleaseTimerRef.current = null
+    }
+  }, [])
 
   // Keep track of the last host UI route (anything except "/")
   useEffect(() => {
@@ -447,8 +455,12 @@ const CarplayComponent: React.FC<CarplayProps> = ({
 
       if (p.kind !== 'call' && p.kind !== 'siri') return
 
-      // ACTIVE => switch to CarPlay
+      // ACTIVE => switch to CarPlay (and cancel any pending Siri "return")
       if (p.active) {
+        if (p.kind === 'siri') {
+          clearSiriReleaseTimer()
+        }
+
         if (inCarplay) return
 
         // mark why we switched (so we only return if we switched)
@@ -460,16 +472,34 @@ const CarplayComponent: React.FC<CarplayProps> = ({
 
       // INACTIVE => only return if we previously switched because of this kind
       if (attentionSwitchedByRef.current !== p.kind) return
-      attentionSwitchedByRef.current = null
 
       const back = attentionBackPathRef.current
 
-      // return to last host route (kept up-to-date by the pathname effect)
-      if (back && back !== '/' && location.pathname === '/') {
-        navigate(back, { replace: true })
+      const doReturn = () => {
+        attentionSwitchedByRef.current = null
+        if (back && back !== '/' && location.pathname === '/') {
+          navigate(back, { replace: true })
+        }
       }
+
+      // Siri: debounce return to avoid flicker
+      if (p.kind === 'siri') {
+        clearSiriReleaseTimer()
+        siriReleaseTimerRef.current = window.setTimeout(() => {
+          siriReleaseTimerRef.current = null
+
+          if (attentionSwitchedByRef.current !== 'siri') return
+
+          doReturn()
+        }, 120)
+
+        return
+      }
+
+      // Call: return immediately
+      doReturn()
     },
-    [location.pathname, navigate]
+    [location.pathname, navigate, clearSiriReleaseTimer]
   )
 
   // CarPlay worker messages

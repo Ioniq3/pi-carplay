@@ -119,6 +119,26 @@ export const audioSchema: SettingsNode<ExtraConfig> = {
       }
     },
     {
+      type: 'select',
+      label: 'Microphone',
+      path: 'micType',
+      displayValue: true,
+      options: [
+        {
+          label: 'OS default',
+          value: 'os'
+        },
+        {
+          label: 'BOX',
+          value: 'box'
+        }
+      ],
+      page: {
+        title: 'Microphone',
+        description: 'Microphone selection'
+      }
+    },
+    {
       type: 'checkbox',
       label: 'Disable Audio',
       path: 'audioTransferMode'

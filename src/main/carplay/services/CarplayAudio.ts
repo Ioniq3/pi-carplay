@@ -65,7 +65,12 @@ export class CarplayAudio {
   private readonly navDuckingTarget = 0.2
 
   // Debounce time after nav stop before ramping music back to 1.0
-  private readonly navResumeDelayMs = 1000
+  private readonly navResumeDelayMs = 1500
+
+  // If we see a long gap between music chunks, we hard-reset the music AudioOutput
+  // to avoid PipeWire/pw-play buffer state causing stutter on resume.
+  private readonly musicGapResetMs = 500
+  private lastMusicDataAt = 0
 
   // After nav stop: delay restoring music until this timestamp
   private navHoldUntil = 0
@@ -73,6 +78,13 @@ export class CarplayAudio {
   // When to start the next music ramp
   private nextMusicRampStartAt = 0
   private musicRampActive = false
+
+  // Tracks whether we have been outputting muted (zero) music frames and should ramp
+  private musicGateMuted = false
+
+  // After AudioMediaStart, keep outputting muted frames for a bit so pw-play can resync
+  private readonly musicResumeWarmupMs = 1000
+  private musicWarmupUntil = 0
 
   private musicFade: MusicFadeState = {
     current: 1,
@@ -130,6 +142,9 @@ export class CarplayAudio {
     this.musicRampActive = false
     this.nextMusicRampStartAt = 0
     this.musicFade = { current: 1, target: 1, remainingSamples: 0 }
+    this.lastMusicDataAt = 0
+    this.musicGateMuted = false
+    this.musicWarmupUntil = 0
 
     this.lastStreamLogKey = null
     this.lastMusicPlayerKey = null
@@ -159,6 +174,9 @@ export class CarplayAudio {
     this.musicRampActive = false
     this.nextMusicRampStartAt = 0
     this.musicFade = { current: 1, target: 1, remainingSamples: 0 }
+    this.lastMusicDataAt = 0
+    this.musicGateMuted = false
+    this.musicWarmupUntil = 0
 
     this.lastStreamLogKey = null
     this.lastMusicPlayerKey = null
@@ -223,7 +241,10 @@ export class CarplayAudio {
         return
       }
 
-      const player = this.getAudioOutputForStream(msg)
+      // Player selection
+      // music/nav use their normal stream player
+      // siri/call always use their own stream player (PipeWire mixes)
+      let player = this.getAudioOutputForStream(msg)
       if (!player) return
 
       const volume = this.volumes[logicalKey] ?? 1.0
@@ -250,13 +271,65 @@ export class CarplayAudio {
         const channels = meta?.channel ?? 2
         const totalSamples = msg.data.length
 
-        // While Siri/phone is active, music is muted
-        if (!this.mediaActive || voiceActive) {
-          pcm = new Int16Array(totalSamples)
-        } else if (this.nextMusicRampStartAt > 0 && now < this.nextMusicRampStartAt) {
+        // If music chunks resume after a longer gap,
+        // hard-reset the music AudioOutput to flush any buffered state and resync
+        if (this.lastMusicDataAt > 0 && now - this.lastMusicDataAt > this.musicGapResetMs) {
+          if (this.lastMusicPlayerKey) {
+            this.stopPlayerByKey(this.lastMusicPlayerKey, 'music')
+            this.lastMusicPlayerKey = null
+          }
+
+          // Log on the next AudioOutput selection
+          this.lastStreamLogKey = null
+
+          // Reset ramp state
+          this.musicRampActive = false
+          this.musicFade.current = 0
+          this.musicFade.target = 1
+          this.musicFade.remainingSamples = 0
+          this.musicGateMuted = true
+
+          // If we are already receiving chunks again after a gap, do a short warmup
+          this.musicWarmupUntil = Math.max(this.musicWarmupUntil, now + this.musicResumeWarmupMs)
+
+          // Re-acquire player after stopping it
+          player = this.getAudioOutputForStream(msg)
+          if (!player) return
+        }
+
+        this.lastMusicDataAt = now
+
+        const gateUntil = Math.max(this.nextMusicRampStartAt, this.musicWarmupUntil)
+
+        const isGatedMute = !this.mediaActive || voiceActive || (gateUntil > 0 && now < gateUntil)
+
+        if (isGatedMute) {
+          this.musicGateMuted = true
           pcm = new Int16Array(totalSamples)
         } else {
           const fade = this.musicFade
+
+          // If we were previously outputting zeros, start the ramp exactly on the first audio chunk
+          if (this.musicGateMuted) {
+            this.musicGateMuted = false
+
+            fade.current = 0
+            fade.target = this.navActive ? this.navDuckingTarget : 1
+            fade.remainingSamples = 0
+
+            const rampMs = this.getRampMsForTransition(fade.current, fade.target)
+            fade.remainingSamples = Math.max(1, Math.round((rampMs / 1000) * sampleRate * channels))
+            this.musicRampActive = true
+
+            console.debug('[CarplayAudio] starting music ramp', {
+              samples: fade.remainingSamples,
+              sampleRate,
+              channels,
+              from: fade.current,
+              to: fade.target,
+              rampMs
+            })
+          }
 
           // Debounce semantics:
           // - navActive controls whether we are allowed to duck (ramp down)
@@ -290,8 +363,12 @@ export class CarplayAudio {
             })
           }
 
-          if (!this.musicRampActive && Math.abs(fade.current - fade.target) > 1e-3) {
-            // Fallback: ensure we ramp if state got out of sync
+          if (
+            (this.musicRampActive &&
+              fade.remainingSamples === 0 &&
+              Math.abs(fade.current - fade.target) > 1e-3) ||
+            (!this.musicRampActive && Math.abs(fade.current - fade.target) > 1e-3)
+          ) {
             const rampMs = this.getRampMsForTransition(fade.current, fade.target)
             this.musicRampActive = true
             fade.remainingSamples = Math.max(1, Math.round((rampMs / 1000) * sampleRate * channels))
@@ -325,13 +402,6 @@ export class CarplayAudio {
             let navOffset = this.navMixOffset
 
             for (let i = 0; i < totalSamples; i += 1) {
-              if (needsRamp && remaining > 0) {
-                current += step
-                remaining -= 1
-              } else {
-                current = target
-              }
-
               const musicSample = msg.data[i] * (baseGain * current)
               let navSample = 0
 
@@ -351,6 +421,13 @@ export class CarplayAudio {
               else if (mixed < -32768) mixed = -32768
 
               pcm[i] = mixed
+
+              if (needsRamp && remaining > 0) {
+                current += step
+                remaining -= 1
+              } else {
+                current = target
+              }
             }
 
             fade.current = current
@@ -498,6 +575,9 @@ export class CarplayAudio {
         this.musicFade.current = 0
         this.musicFade.target = 1
         this.musicFade.remainingSamples = 0
+        this.lastMusicDataAt = 0
+        this.musicGateMuted = true
+        this.musicWarmupUntil = 0
         return
       }
 
@@ -505,15 +585,20 @@ export class CarplayAudio {
         const baseDelay = this.getMediaDelay()
         const totalDelayMs = baseDelay
 
+        const now = Date.now()
+        const warmupUntil = now + totalDelayMs + this.musicResumeWarmupMs
+
         if (!this.audioOpenArmed) {
           if (!this.mediaActive) {
             // 10 without 1: treat as implicit open+start
             this.mediaActive = true
-            this.musicRampActive = true
+            this.musicRampActive = false
             this.musicFade.current = 0
             this.musicFade.target = 1
             this.musicFade.remainingSamples = 0
-            this.nextMusicRampStartAt = Date.now() + totalDelayMs
+            this.nextMusicRampStartAt = now + totalDelayMs
+            this.musicWarmupUntil = warmupUntil
+            this.musicGateMuted = true
           }
           return
         }
@@ -524,32 +609,36 @@ export class CarplayAudio {
 
         this.audioOpenArmed = false
         this.mediaActive = true
-        this.musicRampActive = true
+        this.musicRampActive = false
         this.musicFade.current = 0
         this.musicFade.target = 1
         this.musicFade.remainingSamples = 0
-        this.nextMusicRampStartAt = Date.now() + totalDelayMs
+        this.nextMusicRampStartAt = now + totalDelayMs
+        this.musicWarmupUntil = warmupUntil
+        this.musicGateMuted = true
 
         return
       }
 
       if (cmd === AudioCommand.AudioMediaStop) {
-        if (!this.siriActive && !this.phonecallActive) {
-          this.mediaActive = false
-        }
+        // IMPORTANT: the phone often stops music while Siri/phone is active.
+        // If we keep mediaActive=true, we may ignore the subsequent AudioMediaStart,
+        // forcing the user to press stop/play manually.
+        this.mediaActive = false
 
         this.audioOpenArmed = false
         this.musicRampActive = false
         this.nextMusicRampStartAt = 0
+        this.musicWarmupUntil = 0
         this.musicFade.current = 0
         this.musicFade.target = 1
         this.musicFade.remainingSamples = 0
+        this.lastMusicDataAt = 0
+        this.musicGateMuted = false
 
-        if (!this.siriActive && !this.phonecallActive) {
-          if (this.lastMusicPlayerKey) {
-            this.stopPlayerByKey(this.lastMusicPlayerKey, 'music')
-            this.lastMusicPlayerKey = null
-          }
+        if (this.lastMusicPlayerKey) {
+          this.stopPlayerByKey(this.lastMusicPlayerKey, 'music')
+          this.lastMusicPlayerKey = null
         }
 
         return
@@ -586,9 +675,11 @@ export class CarplayAudio {
         // While voice is active, keep music muted
         this.musicRampActive = false
         this.nextMusicRampStartAt = 0
+        this.musicWarmupUntil = 0
         this.musicFade.current = 0
         this.musicFade.target = 1
         this.musicFade.remainingSamples = 0
+        this.musicGateMuted = true
 
         if (!this._mic) {
           this._mic = new Microphone()
@@ -623,21 +714,6 @@ export class CarplayAudio {
             this.stopPlayerByKey(this.lastCallPlayerKey, 'call')
             this.lastCallPlayerKey = null
           }
-        }
-
-        // After voice: ramp-in for music, if media is active
-        if (this.mediaActive) {
-          this.musicRampActive = true
-          this.musicFade.current = 0
-          this.musicFade.target = this.navActive ? this.navDuckingTarget : 1
-          this.musicFade.remainingSamples = 0
-          this.nextMusicRampStartAt = Date.now()
-        } else {
-          this.musicRampActive = false
-          this.nextMusicRampStartAt = 0
-          this.musicFade.current = 0
-          this.musicFade.target = 1
-          this.musicFade.remainingSamples = 0
         }
 
         this._mic?.stop()

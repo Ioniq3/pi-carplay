@@ -1,4 +1,3 @@
-import { Camera } from '../../components/pages/settings/pages/camera'
 import { SettingsNode } from '../types'
 import { ExtraConfig } from '../../../../main/Globals'
 
@@ -66,49 +65,6 @@ export const generalSchema: SettingsNode<ExtraConfig> = {
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      type: 'route',
-      label: 'Sink & Sources',
-      route: 'sinkandsources',
-      path: '',
-      children: [
-        {
-          type: 'route',
-          label: 'Camera',
-          route: 'camera',
-          path: '',
-          displayValue: true,
-          children: [
-            {
-              path: 'camera',
-              type: 'custom',
-              label: 'Camera',
-              component: Camera
-            }
-          ]
-        },
-        {
-          type: 'select',
-          label: 'Microphone',
-          path: 'micType',
-          displayValue: true,
-          options: [
-            {
-              label: 'OS default',
-              value: 'os'
-            },
-            {
-              label: 'BOX',
-              value: 'box'
-            }
-          ],
-          page: {
-            title: 'Microphone',
-            description: 'Microphone selection'
-          }
         }
       ]
     },

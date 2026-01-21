@@ -57,7 +57,7 @@ export enum CommandMapping {
   releaseVideoFocus = 501,
   naviFocus = 506,
   naviRelease = 507,
-  requestNaviScreenFocus = 508, // Request navigation screen (triggers HU_NEEDNAVI_STREAM)
+  requestNaviScreenFocus = 508, // Request navigation screen
   releaseNaviScreenFocus = 509, // Release navigation screen
   wifiEnable = 1000,
   autoConnetEnable = 1001,
@@ -187,6 +187,10 @@ export class MessageHeader {
         case MessageType.AudioData:
           return new AudioData(this, data)
         case MessageType.VideoData:
+          return new VideoData(this, data)
+        case MessageType.AltVideoData:
+          return new VideoData(this, data)
+        case MessageType.NaviVideoData:
           return new VideoData(this, data)
         case MessageType.MediaData:
           return new MediaData(this, data)

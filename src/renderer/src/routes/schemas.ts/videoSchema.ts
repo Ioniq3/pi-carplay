@@ -1,5 +1,6 @@
 import { SettingsNode } from '../types'
 import { ExtraConfig } from '@main/Globals'
+import { Camera } from '../../components/pages/settings/pages/camera'
 
 export const videoSchema: SettingsNode<ExtraConfig> = {
   type: 'route',
@@ -27,6 +28,21 @@ export const videoSchema: SettingsNode<ExtraConfig> = {
       path: 'fps',
       displayValue: true,
       page: { title: 'FPS', description: 'FPS' }
+    },
+    {
+      type: 'route',
+      label: 'Camera',
+      route: 'camera',
+      path: '',
+      displayValue: true,
+      children: [
+        {
+          path: 'camera',
+          type: 'custom',
+          label: 'Camera',
+          component: Camera
+        }
+      ]
     }
   ]
 }
