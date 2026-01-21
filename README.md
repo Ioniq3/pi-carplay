@@ -26,7 +26,7 @@ Listed limitations are firmware-level restrictions and cannot be fixed by the ap
 | :--------------: | :-------------: | :--------------: | :------------: | :-----------: | :--------------------------------------- |
 | 2025.10.15.1127  |       🟢        |        🟢        |       🟢       |      🟢       | Full feature set                         |
 | 2025.02.25.1521  |       🔴        |        🟢        |       🟢       |      🟢       | No auto switching on navigation guidance |
-| 2021.05.xx.xxxx  |       🔴        |        🟡        |       🔴       |      🔴       | Limited protocol support                 |
+| 2021.02.23.1758  |       🔴        |        🟡        |       🔴       |      🔴       | Limited protocol support                 |
 
 ### Legend
 
