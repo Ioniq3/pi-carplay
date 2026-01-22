@@ -37,6 +37,10 @@ declare global {
     received?: number
     total?: number
   }
+
+  const __BUILD_SHA__: string
+  const __BUILD_RUN__: string
+  const __BUILD_BRANCH__: string
 }
 
 type UsbDeviceInfo =

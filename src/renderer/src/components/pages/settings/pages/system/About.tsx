@@ -42,6 +42,7 @@ const toStringOrDash = (v: unknown): string => {
 
 export const About = () => {
   const { t } = useTranslation()
+
   const contributorsStr = useMemo(() => {
     if (Array.isArray(contributors) && contributors.length > 0) {
       return contributors
@@ -53,6 +54,17 @@ export const About = () => {
     return ''
   }, [])
 
+  // Build metadata injected by electron.vite.config.ts
+  const buildRunStr = useMemo(() => {
+    const run = __BUILD_RUN__?.trim?.() ? __BUILD_RUN__.trim() : ''
+    return run ? `#${run}` : EMPTY_STRING
+  }, [])
+
+  const commitShaStr = useMemo(() => {
+    const sha = __BUILD_SHA__?.trim?.() ? __BUILD_SHA__.trim() : 'dev'
+    return sha
+  }, [])
+
   const rows = useMemo<Row[]>(() => {
     const appName = toStringOrDash(name)
     const appDesc = toStringOrDash(description)
@@ -61,16 +73,26 @@ export const About = () => {
     const appAuthor = toAuthorString(author)
     const appContrib = contributorsStr || EMPTY_STRING
 
-    return [
+    const out: Row[] = [
       { label: t('settings.name'), value: appName },
       { label: t('settings.description'), value: appDesc, tooltip: appDesc },
-      { label: t('settings.version'), value: appVersion, mono: true },
-      { label: t('settings.build'), value: appVersion, mono: true },
+      { label: t('settings.version'), value: appVersion, mono: true }
+    ]
+
+    if (buildRunStr) {
+      out.push({ label: t('settings.build'), value: buildRunStr, mono: true })
+    }
+
+    out.push({ label: t('settings.commit', 'Commit'), value: commitShaStr, mono: true })
+
+    out.push(
       { label: t('settings.url'), value: appHomepage, tooltip: appHomepage },
       { label: t('settings.author'), value: appAuthor, tooltip: appAuthor },
       { label: t('settings.contributors'), value: appContrib, tooltip: appContrib }
-    ]
-  }, [contributorsStr, t])
+    )
+
+    return out
+  }, [contributorsStr, t, buildRunStr, commitShaStr])
 
   const Mono: React.CSSProperties = {
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
