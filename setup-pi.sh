@@ -40,24 +40,18 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 
 # ICON INSTALLATION
-ICON_URL="https://raw.githubusercontent.com/f-io/LIVI/dev/assets/icons/linux/livi.png"
+ICON_URL="https://raw.githubusercontent.com/f-io/LIVI/main/assets/icons/linux/livi.png"
 ICON_DEST="$USER_HOME/.local/share/icons/livi.png"
 
-if [ -d "$USER_HOME/.local/share" ]; then
-  echo "→ Installing icon to $ICON_DEST"
-  mkdir -p "$(dirname "$ICON_DEST")"
+echo "→ Installing icon to $ICON_DEST"
+mkdir -p "$(dirname "$ICON_DEST")"
 
-  # Download icon from GitHub
-  echo "   Downloading icon from $ICON_URL..."
-  curl -L "$ICON_URL" -o "$ICON_DEST"
-
-  if [ $? -eq 0 ]; then
-    echo "   App icon downloaded and installed successfully."
-  else
-    echo "   Failed to download icon from $ICON_URL. Skipping icon install."
-  fi
+echo "   Downloading icon from $ICON_URL..."
+if curl -fL "$ICON_URL" -o "$ICON_DEST"; then
+  echo "   App icon downloaded and installed successfully."
 else
-  echo "   No ~/.local/share directory, skipping icon installation."
+  echo "   Failed to download icon from $ICON_URL. Skipping icon install."
+  ICON_DEST=""
 fi
 
 # Fetch latest ARM64 AppImage from GitHub
@@ -87,12 +81,13 @@ chmod +x "$APPIMAGE_PATH"
 echo "→ Creating autostart entry"
 AUTOSTART_DIR="$USER_HOME/.config/autostart"
 mkdir -p "$AUTOSTART_DIR"
+
 cat > "$AUTOSTART_DIR/LIVI.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=LIVI
 Exec=$APPIMAGE_PATH
-Icon=livi
+Icon=${ICON_DEST:-livi}
 Terminal=false
 X-GNOME-Autostart-enabled=true
 Categories=AudioVideo;
@@ -102,7 +97,7 @@ echo "Autostart entry at $AUTOSTART_DIR/LIVI.desktop"
 # Create Desktop shortcut
 echo "→ Creating desktop shortcut"
 if command -v xdg-user-dir >/dev/null 2>&1; then
-  DESKTOP_DIR=$(xdg-user-dir DESKTOP)
+  DESKTOP_DIR="$(xdg-user-dir DESKTOP)"
 else
   DESKTOP_DIR="$USER_HOME/Desktop"
 fi
@@ -114,11 +109,12 @@ Type=Application
 Name=LIVI
 Comment=Launch LIVI AppImage
 Exec=$APPIMAGE_PATH
-Icon=livi
+Icon=${ICON_DEST:-livi}
 Terminal=false
 Categories=AudioVideo;
 StartupNotify=false
 EOF
+
 chmod +x "$DESKTOP_DIR/LIVI.desktop"
 echo "Desktop shortcut at $DESKTOP_DIR/LIVI.desktop"
 
