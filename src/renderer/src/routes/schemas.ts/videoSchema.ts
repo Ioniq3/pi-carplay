@@ -1,6 +1,14 @@
 import { SettingsNode } from '../types'
 import { ExtraConfig } from '@main/Globals'
 import { Camera } from '../../components/pages/settings/pages/camera'
+import {
+  MIN_WIDTH,
+  MIN_HEIGHT,
+  MAX_WIDTH,
+  MAX_HEIGHT,
+  MIN_FPS,
+  MAX_FPS
+} from '../../components/pages/settings/constants'
 
 export const videoSchema: SettingsNode<ExtraConfig> = {
   type: 'route',
@@ -14,6 +22,9 @@ export const videoSchema: SettingsNode<ExtraConfig> = {
       label: 'Width',
       labelKey: 'settings.width',
       path: 'width',
+      min: MIN_WIDTH,
+      max: MAX_WIDTH,
+      step: 1,
       displayValue: true,
       page: {
         title: 'Width',
@@ -27,6 +38,9 @@ export const videoSchema: SettingsNode<ExtraConfig> = {
       label: 'Height',
       labelKey: 'settings.height',
       path: 'height',
+      min: MIN_HEIGHT,
+      max: MAX_HEIGHT,
+      step: 1,
       displayValue: true,
       page: {
         title: 'Height',
@@ -40,6 +54,9 @@ export const videoSchema: SettingsNode<ExtraConfig> = {
       label: 'FPS',
       labelKey: 'settings.fps',
       path: 'fps',
+      min: MIN_FPS,
+      max: MAX_FPS,
+      step: 1,
       displayValue: true,
       page: {
         title: 'FPS',

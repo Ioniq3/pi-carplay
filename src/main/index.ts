@@ -79,7 +79,7 @@ const mimeTypeFromExt = (ext: string): string =>
     }) as const
   )[ext.toLowerCase()] ?? 'application/octet-stream'
 
-const MIN_WIDTH = 400
+const MIN_WIDTH = 300
 const isMac = process.platform === 'darwin'
 
 function applyAspectRatioWindowed(win: BrowserWindow, width: number, height: number): void {
