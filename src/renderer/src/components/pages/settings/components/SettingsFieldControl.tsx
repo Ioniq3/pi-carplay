@@ -12,6 +12,9 @@ type Props<T> = {
   onChange: (v: T) => void
 }
 
+const clampInt = (n: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, Math.round(n)))
+
 const defaultColorForPath = (path?: string): string => {
   switch (path) {
     case 'primaryColorDark':
@@ -40,14 +43,28 @@ export const SettingsFieldControl = <T,>({ node, value, onChange }: Props<T>) =>
         />
       )
 
-    case 'number':
+    case 'number': {
+      const min = node.min ?? 0
+      const max = node.max ?? Number.MAX_SAFE_INTEGER
+      const step = node.step ?? 1
+
       return (
         <NumberSpinner
           size="small"
           value={(value ?? 0) as any}
-          onValueChange={(v) => onChange(Number(v) as T)}
+          min={min}
+          max={max}
+          step={step}
+          onValueChange={(v) => {
+            // ignore "in-progress" values
+            if (typeof v !== 'number' || !Number.isFinite(v)) return
+
+            const next = clampInt(v, min, max)
+            onChange(next as T)
+          }}
         />
       )
+    }
 
     case 'checkbox':
       return <Switch checked={Boolean(value)} onChange={(_, v) => onChange(v as T)} />

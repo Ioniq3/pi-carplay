@@ -1,5 +1,10 @@
 import { SettingsNode, ValueTransform } from '../types'
 import { ExtraConfig } from '../../../../main/Globals'
+import {
+  MEDIA_DELAY_MIN,
+  MEDIA_DELAY_MAX,
+  MEDIA_DELAY_STEP
+} from '../../components/pages/settings/constants'
 
 const audioValueTransform: ValueTransform<number | undefined, number> = {
   toView: (v) => Math.round((v ?? 1) * 100),
@@ -108,20 +113,16 @@ export const audioSchema: SettingsNode<ExtraConfig> = {
       label: 'Audio Buffer',
       labelKey: 'settings.audioBufferSize',
       path: 'mediaDelay',
-      step: 50,
-      min: 300,
-      max: 2000,
+      step: MEDIA_DELAY_STEP,
+      min: MEDIA_DELAY_MIN,
+      max: MEDIA_DELAY_MAX,
       default: 1000,
       displayValue: true,
       displayValueUnit: 'ms',
       valueTransform: {
-        toView: (v: number | undefined) => v ?? 1000,
-        fromView: (v: number, prev?: number) => {
-          const next = Math.round(v / 50) * 50
-          if (!Number.isFinite(next)) return prev ?? 1000
-          return next
-        },
-        format: (v: number) => `${v} ms`
+        toView: (v) => v ?? 1000,
+        fromView: (v, prev) => (Number.isFinite(v) ? Math.round(v) : (prev ?? 1000)),
+        format: (v) => `${v} ms`
       },
       page: {
         title: 'Audio Buffer',
