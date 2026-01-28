@@ -80,6 +80,7 @@ const mimeTypeFromExt = (ext: string): string =>
   )[ext.toLowerCase()] ?? 'application/octet-stream'
 
 const MIN_WIDTH = 300
+const MIN_HEIGHT = 200
 const isMac = process.platform === 'darwin'
 
 function fitWindowToWorkArea(win: BrowserWindow) {
@@ -103,18 +104,18 @@ function fitWindowToWorkArea(win: BrowserWindow) {
 }
 
 function applyAspectRatioWindowed(win: BrowserWindow, width: number, height: number): void {
-  const ratio = width && height ? width / height : 0
+  if (!width || !height) {
+    win.setAspectRatio(0)
+    win.setMinimumSize(0, 0)
+    return
+  }
   const [winW, winH] = win.getSize()
   const [contentW, contentH] = win.getContentSize()
-  const extraWidth = Math.max(0, winW - contentW)
-  const extraHeight = Math.max(0, winH - contentH)
-  win.setAspectRatio(ratio, { width: extraWidth, height: extraHeight })
-  if (ratio > 0) {
-    const minH = Math.round(MIN_WIDTH / ratio)
-    win.setMinimumSize(MIN_WIDTH + extraWidth, minH + extraHeight)
-  } else {
-    win.setMinimumSize(0, 0)
-  }
+  const extraW = Math.max(0, winW - contentW)
+  const extraH = Math.max(0, winH - contentH)
+
+  win.setAspectRatio(0)
+  win.setMinimumSize(MIN_WIDTH + extraW, MIN_HEIGHT + extraH)
 }
 
 function applyAspectRatioFullscreen(win: BrowserWindow, width: number, height: number): void {
