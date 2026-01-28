@@ -16,11 +16,13 @@ export default function NumberSpinner({
   error,
   size = 'medium',
   isSlider = false,
+  enableScrub = false,
   ...other
 }: BaseNumberField.Root.Props & {
   label?: React.ReactNode
   size?: 'small' | 'medium'
   isSlider?: boolean
+  enableScrub?: boolean
   error?: boolean
 }) {
   const theme = useTheme()
@@ -57,14 +59,36 @@ export default function NumberSpinner({
         </FormControl>
       )}
     >
-      <BaseNumberField.ScrubArea
-        render={<Box component="span" sx={{ userSelect: 'none', width: 'max-content' }} />}
-      >
+      {enableScrub ? (
+        <BaseNumberField.ScrubArea
+          render={<Box component="span" sx={{ userSelect: 'none', width: 'max-content' }} />}
+        >
+          <FormLabel
+            htmlFor={id}
+            sx={{
+              display: 'inline-block',
+              cursor: 'ew-resize',
+              fontSize: '0.875rem',
+              color: 'text.primary',
+              fontWeight: 500,
+              lineHeight: 1.5,
+              mb: 0.5
+            }}
+          >
+            {label}
+          </FormLabel>
+          <BaseNumberField.ScrubAreaCursor>
+            <OpenInFullIcon
+              fontSize="small"
+              sx={{ transform: 'translateY(12.5%) rotate(45deg)' }}
+            />
+          </BaseNumberField.ScrubAreaCursor>
+        </BaseNumberField.ScrubArea>
+      ) : (
         <FormLabel
           htmlFor={id}
           sx={{
             display: 'inline-block',
-            cursor: 'ew-resize',
             fontSize: '0.875rem',
             color: 'text.primary',
             fontWeight: 500,
@@ -74,10 +98,7 @@ export default function NumberSpinner({
         >
           {label}
         </FormLabel>
-        <BaseNumberField.ScrubAreaCursor>
-          <OpenInFullIcon fontSize="small" sx={{ transform: 'translateY(12.5%) rotate(45deg)' }} />
-        </BaseNumberField.ScrubAreaCursor>
-      </BaseNumberField.ScrubArea>
+      )}
 
       <Box sx={{ display: 'flex' }}>
         <BaseNumberField.Decrement
