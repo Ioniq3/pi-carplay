@@ -539,7 +539,6 @@ export function USBDongle() {
 
         // Call preload -> main IPC
         const raw = await window.carplay.ipc.dongleFirmware(action)
-        console.log('[DongleInfo] dongleFirmware raw =', raw)
 
         if (!isDongleFwCheckResponse(raw)) {
           setFwResult(null)

@@ -42,16 +42,29 @@ const pulse = keyframes`
 function StatusOverlay({
   mode,
   show,
-  offsetY = 0
+  offsetX = 0,
+  offsetY = 0,
+  rendererOk,
+  rendererError
 }: {
   mode: 'dongle' | 'phone'
   show: boolean
+  offsetX?: number
   offsetY?: number
+  rendererOk: boolean
+  rendererError: string | null
 }) {
   const { t } = useTranslation()
   const theme = useTheme()
   const isPhonePhase = mode === 'phone'
-  const ringColor = isPhonePhase ? theme.palette.primary.main : theme.palette.text.secondary
+  const ringColor = rendererError
+    ? theme.palette.error.main
+    : rendererOk
+      ? theme.palette.primary.main
+      : isPhonePhase
+        ? theme.palette.primary.main
+        : theme.palette.text.secondary
+
   const track = alpha(ringColor, 0.22)
 
   // Measure ring size
@@ -123,7 +136,7 @@ function StatusOverlay({
         ref={ringRef}
         sx={{
           position: 'absolute',
-          left: '50%',
+          left: `calc(50% + ${offsetX}px)`,
           top: `calc(50% + ${offsetY}px)`,
           transform: 'translate(-50%, -50%)',
           width: { xs: 72, sm: 88 },
@@ -168,7 +181,7 @@ function StatusOverlay({
       <Box
         sx={{
           position: 'absolute',
-          left: '50%',
+          left: `calc(50% + ${offsetX}px)`,
           top: `calc(50% + ${offsetY}px + ${(ringH || 0) / 2 + GAP_BELOW}px)`,
           transform: 'translateX(-50%)',
           display: 'flex',
@@ -179,7 +192,9 @@ function StatusOverlay({
         {isPhonePhase
           ? Chip(true, UsbOutlinedIcon, t('carplay.dongle'))
           : Chip(false, UsbOffOutlinedIcon, t('carplay.dongle'))}
-        <Box sx={{ width: 18, height: 2, bgcolor: alpha(ringColor, 0.25), borderRadius: 1 }} />
+        <Box
+          sx={{ width: 18, height: 2, bgcolor: alpha(theme.palette.divider, 0.6), borderRadius: 1 }}
+        />
         {Chip(false, PhoneIphoneOutlinedIcon, t('carplay.phone'), !isPhonePhase)}
       </Box>
     </Box>
@@ -218,7 +233,7 @@ const CarplayComponent: React.FC<CarplayProps> = ({
   }, [pathname])
 
   useEffect(() => {
-    console.log('[UI] Dongle connected:', isDongleConnected)
+    console.log('[CARPLAY] Dongle connected:', isDongleConnected)
   }, [isDongleConnected])
 
   // Refs
@@ -228,6 +243,7 @@ const CarplayComponent: React.FC<CarplayProps> = ({
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const hasStartedRef = useRef(false)
   const [renderReady, setRenderReady] = useState(false)
+  const [rendererError, setRendererError] = useState<string | null>(null)
   const lastNonCarplayPathRef = useRef<string | null>(null)
   const autoSwitchedRef = useRef(false)
   const pendingVideoFocusRef = useRef(false)
@@ -273,24 +289,40 @@ const CarplayComponent: React.FC<CarplayProps> = ({
   }, [navVideoOverlayActive, pathname, setNavVideoOverlayActive])
 
   // Overlay offset
+  const [overlayX, setOverlayX] = useState(0)
   const [overlayY, setOverlayY] = useState(0)
+
   useLayoutEffect(() => {
+    const getAnchor = () => document.getElementById('content-root')
+
     const recalc = () => {
-      const r = mainElem.current?.getBoundingClientRect()
+      const r = getAnchor()?.getBoundingClientRect()
       if (!r) return
+
+      const contentCenterX = r.left + r.width / 2
       const contentCenterY = r.top + r.height / 2
+
+      const windowCenterX = window.innerWidth / 2
       const windowCenterY = window.innerHeight / 2
-      setOverlayY(windowCenterY - contentCenterY)
+
+      setOverlayX(contentCenterX - windowCenterX)
+      setOverlayY(contentCenterY - windowCenterY)
     }
+
     recalc()
+    const raf = requestAnimationFrame(recalc)
+
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(recalc) : null
-    if (ro && mainElem.current) ro.observe(mainElem.current)
+    const anchor = getAnchor()
+    if (ro && anchor) ro.observe(anchor)
+
     window.addEventListener('resize', recalc)
     return () => {
+      cancelAnimationFrame(raf)
       window.removeEventListener('resize', recalc)
       ro?.disconnect()
     }
-  }, [])
+  }, [settings?.hand])
 
   // MediaPlayStatus handling
   const mediaPlayStatusRef = useRef<number | undefined>(undefined)
@@ -318,10 +350,6 @@ const CarplayComponent: React.FC<CarplayProps> = ({
     w.onerror = (e) => {
       console.error('Worker error:', e)
     }
-
-    console.log('[CARPLAY] Creating CarPlayWorker with port:', {
-      audioPort: audioChannel.port1
-    })
 
     w.postMessage(
       {
@@ -366,19 +394,41 @@ const CarplayComponent: React.FC<CarplayProps> = ({
 
   useEffect(() => {
     if (!renderWorkerRef.current) return
-    const handler = (ev: MessageEvent<{ type: 'render-ready' }>) => {
-      if (ev.data?.type === 'render-ready') {
-        console.log('[CARPLAY] Render worker ready message recived')
+
+    const handler = (ev: MessageEvent<any>) => {
+      const t = ev.data?.type
+
+      if (t === 'render-ready') {
+        console.log('[CARPLAY] Render worker ready message received')
         setRenderReady(true)
+        setRendererError(null)
+        return
+      }
+
+      if (t === 'render-error') {
+        const msg =
+          typeof ev.data?.message === 'string' && ev.data.message.trim()
+            ? ev.data.message.trim()
+            : 'No renderer available'
+
+        console.warn('[CARPLAY] Render worker error:', ev.data)
+
+        setRendererError(msg)
+        setRenderReady(false)
+        setReceivingVideo(false)
+        renderWorkerRef.current?.postMessage({ type: 'clear' })
+        return
       }
     }
+
     renderWorkerRef.current.addEventListener('message', handler)
     return () => renderWorkerRef.current?.removeEventListener('message', handler)
-  }, [])
+  }, [setReceivingVideo])
 
   // Forward video chunks to worker port
   useEffect(() => {
     const handleVideo = (payload: unknown) => {
+      if (rendererError) return
       if (!renderReady || !payload || typeof payload !== 'object') return
       const m = payload as { chunk?: { buffer?: ArrayBuffer } }
       const buf = m.chunk?.buffer
@@ -387,7 +437,7 @@ const CarplayComponent: React.FC<CarplayProps> = ({
     }
     window.carplay.ipc.onVideoChunk(handleVideo)
     return () => {}
-  }, [videoChannel, renderReady])
+  }, [videoChannel, renderReady, rendererError])
 
   // Forward audio chunks to FFT
   useEffect(() => {
@@ -594,7 +644,7 @@ const CarplayComponent: React.FC<CarplayProps> = ({
             })
           }
         } catch (e) {
-          console.warn('[UI] usb.getDeviceInfo() failed', e)
+          console.warn('[CARPLAY] usb.getDeviceInfo() failed', e)
         }
 
         setDongleConnected(true)
@@ -685,8 +735,12 @@ const CarplayComponent: React.FC<CarplayProps> = ({
               negotiatedWidth: payload.width,
               negotiatedHeight: payload.height
             })
+
             useStatusStore.setState({ isStreaming: true })
-            setReceivingVideo(true)
+            if (!rendererError) {
+              setReceivingVideo(true)
+            }
+
             if (pendingVideoFocusRef.current) {
               pendingVideoFocusRef.current = false
               if (pathname !== '/') {
@@ -843,7 +897,8 @@ const CarplayComponent: React.FC<CarplayProps> = ({
     navVideoOverlayActive,
     isStreaming,
     setNavVideoOverlayActive,
-    applyAttention
+    applyAttention,
+    rendererError
   ])
 
   // Resize observer => inform render worker
@@ -919,7 +974,14 @@ const CarplayComponent: React.FC<CarplayProps> = ({
     >
       {/* Overlay (ring + icon chips) */}
       {pathname === '/' && (
-        <StatusOverlay show={!isDongleConnected || !isStreaming} mode={mode} offsetY={overlayY} />
+        <StatusOverlay
+          show={!isDongleConnected || !isStreaming}
+          mode={mode}
+          offsetX={overlayX}
+          offsetY={overlayY}
+          rendererOk={renderReady && !rendererError}
+          rendererError={rendererError}
+        />
       )}
 
       <div
@@ -933,9 +995,10 @@ const CarplayComponent: React.FC<CarplayProps> = ({
           margin: 0,
           display: 'flex',
           touchAction: 'none',
-          backgroundColor: receivingVideo ? 'transparent' : theme.palette.background.default,
-          visibility: receivingVideo ? 'visible' : 'hidden',
-          zIndex: receivingVideo ? 1 : -1,
+          backgroundColor:
+            receivingVideo && !rendererError ? 'transparent' : theme.palette.background.default,
+          visibility: receivingVideo && !rendererError ? 'visible' : 'hidden',
+          zIndex: receivingVideo && !rendererError ? 1 : -1,
           position: 'relative'
         }}
       >
@@ -943,8 +1006,8 @@ const CarplayComponent: React.FC<CarplayProps> = ({
           ref={canvasRef}
           id="video"
           style={{
-            width: receivingVideo ? '100%' : '0',
-            height: receivingVideo ? '100%' : '0',
+            width: receivingVideo && !rendererError ? '100%' : '0',
+            height: receivingVideo && !rendererError ? '100%' : '0',
             touchAction: 'none',
             userSelect: 'none',
             pointerEvents: 'none'
