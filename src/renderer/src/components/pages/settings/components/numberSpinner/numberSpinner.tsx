@@ -27,6 +27,9 @@ export default function NumberSpinner({
 }) {
   const theme = useTheme()
 
+  const fieldHeight = size === 'small' ? 72 : 88
+  const radius = theme.shape.borderRadius
+
   let id = React.useId()
   if (idProp) {
     id = idProp
@@ -47,11 +50,30 @@ export default function NumberSpinner({
             '& .MuiButton-root': {
               borderColor: 'divider',
               minWidth: 0,
+              minHeight: 0,
+              padding: 0,
               bgcolor: 'action.hover',
               '&:not(.Mui-disabled)': {
                 color: 'text.primary'
               }
             },
+
+            '& .MuiButton-root.Mui-focusVisible': {
+              borderColor: theme.palette.primary.main,
+              backgroundColor: alpha(theme.palette.primary.main, 0.12)
+            },
+            '& .MuiButton-root.Mui-focusVisible .MuiSvgIcon-root': {
+              color: theme.palette.primary.main
+            },
+
+            '& .MuiButton-root:focus-visible': {
+              borderColor: theme.palette.primary.main,
+              backgroundColor: alpha(theme.palette.primary.main, 0.12)
+            },
+            '& .MuiButton-root:focus-visible .MuiSvgIcon-root': {
+              color: theme.palette.primary.main
+            },
+
             width: '100%'
           }}
         >
@@ -100,25 +122,8 @@ export default function NumberSpinner({
         </FormLabel>
       )}
 
-      <Box sx={{ display: 'flex' }}>
-        <BaseNumberField.Decrement
-          render={
-            <Button
-              variant="outlined"
-              aria-label="Decrease"
-              size={size}
-              sx={{
-                borderTopRightRadius: 0,
-                borderBottomRightRadius: 0,
-                borderRight: '0px',
-                '&.Mui-disabled': { borderRight: '0px' }
-              }}
-            />
-          }
-        >
-          <RemoveIcon fontSize={size} />
-        </BaseNumberField.Decrement>
-
+      <Box sx={{ display: 'flex', width: '100%' }}>
+        {/* Value / input */}
         <div style={{ position: 'relative', width: '100%' }}>
           <BaseNumberField.Input
             id={id}
@@ -142,13 +147,21 @@ export default function NumberSpinner({
                       textAlign: 'center',
                       bgcolor: theme.palette.background.paper,
                       color: theme.palette.text.primary,
-                      caretColor: isSlider ? 'transparent' : 'auto'
+                      caretColor: isSlider ? 'transparent' : 'auto',
+                      fontSize:
+                        fieldHeight >= 80 ? '1.6rem' : fieldHeight >= 64 ? '1.35rem' : '1.1rem',
+                      fontWeight: 500,
+                      lineHeight: 1
                     }
                   }
                 }}
                 sx={{
                   pr: 0,
-                  borderRadius: 0,
+                  height: fieldHeight,
+                  borderTopLeftRadius: radius,
+                  borderBottomLeftRadius: radius,
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
                   flex: 1,
                   width: '100%',
                   '& .MuiOutlinedInput-notchedOutline': {
@@ -177,29 +190,96 @@ export default function NumberSpinner({
                 left: '1px',
                 width: `calc(${other.value}% - 2px)`,
                 maxWidth: '100%',
-                background: alpha(theme.palette.primary.main, 0.25)
+                background: alpha(theme.palette.primary.main, 0.25),
+                borderTopLeftRadius: radius,
+                borderBottomLeftRadius: radius
               }}
             />
           )}
         </div>
 
-        <BaseNumberField.Increment
-          render={
-            <Button
-              variant="outlined"
-              aria-label="Increase"
-              size={size}
-              sx={{
-                borderTopLeftRadius: 0,
-                borderBottomLeftRadius: 0,
-                borderLeft: '0px',
-                '&.Mui-disabled': { borderLeft: '0px' }
-              }}
-            />
-          }
+        {/* Vertical +/- buttons */}
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            width: Math.max(fieldHeight, 64),
+            minWidth: Math.max(fieldHeight, 64),
+            height: fieldHeight
+          }}
         >
-          <AddIcon fontSize={size} />
-        </BaseNumberField.Increment>
+          <BaseNumberField.Increment
+            render={
+              <Button
+                variant="outlined"
+                aria-label="Increase"
+                disableFocusRipple
+                size={size}
+                sx={{
+                  height: '50%',
+                  minHeight: 0,
+                  px: 0,
+                  py: 0,
+                  lineHeight: 1,
+                  borderLeft: '0px',
+                  borderTopLeftRadius: 0,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                  borderTopRightRadius: radius,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  '&.Mui-disabled': { borderLeft: '0px' },
+                  '&.Mui-focusVisible': {
+                    boxShadow: `inset 1px 0 0 ${theme.palette.primary.main}`
+                  },
+                  '&:focus-visible': {
+                    boxShadow: `inset 1px 0 0 ${theme.palette.primary.main}`
+                  }
+                }}
+              />
+            }
+          >
+            <AddIcon fontSize={size === 'small' ? 'medium' : 'large'} />
+          </BaseNumberField.Increment>
+
+          <BaseNumberField.Decrement
+            render={
+              <Button
+                variant="outlined"
+                aria-label="Decrease"
+                size={size}
+                disableFocusRipple
+                sx={{
+                  height: '50%',
+                  minHeight: 0,
+                  px: 0,
+                  py: 0,
+                  lineHeight: 1,
+                  borderLeft: '0px',
+                  borderTop: '0px',
+                  borderTopLeftRadius: 0,
+                  borderBottomLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: radius,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  '&.Mui-disabled': { borderLeft: '0px', borderTop: '0px' },
+
+                  '&.Mui-focusVisible': {
+                    boxShadow: `inset 1px 0 0 ${theme.palette.primary.main}, inset 0 1px 0 ${theme.palette.primary.main}`
+                  },
+                  '&:focus-visible': {
+                    boxShadow: `inset 1px 0 0 ${theme.palette.primary.main}, inset 0 1px 0 ${theme.palette.primary.main}`
+                  }
+                }}
+              />
+            }
+          >
+            <RemoveIcon fontSize={size === 'small' ? 'medium' : 'large'} />
+          </BaseNumberField.Decrement>
+        </Box>
       </Box>
     </BaseNumberField.Root>
   )

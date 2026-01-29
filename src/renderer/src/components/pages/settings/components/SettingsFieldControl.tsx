@@ -30,6 +30,14 @@ const defaultColorForPath = (path?: string): string => {
   }
 }
 
+const marks = [
+  { value: 0, label: '0%' },
+  { value: 25, label: '25%' },
+  { value: 50, label: '50%' },
+  { value: 75, label: '75%' },
+  { value: 100, label: '100%' }
+]
+
 export const SettingsFieldControl = <T,>({ node, value, onChange }: Props<T>) => {
   const { t } = useTranslation()
 
@@ -40,6 +48,16 @@ export const SettingsFieldControl = <T,>({ node, value, onChange }: Props<T>) =>
           value={(value ?? '') as any}
           onChange={(e) => onChange(e.target.value as T)}
           fullWidth
+          variant="outlined"
+          sx={{
+            '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'primary.main',
+              borderWidth: '1px'
+            },
+            '& .MuiInputLabel-root.Mui-focused': {
+              color: 'primary.main'
+            }
+          }}
         />
       )
 
@@ -50,7 +68,7 @@ export const SettingsFieldControl = <T,>({ node, value, onChange }: Props<T>) =>
 
       return (
         <NumberSpinner
-          size="small"
+          size="medium"
           value={(value ?? 0) as any}
           min={min}
           max={max}
@@ -75,13 +93,14 @@ export const SettingsFieldControl = <T,>({ node, value, onChange }: Props<T>) =>
           value={Math.round(((value as any) ?? 1.0) * 100)}
           max={100}
           step={5}
-          marks
-          valueLabelDisplay="auto"
+          marks={marks}
+          valueLabelDisplay="off"
           onChange={(_, v) => onChange(((v as number) / 100) as T)}
           sx={{
             width: 'calc(100% - 48px)',
-            ml: 3,
-            mr: 3,
+            mt: 1.5,
+            ml: 2,
+            mr: 2,
             minWidth: 0,
             '& .MuiSlider-valueLabel': { zIndex: 2 }
           }}
@@ -92,8 +111,16 @@ export const SettingsFieldControl = <T,>({ node, value, onChange }: Props<T>) =>
       return (
         <Select
           size="small"
+          variant="outlined"
           value={value as any}
-          sx={{ minWidth: 200 }}
+          sx={{
+            minWidth: 200,
+
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'primary.main',
+              borderWidth: '1px'
+            }
+          }}
           onChange={(e) => onChange(e.target.value as T)}
         >
           {node.options.map((o) => {

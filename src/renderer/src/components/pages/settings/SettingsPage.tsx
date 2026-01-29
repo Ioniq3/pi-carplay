@@ -6,7 +6,7 @@ import { settingsSchema } from '../../../routes/schemas.ts/schema'
 import { useNavigate, useParams } from 'react-router'
 import { StackItem, KeyBindingRow } from './components'
 import { getNodeByPath, getValueByPath } from './utils'
-import { Typography } from '@mui/material'
+import { Typography, Box } from '@mui/material'
 import { SettingsFieldPage } from './components/SettingsFieldPage'
 import { SettingsFieldRow } from './components/SettingsFieldRow'
 import type { Key } from 'react'
@@ -42,11 +42,20 @@ export function SettingsPage() {
   if ('path' in node && node.page) {
     return (
       <SettingsLayout title={title} showRestart={showRestart} onRestart={handleRestart}>
-        <SettingsFieldPage
-          node={node}
-          value={getValueByPath(state, node.path)}
-          onChange={(v) => handleFieldChange(node.path, v)}
-        />
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start'
+          }}
+        >
+          <SettingsFieldPage
+            node={node}
+            value={getValueByPath(state, node.path)}
+            onChange={(v) => handleFieldChange(node.path, v)}
+          />
+        </Box>
       </SettingsLayout>
     )
   }

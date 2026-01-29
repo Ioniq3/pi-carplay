@@ -215,7 +215,7 @@ export const SettingsLayout = ({
           touchAction: 'pan-y'
         }}
       >
-        <Stack spacing={0} sx={{ minHeight: 0, padding: '0 0 0 0.5rem' }}>
+        <Stack spacing={0} sx={{ minHeight: '100%', padding: '0 0 0 0.5rem' }}>
           {children}
         </Stack>
       </Box>
