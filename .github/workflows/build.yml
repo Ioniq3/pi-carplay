@@ -154,7 +154,7 @@ jobs:
         with:
           arch: none
           distro: none
-          base_image: --platform=linux/arm64/v8 node:22-trixie-slim
+          base_image: --platform=linux/arm64/v8 node:24-trixie-slim
           run: |
             set -euo pipefail
 

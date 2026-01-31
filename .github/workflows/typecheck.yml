@@ -17,12 +17,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Fetch latest Node.js 22.x
+      - name: Fetch latest Node.js 24.x
         run: |
-          curl -s https://nodejs.org/dist/index.json | jq -r '[.[] | select(.version | test("^v22\\.\\d+\\.\\d+$"))][0].version' > .nvmrc
+          curl -s https://nodejs.org/dist/index.json | jq -r '[.[] | select(.version | test("^v24\\.\\d+\\.\\d+$"))][0].version' > .nvmrc
           echo "Using Node version: $(cat .nvmrc)"
 
-      - name: Setup latest Node.js 22.x
+      - name: Setup latest Node.js 24.x
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
