@@ -47,5 +47,6 @@ export const requiresRestartParams: (keyof ExtraConfig)[] = [
   'carName',
   'oemName',
   'mediaSound',
-  'hand'
+  'hand',
+  'naviScreenEnabled'
 ]
