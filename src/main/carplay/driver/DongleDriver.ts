@@ -5,6 +5,8 @@ import {
   BoxInfo,
   SoftwareVersion,
   VendorCarPlaySessionBlob,
+  Plugged,
+  Unplugged,
   type BoxInfoSettings
 } from '../messages/readable.js'
 import {
@@ -28,11 +30,24 @@ export enum HandDriveType {
   RHD = 1
 }
 
+export enum AndroidWorkMode {
+  Off = 0,
+  AndroidAuto = 1,
+  CarLife = 2,
+  AndroidMirror = 3
+}
+
+export enum PhoneWorkMode {
+  CarPlay = 2,
+  Android = 4
+}
+
 export type PhoneTypeConfig = { frameInterval: number | null }
 type PhoneTypeConfigMap = { [K in PhoneType]: PhoneTypeConfig }
 
 export type DongleConfig = {
-  androidWorkMode?: boolean
+  androidWorkMode: AndroidWorkMode
+  phoneWorkMode: PhoneWorkMode
   width: number
   height: number
   fps: number
@@ -41,7 +56,6 @@ export type DongleConfig = {
   iBoxVersion: number
   apkVer: string
   packetMax: number
-  phoneWorkMode: number
   nightMode: boolean
   carName: string
   oemName: string
@@ -67,7 +81,8 @@ export const DEFAULT_CONFIG: DongleConfig = {
   format: 5,
   iBoxVersion: 2,
   apkVer: '2025.03.19.1126',
-  phoneWorkMode: 2,
+  phoneWorkMode: PhoneWorkMode.CarPlay,
+  androidWorkMode: AndroidWorkMode.Off,
   packetMax: 49152,
   carName: 'LIVI',
   oemName: 'App',
@@ -107,6 +122,33 @@ export class DongleDriver extends EventEmitter {
   private _dongleFwVersion?: string
   private _boxInfo?: BoxInfoSettings
   private _lastDongleInfoEmitKey = ''
+
+  private _lastPluggedPhoneType: PhoneType | null = null
+  private _androidWorkModeRuntime: AndroidWorkMode = AndroidWorkMode.Off
+
+  private async applyAndroidWorkMode(next: AndroidWorkMode) {
+    if (next === this._androidWorkModeRuntime) return
+
+    this._androidWorkModeRuntime = next
+
+    await this.send(new SendNumber(this._androidWorkModeRuntime, FileAddress.ANDROID_WORK_MODE))
+    await this.send(new SendCommand('wifiEnable'))
+    setTimeout(() => void this.send(new SendCommand('wifiConnect')), 250)
+  }
+
+  private resolveAndroidWorkModeOnPlugged(phoneType: PhoneType): AndroidWorkMode {
+    // - CarPlay must always disable Android mode
+    // - Android phone: only auto-promote Off -> AndroidAuto
+    if (phoneType === PhoneType.CarPlay) return AndroidWorkMode.Off
+
+    if (phoneType === PhoneType.AndroidAuto) {
+      return this._androidWorkModeRuntime === AndroidWorkMode.Off
+        ? AndroidWorkMode.AndroidAuto
+        : this._androidWorkModeRuntime
+    }
+
+    return this._androidWorkModeRuntime
+  }
 
   static knownDevices = [
     { vendorId: 0x1314, productId: 0x1520 },
@@ -282,6 +324,20 @@ export class DongleDriver extends EventEmitter {
             }
             this.emit('message', msg)
 
+            if (msg instanceof Plugged) {
+              if (msg.phoneType !== this._lastPluggedPhoneType) {
+                this._lastPluggedPhoneType = msg.phoneType
+
+                const nextAndroidWorkMode = this.resolveAndroidWorkModeOnPlugged(msg.phoneType)
+                await this.applyAndroidWorkMode(nextAndroidWorkMode)
+              }
+            } else if (msg instanceof Unplugged) {
+              this._lastPluggedPhoneType = null
+
+              // Reset to default
+              await this.applyAndroidWorkMode(AndroidWorkMode.Off)
+            }
+
             if (msg instanceof SoftwareVersion) {
               this._dongleFwVersion = msg.version
               this.emitDongleInfoIfChanged()
@@ -314,6 +370,9 @@ export class DongleDriver extends EventEmitter {
     this.errorCount = 0
     this._started = true
 
+    this._androidWorkModeRuntime = cfg.androidWorkMode
+    this._lastPluggedPhoneType = null
+
     if (!this._readerActive) void this.readLoop()
 
     const ui = (cfg.oemName ?? '').trim()
@@ -326,6 +385,7 @@ export class DongleDriver extends EventEmitter {
       new SendNumber(cfg.dpi, FileAddress.DPI),
       new SendBoolean(cfg.nightMode, FileAddress.NIGHT_MODE),
       new SendNumber(cfg.hand, FileAddress.HAND_DRIVE_MODE),
+      new SendNumber(cfg.androidWorkMode, FileAddress.ANDROID_WORK_MODE),
       new SendCommand(cfg.micType === 'box' ? 'boxMic' : 'mic'),
       new SendCommand(cfg.audioTransferMode ? 'audioTransferOn' : 'audioTransferOff'),
       new SendCommand(cfg.wifiType === '5ghz' ? 'wifi5g' : 'wifi24g'),
@@ -333,10 +393,6 @@ export class DongleDriver extends EventEmitter {
       new SendBoxSettings(cfg),
       new SendCommand('wifiEnable')
     ]
-
-    if (cfg.androidWorkMode) {
-      messages.push(new SendBoolean(cfg.androidWorkMode, FileAddress.ANDROID_WORK_MODE))
-    }
 
     for (const m of messages) {
       await this.send(m)
