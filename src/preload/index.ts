@@ -59,9 +59,15 @@ type UsbLastEvent =
 const api = {
   quit: (): Promise<void> => ipcRenderer.invoke('quit'),
 
-  onUSBResetStatus: (callback: ApiCallback): void => {
-    ipcRenderer.on('usb-reset-start', callback)
-    ipcRenderer.on('usb-reset-done', callback)
+  onUSBResetStatus: (callback: ApiCallback): (() => void) => {
+    const s = 'usb-reset-start'
+    const d = 'usb-reset-done'
+    ipcRenderer.on(s, callback)
+    ipcRenderer.on(d, callback)
+    return () => {
+      ipcRenderer.removeListener(s, callback)
+      ipcRenderer.removeListener(d, callback)
+    }
   },
 
   usb: {
@@ -86,8 +92,10 @@ const api = {
     get: (): Promise<ExtraConfig> => ipcRenderer.invoke('getSettings'),
     save: (settings: Partial<ExtraConfig>): Promise<void> =>
       ipcRenderer.invoke('save-settings', settings),
-    onUpdate: (callback: ApiCallback<[ExtraConfig]>): void => {
-      ipcRenderer.on('settings', callback)
+    onUpdate: (callback: ApiCallback<[ExtraConfig]>): (() => void) => {
+      const ch = 'settings'
+      ipcRenderer.on(ch, callback)
+      return () => ipcRenderer.removeListener(ch, callback)
     }
   },
 
@@ -161,14 +169,6 @@ const appApi = {
   onUpdateProgress: (cb: (payload: UpdateProgress) => void): (() => void) => {
     const ch = 'update:progress'
     const handler = (_e: IpcRendererEvent, payload: UpdateProgress) => cb(payload)
-    ipcRenderer.on(ch, handler)
-    return () => ipcRenderer.removeListener(ch, handler)
-  },
-
-  getKiosk: (): Promise<boolean> => ipcRenderer.invoke('settings:get-kiosk'),
-  onKioskSync: (cb: (kiosk: boolean) => void): (() => void) => {
-    const ch = 'settings:kiosk-sync'
-    const handler = (_e: IpcRendererEvent, kiosk: boolean) => cb(kiosk)
     ipcRenderer.on(ch, handler)
     return () => ipcRenderer.removeListener(ch, handler)
   },

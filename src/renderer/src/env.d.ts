@@ -121,8 +121,10 @@ declare global {
 
       settings: {
         get(): Promise<ExtraConfig>
-        save(settings: ExtraConfig): Promise<void>
-        onUpdate(callback: (event: unknown, settings: ExtraConfig) => void): void
+        save(settings: Partial<ExtraConfig>): Promise<void>
+        onUpdate(
+          callback: (event: import('electron').IpcRendererEvent, settings: ExtraConfig) => void
+        ): () => void
       }
       ipc: {
         start(): Promise<void>
@@ -158,8 +160,6 @@ declare global {
       performUpdate(imageUrl?: string): Promise<void>
       onUpdateEvent(cb: (payload: UpdateEvent) => void): () => void
       onUpdateProgress(cb: (payload: UpdateProgress) => void): () => void
-      getKiosk(): Promise<boolean>
-      onKioskSync(cb: (kiosk: boolean) => void): () => void
       beginInstall(): Promise<void>
       abortUpdate(): Promise<void>
     }

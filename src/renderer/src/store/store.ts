@@ -6,6 +6,7 @@ type VolumeStreamKey = 'music' | 'nav' | 'siri' | 'call'
 type CarplaySettingsApi = {
   get?: () => Promise<ExtraConfig>
   save?: (settings: Partial<ExtraConfig>) => Promise<void>
+  onUpdate?: (cb: (event: unknown, settings: ExtraConfig) => void) => () => void
 }
 
 type CarplayUsbApi = {
@@ -173,7 +174,30 @@ export const useCarplayStore = create<CarplayStore>((set, get) => {
     init: () => {
       if (didInit) return
       didInit = true
+
+      // initial snapshot
       void refreshFromMain()
+
+      // live sync: main -> renderer
+      const api = getCarplayApi()
+      if (api?.settings?.onUpdate) {
+        api.settings.onUpdate((_evt, s) => {
+          const derived = applyDerivedFromSettings(s)
+          const baseline = get().restartBaseline
+
+          set({
+            settings: s,
+            restartBaseline: baseline ?? s,
+            ...derived
+          })
+
+          // keep mixer in sync
+          sendCarplayVolume('music', derived.audioVolume)
+          sendCarplayVolume('nav', derived.navVolume)
+          sendCarplayVolume('siri', derived.siriVolume)
+          sendCarplayVolume('call', derived.callVolume)
+        })
+      }
     },
 
     getSettings: async () => {

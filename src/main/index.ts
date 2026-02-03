@@ -156,7 +156,7 @@ function attachKioskStateSync(win: BrowserWindow) {
     }
 
     // Normal sync
-    sendKioskSync(effectiveKiosk)
+    pushSettingsToRenderer({ kiosk: effectiveKiosk })
   }
 
   const syncFromElectron = () => {
@@ -630,8 +630,9 @@ async function installOnLinuxFromFile(appImagePath: string): Promise<void> {
   app.quit()
 }
 
-function sendKioskSync(kiosk: boolean) {
-  mainWindow?.webContents.send('settings:kiosk-sync', kiosk)
+function pushSettingsToRenderer(override?: Partial<ExtraConfig>) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send('settings', { ...config, ...(override ?? {}) })
 }
 
 function persistKioskAndBroadcast(kiosk: boolean) {
@@ -736,7 +737,7 @@ function createWindow(): void {
       mainWindow.show()
     }
 
-    sendKioskSync(currentKiosk())
+    pushSettingsToRenderer({ kiosk: currentKiosk() })
 
     if (is.dev) mainWindow.webContents.openDevTools({ mode: 'detach' })
     carplayService.attachRenderer(mainWindow.webContents)
@@ -860,7 +861,6 @@ app.whenReady().then(() => {
     restoreKioskAfterWmExit()
   })
 
-  ipcMain.handle('settings:get-kiosk', () => currentKiosk())
   ipcMain.handle('getSettings', () => config)
   ipcMain.handle('save-settings', (_evt, settings: Partial<ExtraConfig>) => {
     saveSettings(settings)
@@ -1038,7 +1038,7 @@ function saveSettings(next: Partial<ExtraConfig>) {
   const prev = config
   config = merged
 
-  sendKioskSync(config.kiosk)
+  pushSettingsToRenderer()
 
   if (!mainWindow) return
 

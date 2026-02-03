@@ -500,10 +500,11 @@ const CarplayComponent: React.FC<CarplayProps> = ({
   }, [])
 
   const gotoHostUI = useCallback(() => {
-    if (location.pathname !== '/media') {
-      navigate('/media', { replace: true })
+    const target = settings.mapsEnabled ? '/maps' : '/media'
+    if (location.pathname !== target) {
+      navigate(target, { replace: true })
     }
-  }, [location.pathname, navigate])
+  }, [location.pathname, navigate, settings.mapsEnabled])
 
   const applyAttention = useCallback(
     (p: AttentionPayload) => {
