@@ -5,7 +5,7 @@ import {
   Unplugged,
   VideoData,
   AudioData,
-  MediaData,
+  MetaData,
   MediaType,
   Command,
   BoxInfo,
@@ -30,9 +30,16 @@ import { ExtraConfig } from '@main/Globals'
 import fs from 'fs'
 import path from 'path'
 import usb from 'usb'
-import { PersistedMediaPayload } from './types'
-import { APP_START_TS, DEFAULT_MEDIA_DATA_RESPONSE } from './constants'
+import { PersistedMediaPayload, PersistedNavigationPayload } from './types'
+import {
+  APP_START_TS,
+  DEFAULT_MEDIA_DATA_RESPONSE,
+  DEFAULT_NAVIGATION_DATA_RESPONSE
+} from './constants'
 import { readMediaFile } from './utils/readMediaFile'
+import { readNavigationFile } from './utils/readNavigationFile'
+import { normalizeNavigationPayload } from './utils/normalizeNavigation'
+import { translateNavigation } from './utils/translateNavigation'
 import { asDomUSBDevice } from './utils/asDomUSBDevice'
 import { CarplayAudio, LogicalStreamKey } from './CarplayAudio'
 import { FirmwareUpdateService, FirmwareCheckResult } from './FirmwareUpdateService'
@@ -240,27 +247,74 @@ export class CarplayService {
             }
           })
         }
-      } else if (msg instanceof MediaData) {
-        if (!msg.payload) return
+      } else if (msg instanceof MetaData) {
+        const inner = msg.inner
 
-        this.webContents.send('carplay-event', { type: 'media', payload: msg })
-        const file = path.join(app.getPath('userData'), 'mediaData.json')
-        const existing = readMediaFile(file)
-        const existingPayload = existing.payload
-        const newPayload: PersistedMediaPayload = { type: msg.payload.type }
+        // Media metadata (innerType 1/3/100)
+        if (inner.kind === 'media') {
+          const mediaMsg = inner.message
+          if (!mediaMsg.payload) return
 
-        if (msg.payload.type === MediaType.Data && msg.payload.media) {
-          newPayload.media = { ...existingPayload.media, ...msg.payload.media }
-          if (existingPayload.base64Image) newPayload.base64Image = existingPayload.base64Image
-        } else if (msg.payload.type === MediaType.AlbumCover && msg.payload.base64Image) {
-          newPayload.base64Image = msg.payload.base64Image
-          if (existingPayload.media) newPayload.media = existingPayload.media
-        } else {
-          newPayload.media = existingPayload.media
-          newPayload.base64Image = existingPayload.base64Image
+          this.webContents.send('carplay-event', { type: 'media', payload: mediaMsg })
+
+          const file = path.join(app.getPath('userData'), 'mediaData.json')
+          const existing = readMediaFile(file)
+          const existingPayload = existing.payload
+          const newPayload: PersistedMediaPayload = { type: mediaMsg.payload.type }
+
+          if (mediaMsg.payload.type === MediaType.Data && mediaMsg.payload.media) {
+            newPayload.media = { ...existingPayload.media, ...mediaMsg.payload.media }
+            if (existingPayload.base64Image) newPayload.base64Image = existingPayload.base64Image
+          } else if (
+            mediaMsg.payload.type === MediaType.AlbumCover &&
+            mediaMsg.payload.base64Image
+          ) {
+            newPayload.base64Image = mediaMsg.payload.base64Image
+            if (existingPayload.media) newPayload.media = existingPayload.media
+          } else {
+            newPayload.media = existingPayload.media
+            newPayload.base64Image = existingPayload.base64Image
+          }
+
+          const out = { timestamp: new Date().toISOString(), payload: newPayload }
+          fs.writeFileSync(file, JSON.stringify(out, null, 2), 'utf8')
+          return
         }
-        const out = { timestamp: new Date().toISOString(), payload: newPayload }
-        fs.writeFileSync(file, JSON.stringify(out, null, 2), 'utf8')
+
+        // Navigation metadata (innerType 200)
+        if (inner.kind === 'navigation') {
+          const navMsg = inner.message
+
+          this.webContents.send('carplay-event', { type: 'navigation', payload: navMsg })
+
+          const file = path.join(app.getPath('userData'), 'navigationData.json')
+          const existing = readNavigationFile(file)
+
+          const locale =
+            this.config.language === 'de' ? 'de' : this.config.language === 'uk' ? 'uk' : 'en'
+
+          const normalized = normalizeNavigationPayload(existing.payload, navMsg)
+          const translated = translateNavigation(normalized.navi, locale)
+
+          const nextPayload: PersistedNavigationPayload = {
+            ...normalized,
+            display: {
+              locale,
+              appName: translated.SourceName,
+              destinationName: translated.DestinationName,
+              roadName: translated.CurrentRoadName,
+              maneuverText: translated.ManeuverTypeText,
+              timeToDestinationText: translated.TimeRemainingToDestinationText,
+              distanceToDestinationText: translated.DistanceRemainingDisplayStringText
+            }
+          }
+
+          const out = { timestamp: new Date().toISOString(), payload: nextPayload }
+          fs.writeFileSync(file, JSON.stringify(out, null, 2), 'utf8')
+
+          return
+        }
+        // Unknown meta
       } else if (msg instanceof Command) {
         this.webContents.send('carplay-event', { type: 'command', message: msg })
         if ((msg.value as number) === 508 && this.mapsRequested) {
@@ -368,6 +422,22 @@ export class CarplayService {
       } catch (error) {
         console.log('[carplay-media-read]', error)
         return DEFAULT_MEDIA_DATA_RESPONSE
+      }
+    })
+
+    ipcMain.handle('carplay-navigation-read', async () => {
+      try {
+        const file = path.join(app.getPath('userData'), 'navigationData.json')
+
+        if (!fs.existsSync(file)) {
+          console.log('[carplay-navigation-read] Error: ENOENT: no such file or directory')
+          return DEFAULT_NAVIGATION_DATA_RESPONSE
+        }
+
+        return readNavigationFile(file)
+      } catch (error) {
+        console.log('[carplay-navigation-read]', error)
+        return DEFAULT_NAVIGATION_DATA_RESPONSE
       }
     })
 

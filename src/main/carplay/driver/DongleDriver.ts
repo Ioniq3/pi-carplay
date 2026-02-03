@@ -316,10 +316,9 @@ export class DongleDriver extends EventEmitter {
           const msg = header.toMessage(extra)
           if (msg) {
             if (msg instanceof VendorCarPlaySessionBlob) {
-              console.debug(
-                `[DongleDriver] vendor blob 0x${msg.header.type.toString(16)} len=${msg.raw.length}`
+              console.log(
+                `[DongleDriver] vendor blob type=0x${msg.header.type.toString(16)} len=${msg.raw.length}`
               )
-              //this.emit('vendor-opaque', { type: msg.header.type, len: msg.raw.length })
               continue
             }
             this.emit('message', msg)
