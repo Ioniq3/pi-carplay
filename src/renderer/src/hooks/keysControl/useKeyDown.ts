@@ -72,13 +72,19 @@ export const useKeyDown = ({
 
       const b = (settings?.bindings ?? {}) as Partial<Record<BindKey, string>>
 
-      const isLeft = code === 'ArrowLeft' || b?.left === code
-      const isRight = code === 'ArrowRight' || b?.right === code
-      const isUp = code === 'ArrowUp' || b?.up === code
-      const isDown = code === 'ArrowDown' || b?.down === code
-      const isBackKey = b?.back === code || code === 'Escape'
+      const leftKey = b?.left || 'ArrowLeft'
+      const rightKey = b?.right || 'ArrowRight'
+      const upKey = b?.up || 'ArrowUp'
+      const downKey = b?.down || 'ArrowDown'
+
+      const isLeft = code === leftKey
+      const isRight = code === rightKey
+      const isUp = code === upKey
+      const isDown = code === downKey
+
+      const isBackKey = code === (b?.back || '') || code === 'Escape'
       const isEnter = code === 'Enter' || code === 'NumpadEnter'
-      const isSelectDown = !!b?.selectDown && code === b?.selectDown
+      const isSelectDown = code === (b?.selectDown || '') || isEnter
 
       let mappedAction: BindKey | undefined
       for (const [k, v] of Object.entries(b ?? {})) {
@@ -366,7 +372,7 @@ export const useKeyDown = ({
         broadcastMediaKey(action)
       }
 
-      if ((isLeft || isRight || isDown) && nothing) {
+      if ((isLeft || isRight || isUp || isDown) && nothing) {
         const ok = focusSelectedNav()
         if (ok) {
           event.preventDefault()
