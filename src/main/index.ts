@@ -342,6 +342,7 @@ function loadConfig(): ExtraConfig {
   // Start with defaults
   const merged: ExtraConfig = {
     ...DEFAULT_CONFIG,
+    startPage: 'home',
     kiosk: true,
     camera: '',
     cameraMirror: false,
@@ -350,6 +351,9 @@ function loadConfig(): ExtraConfig {
     navVolume: 0.95,
     siriVolume: 0.95,
     callVolume: 0.95,
+    autoSwitchOnStream: false,
+    autoSwitchOnPhoneCall: true,
+    autoSwitchOnGuidance: true,
     visualAudioDelayMs: 120,
     language: 'en',
     ...fileConfig,

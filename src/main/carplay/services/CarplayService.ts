@@ -192,11 +192,8 @@ export class CarplayService {
           }
         }
       } else if (msg instanceof VideoData) {
-        const isNavi =
-          msg.header.type === MessageType.NaviVideoData ||
-          msg.header.type === MessageType.AltVideoData
-
-        // navi video stream (0x2c / 0x2b)
+        const isNavi = msg.header.type === MessageType.NaviVideoData
+        // navi video stream (0x2c)
         if (isNavi) {
           if (!this.mapsRequested) return
 

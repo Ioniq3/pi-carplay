@@ -1,6 +1,7 @@
 import { DongleConfig } from '@carplay/messages'
 
 export type ExtraConfig = DongleConfig & {
+  startPage: 'home' | 'media' | 'maps' | 'camera' | 'settings'
   kiosk: boolean
   camera: string
   cameraMirror: boolean
@@ -9,6 +10,9 @@ export type ExtraConfig = DongleConfig & {
   navVolume: number
   siriVolume: number
   callVolume: number
+  autoSwitchOnStream: boolean
+  autoSwitchOnPhoneCall: boolean
+  autoSwitchOnGuidance: boolean
   visualAudioDelayMs: number
   primaryColorDark?: string
   primaryColorLight?: string

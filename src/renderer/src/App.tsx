@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useContext, useLayoutEffect } from 'react'
-import { HashRouter as Router, useLocation, useRoutes } from 'react-router'
+import { HashRouter as Router, useLocation, useRoutes, useNavigate } from 'react-router'
 import { Carplay, Camera } from './components/pages'
 import { Box, Modal } from '@mui/material'
 import { useCarplayStore, useStatusStore } from './store/store'
@@ -33,6 +33,9 @@ function AppInner() {
   // const [editingField, setEditingField] = useState<HTMLElement | null>(null)
   const location = useLocation()
 
+  const navigate = useNavigate()
+  const didApplyStartPageRef = useRef(false)
+
   const reverse = useStatusStore((s) => s.reverse)
   const setReverse = useStatusStore((s) => s.setReverse)
 
@@ -44,6 +47,36 @@ function AppInner() {
   const mainRef = useRef<HTMLDivElement | null>(null)
 
   const element = useRoutes(appRoutes)
+
+  useEffect(() => {
+    if (!settings) return
+    if (didApplyStartPageRef.current) return
+
+    // Only apply on initial app start when we're on HOME
+    if (location.pathname !== ROUTES.HOME) {
+      didApplyStartPageRef.current = true
+      return
+    }
+
+    const startPage = settings.startPage || 'home'
+
+    const target =
+      startPage === 'media'
+        ? ROUTES.MEDIA
+        : startPage === 'maps'
+          ? ROUTES.MAPS
+          : startPage === 'camera'
+            ? ROUTES.CAMERA
+            : startPage === 'settings'
+              ? ROUTES.SETTINGS
+              : ROUTES.HOME // phone/default
+
+    didApplyStartPageRef.current = true
+
+    if (target !== ROUTES.HOME) {
+      navigate(target, { replace: true })
+    }
+  }, [settings, location.pathname, navigate])
 
   useLayoutEffect(() => {
     i18n.changeLanguage(settings?.language || 'en')

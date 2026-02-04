@@ -59,7 +59,7 @@ export const Maps: React.FC = () => {
 
     const apply = async () => {
       try {
-        const enabled = Boolean(isStreaming && supportsNaviScreen)
+        const enabled = Boolean(isStreaming)
         await window.carplay.ipc.requestMaps(enabled)
         if (cancelled) return
       } catch {
@@ -73,7 +73,7 @@ export const Maps: React.FC = () => {
       cancelled = true
       void window.carplay.ipc.requestMaps(false).catch(() => {})
     }
-  }, [isStreaming, supportsNaviScreen])
+  }, [isStreaming])
 
   // Init Render.worker
   useEffect(() => {
@@ -111,6 +111,7 @@ export const Maps: React.FC = () => {
       if (t === 'render-ready') {
         setRenderReady(true)
         setRendererError(null)
+        console.log('[MAPS] Render worker ready message received')
         return
       }
       if (t === 'render-error') {
@@ -209,36 +210,35 @@ export const Maps: React.FC = () => {
         </Box>
       )}
 
-      {isStreaming && supportsNaviScreen && (
+      {/* Canvas is ALWAYS mounted so the renderer can init immediately*/}
+      <Box
+        sx={{
+          width: '100%',
+          height: '100%',
+          display: canShowVideo ? 'flex' : 'none',
+          justifyContent: 'center',
+          alignItems: 'flex-start'
+        }}
+      >
         <Box
           sx={{
             width: '100%',
             height: '100%',
-            display: canShowVideo ? 'flex' : 'none',
-            justifyContent: 'center',
-            alignItems: 'flex-start'
+            maxWidth: '100%'
           }}
         >
-          <Box
-            sx={{
+          <canvas
+            ref={canvasRef}
+            style={{
               width: '100%',
               height: '100%',
-              maxWidth: '100%'
+              display: 'block',
+              userSelect: 'none',
+              pointerEvents: 'none'
             }}
-          >
-            <canvas
-              ref={canvasRef}
-              style={{
-                width: '100%',
-                height: '100%',
-                display: 'block',
-                userSelect: 'none',
-                pointerEvents: 'none'
-              }}
-            />
-          </Box>
+          />
         </Box>
-      )}
+      </Box>
 
       {isStreaming && !supportsNaviScreen && (
         <Box

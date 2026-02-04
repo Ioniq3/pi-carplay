@@ -255,6 +255,22 @@ const CarplayComponent: React.FC<CarplayProps> = ({
   const autoSwitchedRef = useRef(false)
   const pendingVideoFocusRef = useRef(false)
 
+  const autoSwitchOnStreamRef = useRef(Boolean(settings.autoSwitchOnStream))
+  const autoSwitchOnGuidanceRef = useRef(Boolean(settings.autoSwitchOnGuidance))
+  const autoSwitchOnPhoneCallRef = useRef(Boolean(settings.autoSwitchOnPhoneCall))
+
+  useEffect(() => {
+    autoSwitchOnStreamRef.current = Boolean(settings.autoSwitchOnStream)
+  }, [settings.autoSwitchOnStream])
+
+  useEffect(() => {
+    autoSwitchOnGuidanceRef.current = Boolean(settings.autoSwitchOnGuidance)
+  }, [settings.autoSwitchOnGuidance])
+
+  useEffect(() => {
+    autoSwitchOnPhoneCallRef.current = Boolean(settings.autoSwitchOnPhoneCall)
+  }, [settings.autoSwitchOnPhoneCall])
+
   // Attention-driven UI switching (call / siri / nav)
   type AttentionKind = 'call' | 'siri'
   type AttentionPayload = { kind: AttentionKind; active: boolean; phase?: string }
@@ -272,10 +288,12 @@ const CarplayComponent: React.FC<CarplayProps> = ({
 
   // Keep track of the last host UI route (anything except "/")
   useEffect(() => {
-    if (pathname !== '/') {
-      attentionBackPathRef.current = pathname
-    }
-  }, [pathname])
+    if (pathname === '/') return
+    if (!attentionSwitchedByRef.current) return
+
+    attentionSwitchedByRef.current = null
+    clearSiriReleaseTimer()
+  }, [pathname, clearSiriReleaseTimer])
 
   useEffect(() => {
     // When NAV video overlay is shown on top of the host UI (not on "/")
@@ -773,12 +791,17 @@ const CarplayComponent: React.FC<CarplayProps> = ({
         case 'audio': {
           const cmd = (d as { payload?: { command?: number } }).payload?.command
           if (typeof cmd !== 'number') break
+
           if (cmd === AudioCommand.AudioPhonecallStart) {
-            applyAttention({ kind: 'call', active: true, phase: 'active' })
+            if (autoSwitchOnPhoneCallRef.current) {
+              applyAttention({ kind: 'call', active: true, phase: 'active' })
+            }
           } else if (cmd === AudioCommand.AudioPhonecallStop) {
             applyAttention({ kind: 'call', active: false, phase: 'ended' })
           } else if (cmd === AudioCommand.AudioAttentionRinging) {
-            applyAttention({ kind: 'call', active: true, phase: 'ringing' })
+            if (autoSwitchOnPhoneCallRef.current) {
+              applyAttention({ kind: 'call', active: true, phase: 'ringing' })
+            }
           } else if (cmd === AudioCommand.AudioSiriStart) {
             applyAttention({ kind: 'siri', active: true })
           } else if (cmd === AudioCommand.AudioSiriStop) {
@@ -797,8 +820,12 @@ const CarplayComponent: React.FC<CarplayProps> = ({
           }
 
           const mapsEnabled = Boolean(settings.mapsEnabled)
+          const autoSwitchOnStream = autoSwitchOnStreamRef.current
+          const autoSwitchOnGuidance = autoSwitchOnGuidanceRef.current
 
           if (value === CommandMapping.naviFocus) {
+            if (!autoSwitchOnGuidance) break
+
             if (mapsEnabled) {
               if (pathnameNow === '/' || pathnameNow === '/maps') break
 
@@ -814,6 +841,7 @@ const CarplayComponent: React.FC<CarplayProps> = ({
           }
 
           if (value === CommandMapping.naviRelease) {
+            if (!autoSwitchOnGuidance) break
             if (mapsEnabled) {
               const back = lastNonMapsPathRef.current
               if (back && back !== '/maps' && back !== '/') {
@@ -828,6 +856,7 @@ const CarplayComponent: React.FC<CarplayProps> = ({
           }
 
           if (value === CommandMapping.requestVideoFocus) {
+            if (!autoSwitchOnStream) break
             if (attentionSwitchedByRef.current) break
 
             if (pathnameNow !== '/' && pathnameNow !== '/maps') {
@@ -847,6 +876,13 @@ const CarplayComponent: React.FC<CarplayProps> = ({
           }
 
           if (value === CommandMapping.releaseVideoFocus) {
+            if (!autoSwitchOnStream) {
+              pendingVideoFocusRef.current = false
+              autoSwitchedRef.current = false
+              lastNonCarplayPathRef.current = null
+              break
+            }
+
             const backFromMaps = lastNonMapsPathRef.current
 
             if (
@@ -874,7 +910,6 @@ const CarplayComponent: React.FC<CarplayProps> = ({
             lastNonCarplayPathRef.current = null
             break
           }
-
           break
         }
       }

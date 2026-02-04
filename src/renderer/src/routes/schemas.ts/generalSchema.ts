@@ -83,6 +83,33 @@ export const generalSchema: SettingsNode<ExtraConfig> = {
     },
     {
       type: 'route',
+      route: 'autoSwitch',
+      label: 'Auto Switch',
+      labelKey: 'settings.autoSwitch',
+      path: '',
+      children: [
+        {
+          type: 'checkbox',
+          label: 'Switch on Stream Start',
+          labelKey: 'settings.autoSwitchOnStream',
+          path: 'autoSwitchOnStream'
+        },
+        {
+          type: 'checkbox',
+          label: 'Switch on Phone Call',
+          labelKey: 'settings.autoSwitchOnPhoneCall',
+          path: 'autoSwitchOnPhoneCall'
+        },
+        {
+          type: 'checkbox',
+          label: 'Switch on Guidance',
+          labelKey: 'settings.autoSwitchOnGuidance',
+          path: 'autoSwitchOnGuidance'
+        }
+      ]
+    },
+    {
+      type: 'route',
       label: 'Key Bindings',
       labelKey: 'settings.keyBindings',
       route: 'keyBindings',
@@ -205,6 +232,26 @@ export const generalSchema: SettingsNode<ExtraConfig> = {
           bindingKey: 'siri'
         }
       ]
+    },
+    {
+      type: 'select',
+      label: 'Start Page',
+      labelKey: 'settings.startPage',
+      path: 'startPage',
+      displayValue: true,
+      options: [
+        { label: 'Home', labelKey: 'settings.startPageHome', value: 'home' },
+        { label: 'Maps', labelKey: 'settings.startPageMaps', value: 'maps' },
+        { label: 'Media', labelKey: 'settings.startPageMedia', value: 'media' },
+        { label: 'Camera', labelKey: 'settings.startPageCamera', value: 'camera' },
+        { label: 'Settings', labelKey: 'settings.startPageSettings', value: 'settings' }
+      ],
+      page: {
+        title: 'Start Page',
+        labelTitle: 'settings.startPage',
+        description: 'Select which page LIVI should open on startup.',
+        labelDescription: 'settings.startPageDescription'
+      }
     },
     {
       type: 'number',

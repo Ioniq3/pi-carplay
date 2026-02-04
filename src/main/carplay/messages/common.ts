@@ -187,8 +187,6 @@ export class MessageHeader {
           return new AudioData(this, data)
         case MessageType.VideoData:
           return new VideoData(this, data)
-        case MessageType.AltVideoData:
-          return new VideoData(this, data)
         case MessageType.NaviVideoData:
           return new VideoData(this, data)
         case MessageType.MetaData:
