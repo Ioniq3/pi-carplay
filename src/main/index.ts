@@ -854,10 +854,39 @@ app.whenReady().then(() => {
   })
 
   // App Restart
-  ipcMain.handle('app:restartApp', () => {
+  ipcMain.handle('app:restartApp', async () => {
     if (isQuitting) return
+    isQuitting = true
+
+    try {
+      usbService?.beginShutdown()
+    } catch {}
+
+    try {
+      await usbService?.gracefulReset()
+    } catch (e) {
+      console.warn('[MAIN] gracefulReset failed (continuing restart):', e)
+    }
+
+    await new Promise((r) => setTimeout(r, 150))
+
+    if (process.platform === 'linux' && process.env.APPIMAGE) {
+      const appImage = process.env.APPIMAGE
+
+      const cleanEnv = { ...process.env }
+      delete cleanEnv.APPIMAGE
+      delete cleanEnv.APPDIR
+      delete cleanEnv.ARGV0
+      delete cleanEnv.OWD
+
+      spawn(appImage, [], { detached: true, stdio: 'ignore', env: cleanEnv }).unref()
+
+      app.exit(0)
+      return
+    }
+
     app.relaunch()
-    app.quit()
+    app.exit(0)
   })
 
   // User activity (touch/click)
