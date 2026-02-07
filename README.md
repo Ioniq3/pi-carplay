@@ -77,7 +77,7 @@ This step is required for all non-Apple-signed apps and future in-app updates wi
 xattr -cr /Applications/LIVI.app
 ```
 
-For microphone support, please install Sound eXchange (SoX) via brew.
+For audio support, please install Sound eXchange (SoX) via brew.
 
 ```bash
 brew install sox
