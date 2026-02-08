@@ -640,7 +640,11 @@ function pushSettingsToRenderer(override?: Partial<ExtraConfig>) {
 }
 
 function persistKioskAndBroadcast(kiosk: boolean) {
-  if (config.kiosk === kiosk) return
+  if (config.kiosk === kiosk) {
+    pushSettingsToRenderer({ kiosk })
+    return
+  }
+
   wmExitedKiosk = false
   saveSettings({ kiosk })
 }
