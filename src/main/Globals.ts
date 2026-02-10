@@ -4,6 +4,7 @@ export type ExtraConfig = DongleConfig & {
   startPage: 'home' | 'media' | 'maps' | 'camera' | 'settings'
   kiosk: boolean
   camera: string
+  telemetryEnabled: boolean
   cameraMirror: boolean
   bindings: KeyBindings
   audioVolume: number

@@ -10,6 +10,7 @@ import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import CameraswitchOutlinedIcon from '@mui/icons-material/CameraswitchOutlined'
 import MapOutlinedIcon from '@mui/icons-material/MapOutlined'
+import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined'
 
 export const useTabsConfig: (receivingVideo: boolean) => TabConfig[] = (receivingVideo) => {
   const theme = useTheme()
@@ -17,6 +18,7 @@ export const useTabsConfig: (receivingVideo: boolean) => TabConfig[] = (receivin
   const isDongleConnected = useStatusStore((s) => s.isDongleConnected)
   const cameraFound = useStatusStore((s) => s.cameraFound)
   const mapsEnabled = useCarplayStore((s) => s.settings?.mapsEnabled ?? false)
+  const telemetryEnabled = useCarplayStore((s) => s.settings?.telemetryEnabled ?? false)
 
   return [
     {
@@ -44,6 +46,15 @@ export const useTabsConfig: (receivingVideo: boolean) => TabConfig[] = (receivin
             label: 'Maps',
             path: ROUTES.MAPS,
             icon: <MapOutlinedIcon sx={{ fontSize: 30 }} />
+          }
+        ]
+      : []),
+    ...(telemetryEnabled
+      ? [
+          {
+            label: 'Telemetry',
+            path: ROUTES.TELEMETRY,
+            icon: <SpeedOutlinedIcon sx={{ fontSize: 30 }} />
           }
         ]
       : []),

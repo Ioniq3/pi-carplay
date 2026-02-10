@@ -25,6 +25,7 @@
     "autoSwitchOnStream": "При старті",
     "autoSwitchOnPhoneCall": "Під час дзвінка",
     "autoSwitchOnGuidance": "Навігація",
+    "telemetry": "Телеметрія",
     "maps": "Карти",
     "fftDelay": "Затримка FFT",
     "fftDelayDescription": "Затримує візуалізацію FFT для компенсації затримки аудіо.",
