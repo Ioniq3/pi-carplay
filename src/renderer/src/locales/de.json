@@ -25,6 +25,7 @@
     "autoSwitchOnStream": "Bei Stream-Start",
     "autoSwitchOnPhoneCall": "Bei Anruf",
     "autoSwitchOnGuidance": "Navigation",
+    "telemetry": "Telemetrie",
     "maps": "Karten",
     "fftDelay": "FFT-Verzögerung",
     "fftDelayDescription": "Verzögert die FFT-Visualisierung, um die Audio-Latenz auszugleichen.",

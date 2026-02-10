@@ -32,7 +32,7 @@ export const AppLayout: FC<PropsWithChildren<AppLayoutProps>> = ({
   const hideTimerRef = useRef<number | null>(null)
   const [mapsNavHidden, setMapsNavHidden] = useState(false)
 
-  const inMaps = pathname === ROUTES.MAPS
+  const inAutoHideNavPage = pathname === ROUTES.MAPS || pathname === ROUTES.TELEMETRY
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current != null) {
@@ -51,11 +51,11 @@ export const AppLayout: FC<PropsWithChildren<AppLayoutProps>> = ({
 
   const showNavAndArmHide = useCallback(() => {
     setMapsNavHidden(false)
-    if (inMaps) scheduleHide()
-  }, [inMaps, scheduleHide])
+    if (inAutoHideNavPage) scheduleHide()
+  }, [inAutoHideNavPage, scheduleHide])
 
   useEffect(() => {
-    if (!inMaps) {
+    if (!inAutoHideNavPage) {
       clearHideTimer()
       setMapsNavHidden(false)
       return
@@ -67,10 +67,10 @@ export const AppLayout: FC<PropsWithChildren<AppLayoutProps>> = ({
     return () => {
       clearHideTimer()
     }
-  }, [inMaps, scheduleHide, clearHideTimer])
+  }, [inAutoHideNavPage, scheduleHide, clearHideTimer])
 
   useEffect(() => {
-    if (!inMaps) return
+    if (!inAutoHideNavPage) return
 
     const wake: EventListener = () => {
       showNavAndArmHide()
@@ -85,13 +85,13 @@ export const AppLayout: FC<PropsWithChildren<AppLayoutProps>> = ({
       document.removeEventListener('mousemove', wake)
       document.removeEventListener('wheel', wake)
     }
-  }, [inMaps, showNavAndArmHide])
+  }, [inAutoHideNavPage, showNavAndArmHide])
 
   // Hide nav column while streaming on home screen
   const hideNavHome = isStreaming && pathname === ROUTES.HOME
 
   // Auto-hide nav on Maps after inactivity
-  const hideNav = hideNavHome || (inMaps && mapsNavHidden)
+  const hideNav = hideNavHome || (inAutoHideNavPage && mapsNavHidden)
 
   // Steering wheel position
   const isRhd = Number(settings?.hand ?? 0) === 1

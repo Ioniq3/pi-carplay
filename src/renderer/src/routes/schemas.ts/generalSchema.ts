@@ -314,6 +314,12 @@ export const generalSchema: SettingsNode<ExtraConfig> = {
     },
     {
       type: 'checkbox',
+      label: 'Telemetry',
+      labelKey: 'settings.telemetry',
+      path: 'telemetryEnabled'
+    },
+    {
+      type: 'checkbox',
       label: 'Fullscreen',
       labelKey: 'settings.fullscreen',
       path: 'kiosk'

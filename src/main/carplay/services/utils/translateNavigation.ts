@@ -1,6 +1,6 @@
 import type { NaviBag } from '../types'
 
-export type NavLocale = 'en' | 'de' | 'uk'
+export type NavLocale = 'en' | 'de' | 'ua'
 
 type Dict = {
   // generic UI strings
@@ -207,7 +207,7 @@ const DICT: Record<NavLocale, Dict> = {
     changeHighwayRight: 'Autobahnwechsel (rechts)' // 53
   },
 
-  uk: {
+  ua: {
     // generic UI strings
     unknown: 'Невідомо',
     app: 'Додаток',
@@ -434,6 +434,7 @@ export function translateNavigation(navi: NaviBag | null | undefined, locale: Na
 
   const timeRemainingToDestinationText = fmtSecondsToMmSs(obj.NaviTimeToDestination)
   const distanceRemainingDisplayStringText = fmtMeters(obj.NaviDistanceToDestination, langTag)
+  const remainDistanceText = fmtMeters(obj.NaviRemainDistance, langTag)
 
   const maneuverType = typeof obj.NaviManeuverType === 'number' ? obj.NaviManeuverType : undefined
   const maneuverText = maneuverTypeText(maneuverType, d) ?? d.unknown
@@ -457,6 +458,7 @@ export function translateNavigation(navi: NaviBag | null | undefined, locale: Na
 
     TimeRemainingToDestinationText: timeRemainingToDestinationText,
     DistanceRemainingDisplayStringText: distanceRemainingDisplayStringText,
+    RemainDistanceText: remainDistanceText,
 
     ManeuverTypeText: maneuverText,
     JunctionTypeText: junctionText,

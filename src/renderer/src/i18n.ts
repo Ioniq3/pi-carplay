@@ -10,12 +10,15 @@ i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
     de: { translation: de },
-    'uk-UA': { translation: ua }
+    ua: { translation: ua }, // backward compatibility
+    uk: { translation: ua }, // official ISO code (generic)
+    'uk-UA': { translation: ua } // official ISO code (region)
   },
-  lng: 'uk-UA',
+  lng: 'en',
   fallbackLng: 'en',
-
-  interpolation: {
-    escapeValue: false
-  }
+  supportedLngs: ['en', 'de', 'ua', 'uk', 'uk-UA'],
+  nonExplicitSupportedLngs: true,
+  interpolation: { escapeValue: false }
 })
+
+export default i18n

@@ -28,6 +28,7 @@ export interface PersistedNavigationPayload {
     maneuverText?: string
     timeToDestinationText?: string
     distanceToDestinationText?: string
+    remainDistanceText?: string
   }
 }
 

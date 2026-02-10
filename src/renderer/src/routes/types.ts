@@ -1,11 +1,12 @@
 import type React from 'react'
 
 export enum RoutePath {
+  Camera = 'camera',
   Home = 'home',
   Maps = 'maps',
   Media = 'media',
-  Camera = 'camera',
-  Settings = 'settings'
+  Settings = 'settings',
+  Telemetry = 'telemetry'
 }
 
 type BivariantCallback<T extends (...args: never[]) => unknown> = {

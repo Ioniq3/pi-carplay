@@ -325,7 +325,8 @@ export class CarplayService {
               roadName: translated.CurrentRoadName,
               maneuverText: translated.ManeuverTypeText,
               timeToDestinationText: translated.TimeRemainingToDestinationText,
-              distanceToDestinationText: translated.DistanceRemainingDisplayStringText
+              distanceToDestinationText: translated.DistanceRemainingDisplayStringText,
+              remainDistanceText: translated.RemainDistanceText
             }
           }
 
