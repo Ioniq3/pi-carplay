@@ -12,6 +12,15 @@ import { appRoutes } from './routes/appRoutes'
 import { AppLayout } from './components/layouts/AppLayout'
 import i18n from 'i18next'
 
+const START_PAGE_ROUTE: Record<string, string> = {
+  home: ROUTES.HOME,
+  media: ROUTES.MEDIA,
+  maps: ROUTES.MAPS,
+  camera: ROUTES.CAMERA,
+  settings: ROUTES.SETTINGS,
+  telemetry: ROUTES.TELEMETRY
+}
+
 function AppInner() {
   const appContext = useContext(AppContext)
   const [receivingVideo, setReceivingVideo] = useState(false)
@@ -85,18 +94,7 @@ function AppInner() {
       return
     }
 
-    const startPage = settings.startPage || 'home'
-
-    const target =
-      startPage === 'media'
-        ? ROUTES.MEDIA
-        : startPage === 'maps'
-          ? ROUTES.MAPS
-          : startPage === 'camera'
-            ? ROUTES.CAMERA
-            : startPage === 'settings'
-              ? ROUTES.SETTINGS
-              : ROUTES.HOME // phone/default
+    const target = START_PAGE_ROUTE[settings.startPage ?? 'home'] ?? ROUTES.HOME
 
     didApplyStartPageRef.current = true
 

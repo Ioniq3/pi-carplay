@@ -1,7 +1,7 @@
 import { DongleConfig } from '@carplay/messages'
 
 export type ExtraConfig = DongleConfig & {
-  startPage: 'home' | 'media' | 'maps' | 'camera' | 'settings'
+  startPage: 'home' | 'media' | 'maps' | 'telemetry' | 'camera' | 'settings'
   kiosk: boolean
   camera: string
   telemetryEnabled: boolean
