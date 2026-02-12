@@ -144,7 +144,7 @@ export const StackItem = ({
       role={onClick ? 'button' : undefined}
     >
       {children}
-      {showValue && (value || displayValue) && (
+      {showValue && value != null && (
         <div style={{ whiteSpace: 'nowrap', fontSize: 'clamp(0.85rem, 2.0svh, 0.95rem)' }}>
           {displayValue}
         </div>
