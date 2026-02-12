@@ -237,6 +237,20 @@ export const Telemetry: React.FC = () => {
   const locale = navLocaleFromSettings(settings?.language)
 
   const [navi, setNavi] = React.useState<NaviBag | null>(null)
+  const [navHidden, setNavHidden] = React.useState(false)
+
+  React.useEffect(() => {
+    const el = document.getElementById('content-root')
+    if (!el) return
+
+    const read = () => setNavHidden(el.getAttribute('data-nav-hidden') === '1')
+    read()
+
+    const mo = new MutationObserver(read)
+    mo.observe(el, { attributes: true, attributeFilter: ['data-nav-hidden'] })
+
+    return () => mo.disconnect()
+  }, [])
 
   const hydrate = React.useCallback(async () => {
     try {
@@ -276,10 +290,10 @@ export const Telemetry: React.FC = () => {
   return (
     <Box
       sx={{
-        position: 'fixed',
+        position: navHidden ? 'fixed' : 'absolute',
         inset: 0,
-        width: '100vw',
-        height: '100vh',
+        width: '100%',
+        height: '100%',
         overflow: 'hidden',
         backgroundColor: theme.palette.background.default,
         display: 'grid',

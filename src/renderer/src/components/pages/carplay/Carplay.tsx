@@ -65,7 +65,7 @@ function StatusOverlay({
         <CropPortraitOutlinedIcon
           sx={{
             fontSize: 84,
-            color: isPhonePhase ? theme.palette.text.primary : theme.palette.text.disabled,
+            color: theme.palette.text.primary,
             opacity: isPhonePhase ? 'var(--ui-breathe-opacity, 1)' : 0.55
           }}
         />

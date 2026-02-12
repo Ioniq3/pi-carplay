@@ -163,6 +163,7 @@ export const AppLayout: FC<PropsWithChildren<AppLayoutProps>> = ({
       <div
         ref={mainRef}
         id="content-root"
+        data-nav-hidden={hideNav ? '1' : '0'}
         style={{
           flex: 1,
           minWidth: 0,

@@ -37,6 +37,7 @@ export const Maps: React.FC = () => {
 
   const [renderReady, setRenderReady] = useState(false)
   const [rendererError, setRendererError] = useState<string | null>(null)
+  const [navHidden, setNavHidden] = useState(false)
 
   const rootRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -44,6 +45,19 @@ export const Maps: React.FC = () => {
   const offscreenCanvasRef = useRef<OffscreenCanvas | null>(null)
 
   const mapsVideoChannel = useMemo(() => new MessageChannel(), [])
+
+  useEffect(() => {
+    const el = document.getElementById('content-root')
+    if (!el) return
+
+    const read = () => setNavHidden(el.getAttribute('data-nav-hidden') === '1')
+    read()
+
+    const mo = new MutationObserver(read)
+    mo.observe(el, { attributes: true, attributeFilter: ['data-nav-hidden'] })
+
+    return () => mo.disconnect()
+  }, [])
 
   // Render.worker message typing
   type RenderWorkerMsg =
@@ -209,10 +223,10 @@ export const Maps: React.FC = () => {
     <Box
       ref={rootRef}
       sx={{
-        position: 'fixed',
+        position: navHidden ? 'fixed' : 'absolute',
         inset: 0,
-        width: '100vw',
-        height: '100vh',
+        width: '100%',
+        height: '100%',
         overflow: 'hidden',
         display: 'flex',
         justifyContent: 'stretch',
