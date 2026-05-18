@@ -681,17 +681,13 @@ const CarplayComponent: React.FC<CarplayProps> = ({
       }
     }
     const usbHandler = (_evt: unknown, ...args: unknown[]) => {
-      if (aaActive) return
       const data = args[0] as UsbEvent | undefined
       if (!data) return
       if (data.type === 'plugged') onUsbConnect()
       else if (data.type === 'unplugged') onUsbDisconnect()
     }
 
-    let unsubscribe: (() => void) | undefined
-    if (!aaActive) {
-      unsubscribe = window.projection.usb.listenForEvents(usbHandler)
-    }
+    const unsubscribe = window.projection.usb.listenForEvents(usbHandler)
 
     return () => {
       disposed = true
@@ -705,8 +701,7 @@ const CarplayComponent: React.FC<CarplayProps> = ({
     clearRetryTimeout,
     navigate,
     resetInfo,
-    setDeviceInfo,
-    aaActive
+    setDeviceInfo
   ])
 
   // Settings/events from main
