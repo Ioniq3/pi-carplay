@@ -5,3 +5,7 @@ allowBuilds:
   protobufjs: true
   unrs-resolver: true
   usb: true
+minimumReleaseAgeExclude:
+  - '@types/node@25.9.0'
+  - protobufjs@8.4.0
+  - ts-jest@29.4.10
