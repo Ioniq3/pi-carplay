@@ -102,6 +102,14 @@ export class AaBtSockClient {
     return (await this.request(`remove ${mac}`, timeoutMs)) as ActionResponse
   }
 
+  /** Tell the BT reconnect worker to pause (true) or resume (false). */
+  async setSessionActive(active: boolean, timeoutMs = 5000): Promise<ActionResponse> {
+    return (await this.request(
+      `session-active ${active ? 'true' : 'false'}`,
+      timeoutMs
+    )) as ActionResponse
+  }
+
   /** Open a event subscription. */
   subscribe(
     onEvent: (ev: { event: string; mac?: string; path?: string }) => void,

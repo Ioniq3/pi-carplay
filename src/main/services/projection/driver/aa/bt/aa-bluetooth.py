@@ -674,6 +674,10 @@ _last_phone_mac:   str = ""
 # HFP Service Level Connection state
 hfp_slc_established: bool = False
 
+# Set True while an AA session is running (wired or wireless).
+_session_active: bool = False
+_session_active_lock = threading.Lock()
+
 # Set True only when HFP RegisterProfile succeeds.
 _hfp_profile_registered: bool = False
 
@@ -1003,7 +1007,8 @@ def _start_event_server() -> None:
            ]}
       connect <mac>     → {"ok": true} or {"ok": false, "error": "..."}
       disconnect <mac>  → {"ok": true} or {"ok": false, "error": "..."}
-      remove <mac>      → {"ok": true} or {"ok": false, "error": "..."}
+      remove <mac>            → {"ok": true} or {"ok": false, "error": "..."}
+      session-active <bool>   → {"ok": true, "active": true|false}
     """
     try:
         os.unlink(_AA_EVENT_SOCK)
@@ -1042,6 +1047,16 @@ def _start_event_server() -> None:
                     return {"ok": False, "error": "remove requires a MAC argument"}
                 ok, err = _device_remove(arg)
                 return {"ok": ok} if ok else {"ok": False, "error": err}
+            if cmd == "session-active":
+                value = arg.strip().lower()
+                if value not in ("true", "false"):
+                    return {"ok": False, "error": "session-active expects true|false"}
+                global _session_active
+                with _session_active_lock:
+                    _session_active = (value == "true")
+                    new_value = _session_active
+                dprint(f"[aa-bt] session active: {new_value}", flush=True)
+                return {"ok": True, "active": new_value}
             return {"ok": False, "error": f"unknown command: {cmd!r}"}
         except Exception as e:
             traceback.print_exc()
@@ -1127,6 +1142,12 @@ def _bt_reconnect_worker() -> None:
     interval_s = 5.0
     while True:
         time.sleep(interval_s)
+
+        # Skip while an AA session is active — AA carries call audio itself,
+        # and BT probes interfere with Wi-Fi on shared-radio platforms.
+        with _session_active_lock:
+            if _session_active:
+                continue
 
         mac = _last_phone_mac
         path = _last_device_path
