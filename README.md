@@ -10,13 +10,13 @@ It is a standalone cross-platform Electron head unit with hardware-accelerated v
 
 ## Native Connectivity
 
-- **Android Auto** (wired) on all platforms  
-- **Android Auto** (wireless) on Linux  
+- **Android Auto** (wired) on all platforms
+- **Android Auto** (wireless) on Linux
 
 ## Dongle-based Connectivity
 
-- **Android Auto** (wired & wireless) on all platforms  
-- **Apple CarPlay** (wired & wireless) on all platforms  
+- **Android Auto** (wired & wireless) on all platforms
+- **Apple CarPlay** (wired & wireless) on all platforms
 
 > **Supported USB adapters (for CarPlay):** Carlinkit **CPC200-CCPA** (wireless/wired) and **CPC200-CCPW** (wired)
 
@@ -185,6 +185,19 @@ pnpm -C scripts/tools run telemetry:set _repeatMs=1000 speedKph=90 rpm=2500
 
 <p align="center">
   <img src="docs/images/dash.png" alt="Dashboard" width="70%" />
+</p>
+
+## Multi-Display
+
+LIVI can run as multiple windows at once, each placeable on its own physical display.
+The Dash and Aux windows are freely assignable and can show the cluster stream, live telemetry, turn-by-turn navigation, the reverse camera or the media player. Assignment is not exclusive: any feature can be shown on one, several, or all windows at the same time.
+
+Configure each window under Settings → Window Settings
+(Main Screen / Dash Screen / Aux Screen), and assign features under
+Settings → General → Window Settings.
+
+<p align="center">
+  <img src="docs/images/multi-display.png" alt="Multi-Display" width="70%" />
 </p>
 
 ## Images
