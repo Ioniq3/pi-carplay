@@ -49,7 +49,7 @@ export function useSmartSettings<T extends Record<string, unknown>>(
 
     for (const key of requiresRestartParams) {
       if (!isRestartRelevantPath(key)) continue
-      if (cfg[key] !== baseline[key]) return true
+      if (JSON.stringify(cfg[key]) !== JSON.stringify(baseline[key])) return true
     }
     return false
   }, [settings, restartBaseline])

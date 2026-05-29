@@ -206,15 +206,6 @@ export class ProjectionService {
       this.recomputeCodecCapabilities()
     }
 
-    if (hwToggled || clusterToggled) {
-      console.log(
-        `[ProjectionService] config change requires AA restart (hw=${hwToggled}, cluster=${clusterToggled})`
-      )
-      this.aaDriver?.restartStack().catch((e) => {
-        console.warn('[ProjectionService] AA stack restart on config toggle failed', e)
-      })
-    }
-
     if (clusterToggled && !nextClusterActive) {
       this.clusterRequested = false
       this.lastClusterCodec = null
