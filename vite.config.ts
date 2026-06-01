@@ -85,7 +85,7 @@ export default defineConfig({
           build: {
             outDir: resolve(__dirname, 'out/main'),
             emptyOutDir: false,
-            rollupOptions: {
+            rolldownOptions: {
               external: ['electron', 'usb', 'gst-video', 'node-gyp-build', ...NODE_BUILTINS],
               input: {
                 main: resolve(__dirname, 'src/main/index.ts'),
@@ -109,7 +109,7 @@ export default defineConfig({
           build: {
             outDir: resolve(__dirname, 'out/preload'),
             emptyOutDir: false,
-            rollupOptions: {
+            rolldownOptions: {
               external: ['electron', ...NODE_BUILTINS],
               output: {
                 format: 'cjs',
