@@ -44,8 +44,8 @@ const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.m
 export type DashFrameProps = {
   /** Centre slot, e.g. the mini-nav or the full nav. */
   children?: ReactNode
-  /** The cluster map fills the whole background and each instrument floats over it; theme-aware
-      vignette bands top/bottom keep the telltale row and bottom bar legible. */
+  /** The cluster map fills the whole background and each instrument floats over it; a soft
+      elliptical backdrop behind each gauge keeps the readouts legible over the map. */
   clusterFull?: boolean
 }
 
@@ -107,14 +107,6 @@ export function DashFrame({ children, clusterFull }: DashFrameProps) {
   }, [])
 
   const clusterBg = theme.palette.background.default
-  // Vignette bands: dark in dark mode, white in light mode (matches SoftPanel).
-  const bandRgb = theme.palette.mode === 'light' ? '255, 255, 255' : '0, 0, 0'
-  // Eased fade so the inner edge melts into the map instead of a hard linear cut: the band stays
-  // solid near the screen edge (covers the telltale row / temp-fuel bar) then tails off gently.
-  const bandFade = (dir: 'to top' | 'to bottom'): string => {
-    const a = VIGNETTE.bandAlpha
-    return `linear-gradient(${dir}, rgba(${bandRgb},${a}) 0%, rgba(${bandRgb},${a * 0.55}) 38%, rgba(${bandRgb},${a * 0.16}) 72%, rgba(${bandRgb},0) 100%)`
-  }
 
   return (
     <DashShell>
@@ -125,35 +117,6 @@ export function DashFrame({ children, clusterFull }: DashFrameProps) {
         {/* Normal dash: a plain dark backdrop. Either cluster mode drops it so the plane shows. */}
         {!isClusterDash && (
           <Box sx={{ position: 'absolute', inset: 0, backgroundColor: clusterBg }} />
-        )}
-
-        {/* clusterFull: full-window map behind, soft theme-aware bands top + bottom so the telltale
-            row and the bottom bar stay legible. Host-space (full width), behind the scaled stage. */}
-        {clusterFull && (
-          <>
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: `${VIGNETTE.bandTopPct}%`,
-                pointerEvents: 'none',
-                background: bandFade('to bottom')
-              }}
-            />
-            <Box
-              sx={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: `${VIGNETTE.bandBottomPct}%`,
-                pointerEvents: 'none',
-                background: bandFade('to top')
-              }}
-            />
-          </>
         )}
 
         {/* scaled stage */}

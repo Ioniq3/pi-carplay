@@ -41,9 +41,6 @@ export const NAV_DIVIDER_Y = 532
 // centred on the gauge box so the left/right shadows are mirror-symmetric and the 0/P readout stays
 // legible over the map. soft/end = % radius where the glow is still solid / fully faded.
 export const VIGNETTE = {
-  bandTopPct: 9,
-  bandBottomPct: 10,
-  bandAlpha: 0.55,
   ring: {
     alpha: 0.85,
     soft: 44,
