@@ -328,16 +328,16 @@ done
 # All libs
 copy_all_pending_libs
 
-# Make the bundle relocatable
-if command -v patchelf >/dev/null 2>&1; then
-  echo "Patching RPATHs to \$ORIGIN (relocatable bundle)"
-  for f in "$OUT"/lib/*.so*;               do [ -f "$f" ] && patchelf --set-rpath '$ORIGIN' "$f" 2>/dev/null || true; done
-  for f in "$OUT"/lib/gstreamer-1.0/*.so;  do [ -f "$f" ] && patchelf --set-rpath '$ORIGIN/..' "$f" 2>/dev/null || true; done
-  for f in "$OUT"/bin/*;                   do [ -f "$f" ] && patchelf --set-rpath '$ORIGIN/../lib' "$f" 2>/dev/null || true; done
-  for f in "$OUT"/libexec/gstreamer-1.0/*; do [ -f "$f" ] && patchelf --set-rpath '$ORIGIN/../../lib' "$f" 2>/dev/null || true; done
-else
-  echo "WARNING: patchelf not found - bundle is NOT relocatable (gst-plugin-scanner will fail to find the bundled core). Install patchelf."
+# Make the bundle relocatabl
+if ! command -v patchelf >/dev/null 2>&1; then
+  echo "ERROR: patchelf not found. The bundle would not be relocatable and video would silently fail on hosts without a system GStreamer (e.g. Raspberry Pi OS Lite). Install patchelf and re-run." >&2
+  exit 1
 fi
+echo "Patching RPATHs to \$ORIGIN (relocatable bundle)"
+for f in "$OUT"/lib/*.so*;               do [ -f "$f" ] && patchelf --set-rpath '$ORIGIN' "$f" 2>/dev/null || true; done
+for f in "$OUT"/lib/gstreamer-1.0/*.so;  do [ -f "$f" ] && patchelf --set-rpath '$ORIGIN/..' "$f" 2>/dev/null || true; done
+for f in "$OUT"/bin/*;                   do [ -f "$f" ] && patchelf --set-rpath '$ORIGIN/../lib' "$f" 2>/dev/null || true; done
+for f in "$OUT"/libexec/gstreamer-1.0/*; do [ -f "$f" ] && patchelf --set-rpath '$ORIGIN/../../lib' "$f" 2>/dev/null || true; done
 
 echo "Created linux-x64/linux-arm64 GStreamer bundle at: $OUT"
 echo "Bundle size:"
