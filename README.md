@@ -264,12 +264,6 @@ Settings → General → Tab Settings.
   <img src="docs/images/settings.png" alt="Settings" width="42%" align="top" />
 </p>
 
-<p align="center">
-  <img src="docs/images/maps.png" alt="Maps (Cluster Stream)" width="42%" align="top" />
-  &emsp;
-  <img src="docs/images/telemetry.png" alt="Telemetry" width="42%" align="top" />
-</p>
-
 ## Credits
 
 See [CREDITS](CREDITS.md) for acknowledgements and prior art.
