@@ -11,17 +11,18 @@ export function bootstrapCompositor(): boolean {
   if (process.env.LIVI_COMPOSITOR === '1') return false
   if (process.env.LIVI_NO_COMPOSITOR === '1') return false
 
-  // Only the AppImage has a stable self-path to re-launch
-  const appImage = process.env.APPIMAGE
-  if (!appImage) return false
+  // Packaged builds re-launch themselves inside the compositor: the AppImage
+  // via $APPIMAGE, the .deb via its own binary.
+  const relaunch = process.env.APPIMAGE ?? process.execPath
 
-  const launcher = join(process.resourcesPath, 'compositor', 'livi-compositor')
+  const resources = process.resourcesPath
+  if (!resources) return false
+  const launcher = join(resources, 'compositor', 'livi-compositor')
   if (!existsSync(launcher)) return false
 
-  // The inner AppImage must re-mount fresh (drop AppRun's vars)
   const hostLd = process.env.LD_LIBRARY_PATH ?? ''
   const inner =
-    `LIVI_COMPOSITOR=1 LD_LIBRARY_PATH='${hostLd}' ` + `'${appImage}' --ozone-platform=wayland`
+    `LIVI_COMPOSITOR=1 LD_LIBRARY_PATH='${hostLd}' ` + `'${relaunch}' --ozone-platform=wayland`
 
   // Control socket: the host drives screen outputs + video placement/crop/visibility over this
   const runtimeDir = process.env.XDG_RUNTIME_DIR || '/tmp'

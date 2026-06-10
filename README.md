@@ -76,7 +76,7 @@ On first launch, LIVI detects if the udev rule for USB access is missing and pro
 
 > **Hardware video decode (optional):** LIVI uses the system VA-API driver for GPU video decode (it is not bundled, since it must match your GPU and kernel). Most desktops ship it, a minimal install may not. Without it LIVI still works via software decode. For HW decode install the driver for your GPU and verify with `vainfo`: `i965-va-driver` (older Intel, e.g. Broadwell), `intel-media-va-driver` (Gen9+ Intel), `mesa-va-drivers` (AMD).
 
-> **Ubuntu / Kubuntu users:** Due to AppArmor restrictions, use the `.deb` package instead of the AppImage. The `.deb` automatically configures all required permissions. Alternatively, the AppImage can be started with `--no-sandbox` as a workaround.
+> **Ubuntu / Kubuntu users:** On Ubuntu 24.04 AppArmor blocks the Chromium sandbox for AppImages, start it with `--no-sandbox` as a workaround. Ubuntu 24.10 and newer run the AppImage out of the box.
 
 ## Mac (arm64)
 

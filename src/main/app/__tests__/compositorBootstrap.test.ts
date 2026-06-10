@@ -53,10 +53,12 @@ describe('bootstrapCompositor', () => {
     expect(mockedSpawn).not.toHaveBeenCalled()
   })
 
-  test('returns false when not an AppImage', () => {
+  test('re-execs via process.execPath when not an AppImage (.deb)', () => {
     delete process.env.APPIMAGE
-    expect(bootstrapCompositor()).toBe(false)
-    expect(mockedSpawn).not.toHaveBeenCalled()
+    expect(bootstrapCompositor()).toBe(true)
+    const [, argv] = mockedSpawn.mock.calls[0]
+    expect(argv[1]).toContain(process.execPath)
+    expect(argv[1]).toContain('--ozone-platform=wayland')
   })
 
   test('returns false when the compositor launcher is missing', () => {
