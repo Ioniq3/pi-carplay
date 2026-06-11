@@ -37,7 +37,7 @@ import {
 import type { Config } from '@shared/types'
 import { InputCommand, MicType, PhoneWorkMode } from '@shared/types'
 import type { CommandValue } from '@shared/types/ProjectionEnums'
-import { matchFittingAAResolution } from '@shared/utils'
+import { isClusterDisplayed, matchFittingAAResolution } from '@shared/utils'
 import EventEmitter from 'events'
 
 const CONFIG_NUMBER = 1
@@ -472,21 +472,57 @@ export class DongleDriver extends EventEmitter {
     })
 
     const projectionAreaMessages: SendableMessage[] = [
-      new SendViewArea(cfg.projectionWidth, cfg.projectionHeight),
+      new SendViewArea(cfg.projectionWidth, cfg.projectionHeight, {
+        insets: {
+          top: cfg.projectionViewAreaTop,
+          bottom: cfg.projectionViewAreaBottom,
+          left: cfg.projectionViewAreaLeft,
+          right: cfg.projectionViewAreaRight
+        }
+      }),
+      // Safe area is additive to the view area, the dongle requires safe area to
+      // stay inside the view area (Safe Area is a subset of View Area).
       new SendSafeArea(cfg.projectionWidth, cfg.projectionHeight, {
         insets: {
-          top: cfg.projectionSafeAreaTop,
-          bottom: cfg.projectionSafeAreaBottom,
-          left: cfg.projectionSafeAreaLeft,
-          right: cfg.projectionSafeAreaRight
+          top: cfg.projectionViewAreaTop + cfg.projectionSafeAreaTop,
+          bottom: cfg.projectionViewAreaBottom + cfg.projectionSafeAreaBottom,
+          left: cfg.projectionViewAreaLeft + cfg.projectionSafeAreaLeft,
+          right: cfg.projectionViewAreaRight + cfg.projectionSafeAreaRight
         },
         drawOutside: cfg.projectionSafeAreaDrawOutside
       })
     ]
 
+    // Cluster view/safe area files must follow SendBoxSettings, which makes the
+    // dongle rewrite the HU_NAVISCREEN_*_INFO files at full size first.
+    const clusterAreaMessages: SendableMessage[] = isClusterDisplayed(cfg)
+      ? [
+          new SendViewArea(cfg.clusterWidth, cfg.clusterHeight, {
+            address: FileAddress.HU_NAVISCREEN_VIEWAREA_INFO,
+            insets: {
+              top: cfg.clusterViewAreaTop,
+              bottom: cfg.clusterViewAreaBottom,
+              left: cfg.clusterViewAreaLeft,
+              right: cfg.clusterViewAreaRight
+            }
+          }),
+          new SendSafeArea(cfg.clusterWidth, cfg.clusterHeight, {
+            address: FileAddress.HU_NAVISCREEN_SAFEAREA_INFO,
+            insets: {
+              top: cfg.clusterViewAreaTop + cfg.clusterSafeAreaTop,
+              bottom: cfg.clusterViewAreaBottom + cfg.clusterSafeAreaBottom,
+              left: cfg.clusterViewAreaLeft + cfg.clusterSafeAreaLeft,
+              right: cfg.clusterViewAreaRight + cfg.clusterSafeAreaRight
+            },
+            drawOutside: false
+          })
+        ]
+      : []
+
     const messages: SendableMessage[] = [
       ...projectionAreaMessages,
       new SendBoxSettings(cfg),
+      ...clusterAreaMessages,
       new SendString(label, FileAddress.BOX_NAME),
       new SendBoolean(cfg.nightMode, FileAddress.NIGHT_MODE),
       new SendAndroidAutoDpi(aaResolution.width, aaResolution.height),

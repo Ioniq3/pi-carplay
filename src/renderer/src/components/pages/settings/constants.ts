@@ -23,12 +23,15 @@ export const SAFE_AREA_MIN = 0
 export const SAFE_AREA_MAX_WIDTH = MAX_WIDTH
 export const SAFE_AREA_MAX_HEIGHT = MAX_HEIGHT
 export const SAFE_AREA_DEFAULT = 0
+export const AREA_STEP = 2
 
 export const UI_DEBOUNCED_KEYS = new Set<keyof Config>([
   'primaryColorDark',
   'primaryColorLight',
   'highlightColorDark',
-  'highlightColorLight'
+  'highlightColorLight',
+  'backgroundColorDark',
+  'backgroundColorLight'
 ])
 
 export const PRIMARY_KEYS = ['primaryColorDark', 'primaryColorLight'] as const

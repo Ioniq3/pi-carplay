@@ -248,14 +248,20 @@ export enum FileAddress {
   LIVI_WEB = '/tmp/boa/www/index.html',
   HU_VIEWAREA_INFO = '/etc/RiddleBoxData/HU_VIEWAREA_INFO',
   HU_SAFEAREA_INFO = '/etc/RiddleBoxData/HU_SAFEAREA_INFO',
+  HU_NAVISCREEN_VIEWAREA_INFO = '/etc/RiddleBoxData/HU_NAVISCREEN_VIEWAREA_INFO',
+  HU_NAVISCREEN_SAFEAREA_INFO = '/etc/RiddleBoxData/HU_NAVISCREEN_SAFEAREA_INFO',
   TMP = '/tmp'
 }
 
-export type ViewAreaOptions = Record<string, never>
+export type ViewAreaOptions = {
+  insets?: Partial<ScreenInsets>
+  address?: FileAddress
+}
 
 export type SafeAreaOptions = {
   insets?: Partial<ScreenInsets>
   drawOutside?: boolean
+  address?: FileAddress
 }
 
 export type ScreenInsets = {
@@ -265,44 +271,52 @@ export type ScreenInsets = {
   right: number
 }
 
-/** 24 bytes LE: [screenW, screenH, viewW, viewH, originX, originY] */
-export class SendViewArea extends SendFile {
-  constructor(screenW: number, screenH: number, _options: ViewAreaOptions = {}) {
-    const b = Buffer.alloc(24)
-    b.writeUInt32LE(screenW, 0)
-    b.writeUInt32LE(screenH, 4)
-    b.writeUInt32LE(screenW, 8)
-    b.writeUInt32LE(screenH, 12)
-    b.writeUInt32LE(0, 16)
-    b.writeUInt32LE(0, 20)
+function toEven(n: number): number {
+  return n - (n % 2)
+}
 
-    super(b, FileAddress.HU_VIEWAREA_INFO)
+// 24 bytes LE: [screenW, screenH, viewW, viewH, originX, originY]
+export class SendViewArea extends SendFile {
+  constructor(screenW: number, screenH: number, options: ViewAreaOptions = {}) {
+    const top = toEven(Math.max(0, options.insets?.top ?? 0))
+    const left = toEven(Math.max(0, options.insets?.left ?? 0))
+    const right = Math.max(0, options.insets?.right ?? 0)
+    const bottom = Math.max(0, options.insets?.bottom ?? 0)
+    const viewW = toEven(Math.max(0, toEven(screenW) - left - right))
+    const viewH = toEven(Math.max(0, toEven(screenH) - top - bottom))
+
+    const b = Buffer.alloc(24)
+    b.writeUInt32LE(toEven(screenW), 0)
+    b.writeUInt32LE(toEven(screenH), 4)
+    b.writeUInt32LE(viewW, 8)
+    b.writeUInt32LE(viewH, 12)
+    b.writeUInt32LE(left, 16)
+    b.writeUInt32LE(top, 20)
+
+    super(b, options.address ?? FileAddress.HU_VIEWAREA_INFO)
   }
 }
 
-/** 20 bytes LE: [safeW, safeH, originX, originY, drawOutside] */
+// 20 bytes LE: [safeW, safeH, originX, originY, drawOutside]
 export class SendSafeArea extends SendFile {
   constructor(videoW: number, videoH: number, options: SafeAreaOptions = {}) {
-    const insets: ScreenInsets = {
-      top: options.insets?.top ?? 0,
-      bottom: options.insets?.bottom ?? 0,
-      left: options.insets?.left ?? 0,
-      right: options.insets?.right ?? 0
-    }
-
-    const safeW = Math.max(0, videoW - insets.left - insets.right)
-    const safeH = Math.max(0, videoH - insets.top - insets.bottom)
-    const hasInsets = (insets.top | insets.bottom | insets.left | insets.right) !== 0
+    const top = toEven(Math.max(0, options.insets?.top ?? 0))
+    const left = toEven(Math.max(0, options.insets?.left ?? 0))
+    const right = Math.max(0, options.insets?.right ?? 0)
+    const bottom = Math.max(0, options.insets?.bottom ?? 0)
+    const safeW = toEven(Math.max(0, toEven(videoW) - left - right))
+    const safeH = toEven(Math.max(0, toEven(videoH) - top - bottom))
+    const hasInsets = (top | bottom | left | right) !== 0
     const drawOutside = options.drawOutside ?? hasInsets
 
     const b = Buffer.alloc(20)
     b.writeUInt32LE(safeW, 0)
     b.writeUInt32LE(safeH, 4)
-    b.writeUInt32LE(insets.left, 8)
-    b.writeUInt32LE(insets.top, 12)
+    b.writeUInt32LE(left, 8)
+    b.writeUInt32LE(top, 12)
     b.writeUInt32LE(drawOutside ? 1 : 0, 16)
 
-    super(b, FileAddress.HU_SAFEAREA_INFO)
+    super(b, options.address ?? FileAddress.HU_SAFEAREA_INFO)
   }
 }
 
@@ -467,8 +481,9 @@ export class SendBoxSettings extends SendableMessageWithPayload {
       const cH = cfg.clusterHeight
       const cF = cfg.clusterFps
 
-      // `naviScreenInfo` is the dongle wire-protocol field name.
-      // NOTE: Cluster safe-area is intentionally NOT forwarded to the dongle.
+      // `naviScreenInfo` registers the cluster screen. Its safearea sub-object is
+      // kept full-size, the cluster view/safe area is delivered via the
+      // HU_NAVISCREEN_*_INFO files instead (see dongleDriver).
       body.naviScreenInfo = {
         width: cW,
         height: cH,

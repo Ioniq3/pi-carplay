@@ -24,7 +24,7 @@ export const RPM_LABELS = ['0', '1', '2', '3', '4', '5']
 
 export const RING_W = 470
 export const RING_H = 600
-export const RING_TOP = 40
+export const RING_TOP = 60
 export const LEFT_RING_LEFT = -32
 export const RIGHT_RING_LEFT = BASE_W - RING_W + 40
 export const MAX_SPEED_KPH = 220

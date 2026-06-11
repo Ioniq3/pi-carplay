@@ -38,10 +38,11 @@ const tabItemBase = {
 const buttonBaseRoot = { cursor: 'default' }
 const svgIconRoot = { cursor: 'default' }
 
-function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
+function buildTheme(mode: THEME.LIGHT | THEME.DARK, bg?: string) {
   const isLight = mode === THEME.LIGHT
   const primary = isLight ? themeColors.primaryColorLight : themeColors.primaryColorDark
   const highlight = isLight ? themeColors.highlightColorLight : themeColors.highlightColorDark
+  const background = bg || (isLight ? themeColors.light : themeColors.dark)
 
   return createTheme({
     breakpoints: {
@@ -56,8 +57,8 @@ function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
     palette: {
       mode,
       background: {
-        default: isLight ? themeColors.light : themeColors.dark,
-        paper: isLight ? themeColors.light : themeColors.dark
+        default: background,
+        paper: background
       },
       text: {
         primary: isLight ? themeColors.textPrimaryLight : themeColors.textPrimaryDark,
@@ -73,7 +74,7 @@ function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
         styleOverrides: {
           ...commonLayout,
           body: {
-            backgroundColor: isLight ? themeColors.light : themeColors.dark,
+            backgroundColor: background,
             '--ui-highlight': highlight,
             '--ui-breathe-dur': '1350ms'
           },
@@ -111,7 +112,7 @@ function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
         styleOverrides: {
           root: {
             ...(tabRootBase as CSSObject),
-            backgroundColor: isLight ? themeColors.light : themeColors.dark
+            backgroundColor: background
           },
           indicator: {
             backgroundColor: highlight,
@@ -272,7 +273,7 @@ function buildTheme(mode: THEME.LIGHT | THEME.DARK) {
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundColor: isLight ? themeColors.light : themeColors.dark,
+            backgroundColor: background,
             boxShadow: 'none'
           }
         }
@@ -296,11 +297,12 @@ export const darkTheme = buildTheme(THEME.DARK)
 export function buildRuntimeTheme(
   mode: THEME.LIGHT | THEME.DARK,
   primary?: string,
-  highlight?: string
+  highlight?: string,
+  background?: string
 ) {
-  if (!primary && !highlight) return buildTheme(mode)
+  if (!primary && !highlight && !background) return buildTheme(mode)
 
-  const base = buildTheme(mode)
+  const base = buildTheme(mode, background)
 
   if (!primary) {
     primary = mode === THEME.LIGHT ? themeColors.primaryColorLight : themeColors.primaryColorDark

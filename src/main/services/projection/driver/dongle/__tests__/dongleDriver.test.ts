@@ -26,6 +26,7 @@ import {
   SendDisconnectPhone,
   SendGnssData,
   SendOpen,
+  SendSafeArea,
   SendString
 } from '@main/services/projection/messages/sendable'
 import { CommandMapping, MicType, PhoneWorkMode } from '@shared/types'
@@ -832,6 +833,52 @@ describe('DongleDriver core behavior', () => {
     expect(d.send).toHaveBeenCalled()
     expect(d.scheduleWifiConnect).toHaveBeenCalledWith(150)
     expect(d._postOpenConfigSent).toBe(true)
+  })
+
+  test('sendPostOpenConfig sends the safe area additive to the view area', async () => {
+    const d = new DongleDriver() as any
+    d._cfg = {
+      projectionWidth: 800,
+      projectionHeight: 480,
+      projectionFps: 60,
+      carName: 'Car',
+      oemName: 'OEM',
+      micType: MicType.PhoneMic,
+      nightMode: false,
+      hand: 0,
+      wifiType: '2.4ghz',
+      disableAudioOutput: false,
+      projectionViewAreaTop: 10,
+      projectionViewAreaBottom: 20,
+      projectionViewAreaLeft: 30,
+      projectionViewAreaRight: 40,
+      projectionSafeAreaTop: 2,
+      projectionSafeAreaBottom: 4,
+      projectionSafeAreaLeft: 6,
+      projectionSafeAreaRight: 8,
+      projectionSafeAreaDrawOutside: false
+    }
+    d._device = { opened: true }
+    d._closing = false
+    d._androidWorkModeRuntime = AndroidWorkMode.AndroidAuto
+    d.send = jest.fn(async () => true)
+    d.sleep = jest.fn(async () => undefined)
+    d.scheduleWifiConnect = jest.fn()
+
+    await d.sendPostOpenConfig()
+
+    const safe = d.send.mock.calls
+      .map((c: unknown[]) => c[0])
+      .find((m: unknown) => m instanceof SendSafeArea) as SendSafeArea
+    const payload = safe.getPayload()
+    const body = payload.subarray(4 + payload.readUInt32LE(0) + 4)
+
+    // origin = view inset + safe inset (left 30+6, top 10+2)
+    expect(body.readUInt32LE(8)).toBe(36)
+    expect(body.readUInt32LE(12)).toBe(12)
+    // safe size = screen - additive insets (800-36-48, 480-12-24)
+    expect(body.readUInt32LE(0)).toBe(716)
+    expect(body.readUInt32LE(4)).toBe(444)
   })
 
   test('sendPostOpenConfig sends targeted auto-connect when pending target exists', async () => {

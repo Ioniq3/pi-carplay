@@ -20,7 +20,7 @@ import { app, BrowserWindow } from 'electron'
 import { loadConfig } from './config/loadConfig'
 import { USBService } from './services/usb/USBService'
 import { checkAndInstallUdevRule } from './services/usb/udevRule'
-import { setCompositorBackdrop, setMacBackdrop } from './services/video/GstVideo'
+import { backdropHex, setCompositorBackdrop, setMacBackdrop } from './services/video/GstVideo'
 import { createMainWindow, getMainWindow } from './window/createWindow'
 import { setupSecondaryWindows } from './window/secondaryWindows'
 
@@ -56,14 +56,15 @@ app.whenReady().then(async () => {
   createMainWindow(runtimeState, services)
   setupSecondaryWindows(runtimeState)
 
-  // Bottom plane = theme colour. Linux: the compositor draws the backdrop. macOS: paint the
-  // window content view itself. Apply now and on every Mode change.
-  const applyBackdrop = (darkMode: boolean): void => {
-    setCompositorBackdrop(darkMode)
-    for (const w of BrowserWindow.getAllWindows()) setMacBackdrop(w, darkMode)
+  // Bottom plane = theme background colour. Linux: the compositor draws the backdrop. macOS: paint
+  // the window content view itself. Apply now and on every config change.
+  const applyBackdrop = (cfg: Config): void => {
+    const color = backdropHex(cfg.darkMode, cfg.backgroundColorDark, cfg.backgroundColorLight)
+    setCompositorBackdrop(color)
+    for (const w of BrowserWindow.getAllWindows()) setMacBackdrop(w, color)
   }
-  applyBackdrop(runtimeState.config.darkMode)
-  configEvents.on('changed', (next: Config) => applyBackdrop(next.darkMode))
+  applyBackdrop(runtimeState.config)
+  configEvents.on('changed', (next: Config) => applyBackdrop(next))
   setupTelemetry({
     store: telemetryStore,
     projectionService,

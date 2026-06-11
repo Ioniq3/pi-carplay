@@ -223,6 +223,8 @@ export type Config = {
   primaryColorLight?: string
   highlightColorLight?: string
   highlightColorDark?: string
+  backgroundColorDark?: string
+  backgroundColorLight?: string
 
   // Dongle icon overrides
   dongleIcon120?: string

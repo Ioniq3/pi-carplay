@@ -19,8 +19,10 @@ type Props<T> = {
   onLabelChange?: (label: string) => void
 }
 
-const clampInt = (n: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, Math.round(n)))
+const clampInt = (n: number, min: number, max: number, step = 1) => {
+  const snapped = step > 1 ? min + Math.round((n - min) / step) * step : Math.round(n)
+  return Math.min(max, Math.max(min, snapped))
+}
 
 const defaultColorForPath = (path?: string): string => {
   switch (path) {
@@ -32,6 +34,10 @@ const defaultColorForPath = (path?: string): string => {
       return themeColors.highlightColorDark
     case 'highlightColorLight':
       return themeColors.highlightColorLight
+    case 'backgroundColorDark':
+      return themeColors.dark
+    case 'backgroundColorLight':
+      return themeColors.light
     default:
       return themeColors.highlightColorDark
   }
@@ -88,7 +94,7 @@ export const SettingsFieldControl = <T,>({
             // ignore "in-progress" values
             if (typeof v !== 'number' || !Number.isFinite(v)) return
 
-            const next = clampInt(v, min, max)
+            const next = clampInt(v, min, max, step)
             onChange(next as T)
           }}
         />

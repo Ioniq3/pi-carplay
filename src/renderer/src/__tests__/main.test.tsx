@@ -187,19 +187,21 @@ describe('renderer main bootstrap', () => {
     mockedSettings = {
       darkMode: true,
       primaryColorDark: '#111111',
-      highlightColorDark: '#222222'
+      highlightColorDark: '#222222',
+      backgroundColorDark: '#000000'
     }
 
     renderRootDirectly()
 
-    expect(buildRuntimeThemeMock).toHaveBeenCalledWith('dark', '#111111', '#222222')
+    expect(buildRuntimeThemeMock).toHaveBeenCalledWith('dark', '#111111', '#222222', '#000000')
   })
 
   test('uses light runtime theme when light mode has overrides', () => {
     mockedSettings = {
       darkMode: false,
       primaryColorLight: '#aaaaaa',
-      highlightColorLight: '#bbbbbb'
+      highlightColorLight: '#bbbbbb',
+      backgroundColorLight: '#d4d4d4'
     }
 
     buildRuntimeThemeMock.mockReturnValue({
@@ -208,7 +210,7 @@ describe('renderer main bootstrap', () => {
 
     renderRootDirectly()
 
-    expect(buildRuntimeThemeMock).toHaveBeenCalledWith('light', '#aaaaaa', '#bbbbbb')
+    expect(buildRuntimeThemeMock).toHaveBeenCalledWith('light', '#aaaaaa', '#bbbbbb', '#d4d4d4')
   })
 
   test('falls back to darkTheme when no overrides exist and darkMode is true', () => {

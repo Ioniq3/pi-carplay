@@ -6,6 +6,14 @@ import { gstHost } from './gstHost'
 
 export type GstVideoCodec = 'h264' | 'h265' | 'vp9' | 'av1'
 
+// Parse "#rrggbb" into 0..255 channels, falls back to black on a malformed value
+function hexToRgb255(hex: string): [number, number, number] {
+  const m = /^#?([0-9a-f]{6})$/i.exec((hex ?? '').trim())
+  if (!m) return [0, 0, 0]
+  const n = Number.parseInt(m[1], 16)
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]
+}
+
 // Linux runs the pipeline in the gstHost child process (its own GLib loop so waylandsink resizes
 // live, and out of reach of the Electron-vs-system libffi crash). mac/Windows render in-process.
 const useHostProcess = process.platform === 'linux'
@@ -67,10 +75,10 @@ class CompositorControl {
     this.flush()
   }
 
-  // Theme background for the compositor backdrop (kept in sync with themeColors.ts).
-  setBackdrop(darkMode: boolean): void {
+  // Theme background for the compositor backdrop, hex "#rrggbb" from config.
+  setBackdrop(hex: string): void {
     if (!this.enabled) return
-    const [r, g, b] = darkMode ? [0, 0, 0] : [0xd4, 0xd4, 0xd4]
+    const [r, g, b] = hexToRgb255(hex)
     this.state.set('__backdrop__', `backdrop ${r} ${g} ${b}\n`)
     this.flush()
   }
@@ -115,20 +123,25 @@ class CompositorControl {
 
 const compositorControl = new CompositorControl()
 
+// Resolve the active backdrop colour for a config, falling back to the theme defaults
+export function backdropHex(darkMode: boolean, dark?: string, light?: string): string {
+  return (darkMode ? dark : light) || (darkMode ? '#000000' : '#d4d4d4')
+}
+
 // Push the theme background colour to the compositor backdrop (Linux/compositor only)
-export function setCompositorBackdrop(darkMode: boolean): void {
-  compositorControl.setBackdrop(darkMode)
+export function setCompositorBackdrop(hex: string): void {
+  compositorControl.setBackdrop(hex)
 }
 
 // macOS only: paint the window's content view (below the video subviews) with the theme colour
-export function setMacBackdrop(win: BrowserWindow, darkMode: boolean): void {
+export function setMacBackdrop(win: BrowserWindow, hex: string): void {
   if (process.platform !== 'darwin') return
   if (!win || win.isDestroyed()) return
   const a = load()
   if (!a || typeof a.setBackdrop !== 'function') return
-  const [r, g, b] = darkMode ? [0, 0, 0] : [0xd4 / 255, 0xd4 / 255, 0xd4 / 255]
+  const [r, g, b] = hexToRgb255(hex)
   try {
-    a.setBackdrop(win.getNativeWindowHandle(), r, g, b)
+    a.setBackdrop(win.getNativeWindowHandle(), r / 255, g / 255, b / 255)
   } catch {
     // older addon build without setBackdrop, or no handle yet
   }

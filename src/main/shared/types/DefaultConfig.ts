@@ -89,6 +89,8 @@ export const DEFAULT_CONFIG: Config = {
   highlightColorDark: '',
   primaryColorLight: '',
   highlightColorLight: '',
+  backgroundColorDark: '',
+  backgroundColorLight: '',
   mainScreenWidth: 1280,
   mainScreenHeight: 720,
   dashScreenActive: false,

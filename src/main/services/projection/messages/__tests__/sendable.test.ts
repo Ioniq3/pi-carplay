@@ -136,8 +136,79 @@ describe('sendable messages', () => {
     expect(body.length).toBe(24)
     expect(body.readUInt32LE(0)).toBe(800)
     expect(body.readUInt32LE(4)).toBe(480)
+    expect(body.readUInt32LE(8)).toBe(800)
+    expect(body.readUInt32LE(12)).toBe(480)
     expect(body.readUInt32LE(16)).toBe(0)
     expect(body.readUInt32LE(20)).toBe(0)
+  })
+
+  test('SendViewArea insets shrink the view rect and shift the origin', () => {
+    const msg = new SendViewArea(800, 480, {
+      insets: { top: 10, bottom: 20, left: 30, right: 40 }
+    })
+    const payload = msg.getPayload()
+    const nameLen = payload.readUInt32LE(0)
+    const body = payload.subarray(4 + nameLen + 4)
+
+    expect(body.readUInt32LE(0)).toBe(800)
+    expect(body.readUInt32LE(4)).toBe(480)
+    expect(body.readUInt32LE(8)).toBe(730)
+    expect(body.readUInt32LE(12)).toBe(450)
+    expect(body.readUInt32LE(16)).toBe(30)
+    expect(body.readUInt32LE(20)).toBe(10)
+  })
+
+  test('SendViewArea rounds odd insets and dimensions down to a multiple of 2', () => {
+    const msg = new SendViewArea(1281, 801, {
+      insets: { top: 11, bottom: 13, left: 15, right: 17 }
+    })
+    const payload = msg.getPayload()
+    const nameLen = payload.readUInt32LE(0)
+    const body = payload.subarray(4 + nameLen + 4)
+
+    expect(body.readUInt32LE(0)).toBe(1280)
+    expect(body.readUInt32LE(4)).toBe(800)
+    expect(body.readUInt32LE(8) % 2).toBe(0)
+    expect(body.readUInt32LE(12) % 2).toBe(0)
+    expect(body.readUInt32LE(16)).toBe(14)
+    expect(body.readUInt32LE(20)).toBe(10)
+  })
+
+  test('SendSafeArea rounds odd insets and dimensions down to a multiple of 2', () => {
+    const msg = new SendSafeArea(1281, 801, {
+      insets: { top: 11, bottom: 13, left: 15, right: 17 }
+    })
+    const payload = msg.getPayload()
+    const nameLen = payload.readUInt32LE(0)
+    const body = payload.subarray(4 + nameLen + 4)
+
+    expect(body.readUInt32LE(0) % 2).toBe(0)
+    expect(body.readUInt32LE(4) % 2).toBe(0)
+    expect(body.readUInt32LE(8)).toBe(14)
+    expect(body.readUInt32LE(12)).toBe(10)
+  })
+
+  test('SendViewArea and SendSafeArea target the cluster files via address option', () => {
+    const view = new SendViewArea(800, 480, {
+      address: FileAddress.HU_NAVISCREEN_VIEWAREA_INFO
+    })
+    const safe = new SendSafeArea(800, 480, {
+      address: FileAddress.HU_NAVISCREEN_SAFEAREA_INFO
+    })
+
+    const viewName = view
+      .getPayload()
+      .subarray(4, 4 + view.getPayload().readUInt32LE(0))
+      .toString('ascii')
+      .replace(/\0+$/g, '')
+    const safeName = safe
+      .getPayload()
+      .subarray(4, 4 + safe.getPayload().readUInt32LE(0))
+      .toString('ascii')
+      .replace(/\0+$/g, '')
+
+    expect(viewName).toBe('/etc/RiddleBoxData/HU_NAVISCREEN_VIEWAREA_INFO')
+    expect(safeName).toBe('/etc/RiddleBoxData/HU_NAVISCREEN_SAFEAREA_INFO')
   })
 
   test('SendSafeArea computes safe area and drawOutside flag', () => {
@@ -350,7 +421,7 @@ describe('sendable messages', () => {
     expect(body.OemName).toBe('OEM')
   })
 
-  test('SendBoxSettings forces a no-inset cluster safearea (dongle FW bug workaround)', () => {
+  test('SendBoxSettings registers a full-size cluster naviScreenInfo.safearea', () => {
     const msg = new SendBoxSettings(
       {
         width: 1280,
@@ -406,7 +477,7 @@ describe('sendable messages', () => {
   })
 
   test('SendBoxSettings hardcodes cluster safearea.outside to 0 on dongle path', () => {
-    // The dongle never forwards the cluster view/safe area, outside is always 0.
+    // outside stays 0, non-zero values break the dongle firmware.
     const msg = new SendBoxSettings(
       {
         width: 1280,

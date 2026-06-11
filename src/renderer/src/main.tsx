@@ -63,13 +63,16 @@ export const Root = () => {
   const highlightOverride =
     mode === THEME.DARK ? settings?.highlightColorDark : settings?.highlightColorLight
 
+  const backgroundOverride =
+    mode === THEME.DARK ? settings?.backgroundColorDark : settings?.backgroundColorLight
+
   const theme = useMemo(() => {
-    return primaryOverride || highlightOverride
-      ? buildRuntimeTheme(mode, primaryOverride, highlightOverride)
+    return primaryOverride || highlightOverride || backgroundOverride
+      ? buildRuntimeTheme(mode, primaryOverride, highlightOverride, backgroundOverride)
       : mode === THEME.DARK
         ? darkTheme
         : lightTheme
-  }, [mode, primaryOverride, highlightOverride])
+  }, [mode, primaryOverride, highlightOverride, backgroundOverride])
 
   const providerValue = useMemo(
     () => ({

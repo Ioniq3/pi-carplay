@@ -260,7 +260,9 @@ static const char* decoder_for(const std::string& c) {
 // Electron UI. mac/Windows render into the window surface directly.
 static std::string sink_chain() {
 #ifdef __APPLE__
-  return "glimagesink name=sink sync=false qos=false";
+  // force-aspect-ratio=false: the clip view already enforces the content AR, glimagesink must fill
+  // the render surface instead of padding it with black borders (which cover the window backdrop).
+  return "glimagesink name=sink sync=false qos=false force-aspect-ratio=false";
 #elif defined(_WIN32)
   return "d3d11videosink name=sink sync=false qos=false force-aspect-ratio=false";
 #else

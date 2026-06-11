@@ -226,6 +226,24 @@ pnpm -C scripts/tools run telemetry:set _repeatMs=1000 speedKph=90 rpm=2500
   <img src="docs/images/dash.png" alt="Dashboard" width="70%" />
 </p>
 
+## View and Safe Area
+
+Stream resolution, view area insets, and safe area can be configured independently for the main and cluster streams. This is supported for Android Auto as well as CarPlay.
+
+### Main Stream
+Video: 1280x720 - View Area: 0/0/100/0 (T/B/L/R) - Safe Area: 100/100/100/100 (T/B/L/R) - Draw Outside: true
+<p align="center">
+  <img src="docs/images/area/main_safe_area_view_area_aa.png" alt="Safe area main stream Android Auto" width="70%" />
+</p>
+
+### Cluster Stream
+Video: 1280x720 - View Area: 0/0/0/0 (T/B/L/R) - Safe Area: 60/20/350/350 (T/B/L/R)
+<p align="center">
+  <img src="docs/images/area/dash_safe_area_aa.png" alt="Safe area cluster stream Android Auto" width="70%" />
+</p>
+
+
+
 ## Multi-Display
 
 LIVI can run as multiple windows at once, each placeable on its own physical display.

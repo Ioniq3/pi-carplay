@@ -48,6 +48,12 @@ export const appearanceSchema: SettingsNode<Config> = {
     },
     {
       type: 'color',
+      label: 'Background Color Dark',
+      labelKey: 'settings.backgroundColorDark',
+      path: 'backgroundColorDark'
+    },
+    {
+      type: 'color',
       label: 'Primary Color Light',
       labelKey: 'settings.primaryColorLight',
       path: 'primaryColorLight'
@@ -57,6 +63,12 @@ export const appearanceSchema: SettingsNode<Config> = {
       label: 'Highlight Color Light',
       labelKey: 'settings.highlightColorLight',
       path: 'highlightColorLight'
+    },
+    {
+      type: 'color',
+      label: 'Background Color Light',
+      labelKey: 'settings.backgroundColorLight',
+      path: 'backgroundColorLight'
     },
     {
       type: 'route',

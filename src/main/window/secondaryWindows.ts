@@ -1,7 +1,7 @@
 import { is } from '@electron-toolkit/utils'
 import { COMPOSITOR_TITLEBAR_H } from '@main/app/compositorLayout'
 import { configEvents, saveSettings } from '@main/ipc/utils'
-import { setCompositorScreen } from '@main/services/video/GstVideo'
+import { backdropHex, setCompositorScreen, setMacBackdrop } from '@main/services/video/GstVideo'
 import { runtimeStateProps } from '@main/types'
 import type { Config, WindowBounds } from '@shared/types'
 import { BrowserWindow, shell } from 'electron'
@@ -172,6 +172,17 @@ function spawn(spec: SecondaryWindowSpec, runtimeState: runtimeStateProps) {
   win.on('moved', onMoveResize)
   win.on('resized', onMoveResize)
   win.once('ready-to-show', () => scheduleBoundsSave(spec, runtimeState))
+
+  // The window is spawned lazily, the global applyBackdrop loop misses it before its
+  // content view is realized. Paint the backdrop once the window is ready.
+  win.once('ready-to-show', () => {
+    if (win.isDestroyed()) return
+    const cfg = runtimeState.config
+    setMacBackdrop(
+      win,
+      backdropHex(cfg.darkMode, cfg.backgroundColorDark, cfg.backgroundColorLight)
+    )
+  })
 
   win.on('closed', () => {
     windows.delete(spec.role)

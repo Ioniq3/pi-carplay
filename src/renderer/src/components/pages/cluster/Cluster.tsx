@@ -2,6 +2,7 @@ import MapOutlinedIcon from '@mui/icons-material/MapOutlined'
 import { Box, Typography, useTheme } from '@mui/material'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiviStore, useStatusStore } from '../../../store/store'
+import { ViewAreaMask } from '../projection/ViewAreaMask'
 
 type ClusterProps = {
   visible?: boolean
@@ -36,6 +37,7 @@ export const Cluster: React.FC<ClusterProps> = ({ visible, showLoadingPlaceholde
   const showCluster = visible === true
 
   const boxInfoRaw = useLiviStore((s) => s.boxInfo)
+  const settings = useLiviStore((s) => s.settings)
   const isStreaming = useStatusStore((s) => s.isStreaming)
   const isAaActive = useStatusStore((s) => s.isAaActive)
   const clusterDashActive = useStatusStore((s) => s.clusterDashActive)
@@ -199,6 +201,18 @@ export const Cluster: React.FC<ClusterProps> = ({ visible, showLoadingPlaceholde
           </Typography>
         </Box>
       )}
+
+      <ViewAreaMask
+        visible={showCluster && clusterStreamActive}
+        displayWidth={settings?.clusterWidth ?? 0}
+        displayHeight={settings?.clusterHeight ?? 0}
+        insets={{
+          top: settings?.clusterViewAreaTop ?? 0,
+          bottom: settings?.clusterViewAreaBottom ?? 0,
+          left: settings?.clusterViewAreaLeft ?? 0,
+          right: settings?.clusterViewAreaRight ?? 0
+        }}
+      />
     </Box>
   )
 }

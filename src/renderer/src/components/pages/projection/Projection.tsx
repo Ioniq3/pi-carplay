@@ -12,6 +12,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { useFftPcm } from '../../../hooks/useFftPcm'
 import { useLiviStore, useStatusStore } from '../../../store/store'
 import { useProjectionMultiTouch } from './hooks/useProjectionTouch'
+import { ViewAreaMask } from './ViewAreaMask'
 
 const RETRY_DELAY_MS = 3000
 
@@ -870,6 +871,18 @@ const CarplayComponent: React.FC<CarplayProps> = ({
           zIndex: receivingVideo && !rendererError ? 1 : -1,
           position: 'relative',
           overflow: 'hidden'
+        }}
+      />
+
+      <ViewAreaMask
+        visible={receivingVideo && !rendererError}
+        displayWidth={settings.projectionWidth}
+        displayHeight={settings.projectionHeight}
+        insets={{
+          top: settings.projectionViewAreaTop ?? 0,
+          bottom: settings.projectionViewAreaBottom ?? 0,
+          left: settings.projectionViewAreaLeft ?? 0,
+          right: settings.projectionViewAreaRight ?? 0
         }}
       />
     </div>

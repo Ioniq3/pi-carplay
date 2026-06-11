@@ -1,5 +1,6 @@
 import type { Config } from '@shared/types'
 import {
+  AREA_STEP,
   MAX_DPI,
   MAX_FPS,
   MAX_HEIGHT,
@@ -106,7 +107,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'projectionViewAreaTop',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_HEIGHT,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Main Screen View Area Top',
@@ -122,7 +123,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'projectionViewAreaBottom',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_HEIGHT,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Main Screen View Area Bottom',
@@ -138,7 +139,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'projectionViewAreaLeft',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_WIDTH,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Main Screen View Area Left',
@@ -154,7 +155,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'projectionViewAreaRight',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_WIDTH,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Main Screen View Area Right',
@@ -179,7 +180,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'projectionSafeAreaTop',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_HEIGHT,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Main Screen Safe Area Top',
@@ -195,7 +196,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'projectionSafeAreaBottom',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_HEIGHT,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Main Screen Safe Area Bottom',
@@ -211,7 +212,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'projectionSafeAreaLeft',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_WIDTH,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Main Screen Safe Area Left',
@@ -227,7 +228,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'projectionSafeAreaRight',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_WIDTH,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Main Screen Safe Area Right',
@@ -331,7 +332,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'clusterViewAreaTop',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_HEIGHT,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Cluster Screen View Area Top',
@@ -347,7 +348,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'clusterViewAreaBottom',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_HEIGHT,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Cluster Screen View Area Bottom',
@@ -363,7 +364,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'clusterViewAreaLeft',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_WIDTH,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Cluster Screen View Area Left',
@@ -379,7 +380,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'clusterViewAreaRight',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_WIDTH,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Cluster Screen View Area Right',
@@ -404,7 +405,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'clusterSafeAreaTop',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_HEIGHT,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Cluster Screen Safe Area Top',
@@ -420,7 +421,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'clusterSafeAreaBottom',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_HEIGHT,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Cluster Screen Safe Area Bottom',
@@ -436,7 +437,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'clusterSafeAreaLeft',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_WIDTH,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Cluster Screen Safe Area Left',
@@ -452,7 +453,7 @@ export const videoSchema: SettingsNode<Config> = {
               path: 'clusterSafeAreaRight',
               min: SAFE_AREA_MIN,
               max: SAFE_AREA_MAX_WIDTH,
-              step: 1,
+              step: AREA_STEP,
               displayValue: true,
               page: {
                 title: 'Cluster Screen Safe Area Right',
