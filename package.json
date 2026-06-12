@@ -10,7 +10,7 @@
     "Lasse Heitgres"
   ],
   "homepage": "https://f-io.dev",
-  "packageManager": "pnpm@11.5.3",
+  "packageManager": "pnpm@11.6.0",
   "scripts": {
     "prepare": "husky",
     "dev": "vite",
@@ -78,7 +78,7 @@
     "@node-usb/usb-win32-x64-msvc": "3.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.16",
+    "@biomejs/biome": "^2.5.0",
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -92,7 +92,7 @@
     "@vitejs/plugin-react": "^6.0.2",
     "electron": "^42.4.0",
     "electron-builder": "^26.15.2",
-    "esbuild": "^0.28.0",
+    "esbuild": "^0.28.1",
     "globals": "^17.6.0",
     "husky": "^9.1.7",
     "jest": "^30.4.2",
