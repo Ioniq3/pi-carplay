@@ -127,8 +127,6 @@ Make sure the following packages and tools are installed on your system before b
 - **Node.js 24.x** (with `corepack` for `pnpm`)
 - **Python 3.x** (for native module builds via `node-gyp`)
 - **build-essential** (Linux: includes `gcc`, `g++`, `make`, etc.)
-- **libusb-1.0-0-dev** (required for `node-usb`)
-- **libudev-dev** (optional but recommended for USB detection on Linux)
 - **libgstreamer1.0-dev** + **libgstreamer-plugins-base1.0-dev** (required to build the `gst-video` addon)
 - **meson** (≥ 1.4), **ninja**, **pkg-config**, **bison**, **cmake** and the wlroots/EGL stack: **libwayland-dev**, **wayland-protocols**, **libxkbcommon-dev** (≥ 1.8.0), **libpixman-1-dev**, **libcairo2-dev**, **libegl-dev** / **libgles-dev** / **libgbm-dev** / **libffi-dev** / **libexpat1-dev** (Linux only: to build the embedded wlroots compositor)
 - **fuse** (required to run AppImages)
@@ -139,7 +137,6 @@ On Debian/Ubuntu/Raspberry Pi OS, install everything with:
 sudo apt-get update
 sudo apt-get install -y git build-essential python3 python3-dev python3-pip \
   pkg-config bison ninja-build cmake \
-  libusb-1.0-0-dev libudev-dev \
   libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
   libegl-dev libgles-dev libgbm-dev libffi-dev libexpat1-dev \
   libwayland-dev wayland-protocols libxkbcommon-dev libpixman-1-dev libcairo2-dev
@@ -153,7 +150,7 @@ On Fedora, install everything with:
 
 ```bash
 sudo dnf install -y git gcc gcc-c++ make python3 python3-devel \
-  pkgconf-pkg-config libusb1-devel systemd-devel \
+  pkgconf-pkg-config systemd-devel \
   gstreamer1-devel gstreamer1-plugins-base-devel \
   meson ninja-build bison cmake \
   wlroots-devel wayland-devel wayland-protocols-devel libxkbcommon-devel \
