@@ -112,16 +112,16 @@ function installRule(): Promise<void> {
   })
 }
 
-export async function checkAndInstallUdevRule(window: BrowserWindow): Promise<void> {
-  if (process.platform !== 'linux') return
+export async function checkAndInstallUdevRule(window: BrowserWindow): Promise<boolean> {
+  if (process.platform !== 'linux') return false
 
   const exists = udevRuleExists()
   const isCurrent = exists && udevRuleIsCurrent()
-  if (exists && isCurrent) return
+  if (exists && isCurrent) return false
 
   if (!pkexecAvailable()) {
     console.warn('[udevRule] pkexec not available, skipping udev rule setup')
-    return
+    return false
   }
 
   const isUpgrade = exists && !isCurrent
@@ -139,7 +139,7 @@ export async function checkAndInstallUdevRule(window: BrowserWindow): Promise<vo
     cancelId: 1
   })
 
-  if (response !== 0) return
+  if (response !== 0) return false
 
   let installed = false
   while (!installed) {
@@ -158,14 +158,15 @@ export async function checkAndInstallUdevRule(window: BrowserWindow): Promise<vo
         defaultId: 0,
         cancelId: 1
       })
-      if (retry !== 0) return
+      if (retry !== 0) return false
     }
   }
 
   await dialog.showMessageBox(window, {
     type: 'info',
     title: 'Done',
-    message: 'udev rule installed successfully.',
+    message: 'udev rule installed. LIVI will now restart to apply it.',
     buttons: ['OK']
   })
+  return true
 }

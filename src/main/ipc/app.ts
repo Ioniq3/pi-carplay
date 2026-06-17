@@ -8,42 +8,24 @@ import { restoreKioskAfterWmExit } from '@main/window/utils'
 import { spawn } from 'child_process'
 import { app, shell } from 'electron'
 
-export function registerAppIpc(runtimeState: runtimeStateProps, services: ServicesProps) {
-  const mainWindow = getMainWindow()
-  const { usbService } = services
-  const isMac = isMacPlatform()
+let restartInProgress = false
 
-  registerIpcHandle('quit', () =>
-    isMac
-      ? mainWindow?.isFullScreen()
-        ? (() => {
-            runtimeState.suppressNextFsSync = true
-            mainWindow!.once('leave-full-screen', () => mainWindow?.hide())
-            mainWindow!.setFullScreen(false)
-          })()
-        : mainWindow?.hide()
-      : app.quit()
-  )
+export async function restartApp(
+  runtimeState: runtimeStateProps,
+  services: ServicesProps
+): Promise<void> {
+  if (restartInProgress) return
+  if (runtimeState.isQuitting) return
+  restartInProgress = true
 
-  // App Quit
-  registerIpcHandle('app:quitApp', () => {
-    if (runtimeState.isQuitting) return
-    app.quit()
-  })
-
-  // App Restart
-  let restartInProgress = false
-  registerIpcHandle('app:restartApp', async () => {
-    if (restartInProgress) return
-    if (runtimeState.isQuitting) return
-    restartInProgress = true
-
+  // Guard the async teardown window only, reset at the end so a prevented quit is not stuck.
+  try {
     try {
-      usbService?.beginShutdown()
+      services.usbService?.beginShutdown()
     } catch {}
 
     try {
-      await usbService?.gracefulReset()
+      await services.usbService?.gracefulReset()
     } catch (e) {
       console.warn('[MAIN] gracefulReset failed (continuing restart):', e)
     }
@@ -67,20 +49,46 @@ export function registerAppIpc(runtimeState: runtimeStateProps, services: Servic
 
     if (process.platform === 'linux' && process.env.APPIMAGE) {
       const appImage = process.env.APPIMAGE
-
       const cleanEnv = { ...process.env }
       delete cleanEnv.APPIMAGE
       delete cleanEnv.APPDIR
       delete cleanEnv.ARGV0
       delete cleanEnv.OWD
-
       spawn(appImage, [], { detached: true, stdio: 'ignore', env: cleanEnv }).unref()
     } else {
       app.relaunch()
     }
 
     app.quit()
+  } finally {
+    restartInProgress = false
+  }
+}
+
+export function registerAppIpc(runtimeState: runtimeStateProps, services: ServicesProps) {
+  const mainWindow = getMainWindow()
+  const isMac = isMacPlatform()
+
+  registerIpcHandle('quit', () =>
+    isMac
+      ? mainWindow?.isFullScreen()
+        ? (() => {
+            runtimeState.suppressNextFsSync = true
+            mainWindow!.once('leave-full-screen', () => mainWindow?.hide())
+            mainWindow!.setFullScreen(false)
+          })()
+        : mainWindow?.hide()
+      : app.quit()
+  )
+
+  // App Quit
+  registerIpcHandle('app:quitApp', () => {
+    if (runtimeState.isQuitting) return
+    app.quit()
   })
+
+  // App Restart
+  registerIpcHandle('app:restartApp', () => restartApp(runtimeState, services))
 
   // User activity (touch/click)
   registerIpcOn('app:user-activity', () => {

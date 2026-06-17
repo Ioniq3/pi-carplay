@@ -18,6 +18,7 @@ import { runtimeStateProps } from '@main/types'
 import type { Config } from '@shared/types'
 import { app, BrowserWindow } from 'electron'
 import { loadConfig } from './config/loadConfig'
+import { restartApp } from './ipc/app'
 import { USBService } from './services/usb/USBService'
 import { checkAndInstallUdevRule } from './services/usb/udevRule'
 import { backdropHex, setCompositorBackdrop, setMacBackdrop } from './services/video/GstVideo'
@@ -88,7 +89,10 @@ app.whenReady().then(async () => {
   setupLifecycle(runtimeState, services)
 
   const win = getMainWindow()
-  if (win) await checkAndInstallUdevRule(win)
+  if (win && (await checkAndInstallUdevRule(win))) {
+    await restartApp(runtimeState, services)
+    return
+  }
 
   // Wireless AA needs root for BlueZ + hostapd + dnsmasq.
   if (win && runtimeState.config.wirelessAaEnabled === true && process.platform === 'linux') {
