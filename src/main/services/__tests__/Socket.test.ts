@@ -1,20 +1,20 @@
 import { EventEmitter } from 'node:events'
 
 class MockHttpServer extends EventEmitter {
-  listen = jest.fn((_port: number, cb: () => void) => cb())
-  close = jest.fn((cb?: () => void) => cb?.())
+  listen = vi.fn((_port: number, cb: () => void) => cb())
+  close = vi.fn((cb?: () => void) => cb?.())
 }
 
 class MockSocket extends EventEmitter {
-  emit = jest.fn((event: string, payload?: unknown) => {
+  emit = vi.fn((event: string, payload?: unknown) => {
     super.emit(event, payload)
     return true
   })
 }
 
 class MockIoServer extends EventEmitter {
-  close = jest.fn((cb?: () => void) => cb?.())
-  override emit = jest.fn((event: string, payload?: unknown) => {
+  close = vi.fn((cb?: () => void) => cb?.())
+  override emit = vi.fn((event: string, payload?: unknown) => {
     super.emit(event, payload)
     return true
   })
@@ -22,15 +22,21 @@ class MockIoServer extends EventEmitter {
 
 const lastIo: { server: MockIoServer | null } = { server: null }
 
-jest.mock('http', () => ({
+vi.mock('http', () => ({
   __esModule: true,
-  default: { createServer: jest.fn(() => new MockHttpServer()) },
-  createServer: jest.fn(() => new MockHttpServer())
+  default: {
+    createServer: vi.fn(function () {
+      return new MockHttpServer()
+    })
+  },
+  createServer: vi.fn(function () {
+    return new MockHttpServer()
+  })
 }))
 
-jest.mock('socket.io', () => ({
+vi.mock('socket.io', () => ({
   __esModule: true,
-  Server: jest.fn().mockImplementation(() => {
+  Server: vi.fn().mockImplementation(function () {
     const s = new MockIoServer()
     lastIo.server = s
     return s
@@ -40,20 +46,20 @@ jest.mock('socket.io', () => ({
 import { TelemetryEvents, TelemetrySocket } from '../Socket'
 import { TelemetryStore } from '../telemetry/TelemetryStore'
 
-beforeEach(() => {
-  jest.spyOn(console, 'log').mockImplementation(() => {})
+beforeEach(async () => {
+  vi.spyOn(console, 'log').mockImplementation(function () {})
   lastIo.server = null
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 describe('TelemetrySocket', () => {
-  test('starts an io server on the requested port', () => {
+  test('starts an io server on the requested port', async () => {
     const store = new TelemetryStore()
     const _sock = new TelemetrySocket(store, 4001)
     expect(_sock.io).not.toBeNull()
   })
 
-  test('new client connection emits the current snapshot', () => {
+  test('new client connection emits the current snapshot', async () => {
     const store = new TelemetryStore()
     store.merge({ speedKph: 50 })
     new TelemetrySocket(store, 4002)
@@ -66,7 +72,7 @@ describe('TelemetrySocket', () => {
     )
   })
 
-  test('empty snapshot is not pushed on connect', () => {
+  test('empty snapshot is not pushed on connect', async () => {
     const store = new TelemetryStore()
     new TelemetrySocket(store, 4003)
     const sock = new MockSocket()
@@ -83,7 +89,7 @@ describe('TelemetrySocket', () => {
     expect(store.snapshot().speedKph).toBe(10)
   })
 
-  test('store change → broadcast on io server', () => {
+  test('store change → broadcast on io server', async () => {
     const store = new TelemetryStore()
     new TelemetrySocket(store, 4005)
     store.merge({ speedKph: 7 })

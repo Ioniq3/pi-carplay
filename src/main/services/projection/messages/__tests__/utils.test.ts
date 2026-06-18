@@ -13,7 +13,7 @@ describe('projection message utils', () => {
   })
 
   test('getCurrentTimeInMs returns seconds from Date.now rounded', () => {
-    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1234)
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1234)
     expect(getCurrentTimeInMs()).toBe(1)
     nowSpy.mockRestore()
   })

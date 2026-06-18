@@ -1,27 +1,33 @@
 import { ProjectionAudio } from '@main/services/projection/services/ProjectionAudio'
 
-jest.mock('@main/services/audio', () => ({
-  Microphone: jest.fn().mockImplementation(() => ({
-    on: jest.fn(),
-    start: jest.fn(),
-    stop: jest.fn(),
-    isCapturing: jest.fn(() => false),
-    setDevice: jest.fn()
-  })),
-  AudioOutput: jest.fn().mockImplementation(() => ({
-    start: jest.fn(),
-    stop: jest.fn(),
-    write: jest.fn(),
-    setDevice: jest.fn()
-  })),
-  downsampleToMono: jest.fn(() => new Int16Array([1, 2, 3]))
+vi.mock('@main/services/audio', () => ({
+  Microphone: vi.fn().mockImplementation(function () {
+    return {
+      on: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+      isCapturing: vi.fn(() => false),
+      setDevice: vi.fn()
+    }
+  }),
+  AudioOutput: vi.fn().mockImplementation(function () {
+    return {
+      start: vi.fn(),
+      stop: vi.fn(),
+      write: vi.fn(),
+      setDevice: vi.fn()
+    }
+  }),
+  downsampleToMono: vi.fn(function () {
+    return new Int16Array([1, 2, 3])
+  })
 }))
 
-jest.mock('@main/constants', () => ({
+vi.mock('@main/constants', () => ({
   DEBUG: false
 }))
 
-jest.mock('../../messages', () => ({
+vi.mock('../../messages', () => ({
   decodeTypeMap: {
     1: { frequency: 48000, channel: 2, format: 'pcm', mimeType: 'audio/pcm', bitDepth: 16 },
     2: { frequency: 16000, channel: 1, format: 'pcm', mimeType: 'audio/pcm', bitDepth: 16 }
@@ -29,7 +35,7 @@ jest.mock('../../messages', () => ({
   AudioData: class {}
 }))
 
-jest.mock('@shared/types/ProjectionEnums', () => ({
+vi.mock('@shared/types/ProjectionEnums', () => ({
   AudioCommand: {
     AudioAttentionStart: 1,
     AudioAttentionRinging: 2,
@@ -50,11 +56,11 @@ jest.mock('@shared/types/ProjectionEnums', () => ({
 }))
 
 function createSubject(config: Record<string, unknown> = { mediaDelay: 120 }) {
-  return new ProjectionAudio(() => config as any, jest.fn(), jest.fn(), jest.fn()) as any
+  return new ProjectionAudio(() => config as any, vi.fn(), vi.fn(), vi.fn()) as any
 }
 
 describe('ProjectionAudio state controls', () => {
-  test('setInitialVolumes applies provided values and preserves defaults for omitted streams', () => {
+  test('setInitialVolumes applies provided values and preserves defaults for omitted streams', async () => {
     const a = createSubject()
 
     a.setInitialVolumes({ music: 0.3, nav: 0.4 })
@@ -67,7 +73,7 @@ describe('ProjectionAudio state controls', () => {
     })
   })
 
-  test('setStreamVolume clamps values and ignores tiny no-op changes', () => {
+  test('setStreamVolume clamps values and ignores tiny no-op changes', async () => {
     const a = createSubject()
 
     a.setStreamVolume('music', 2)
@@ -81,7 +87,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.volumes.music).toBe(0.5)
   })
 
-  test('setVisualizerEnabled toggles visualizer flag', () => {
+  test('setVisualizerEnabled toggles visualizer flag', async () => {
     const a = createSubject()
 
     a.setVisualizerEnabled(true)
@@ -91,7 +97,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.visualizerEnabled).toBe(false)
   })
 
-  test('visualizer is reference-counted per window', () => {
+  test('visualizer is reference-counted per window', async () => {
     const a = createSubject()
 
     a.setVisualizerEnabled(true, 1)
@@ -105,10 +111,10 @@ describe('ProjectionAudio state controls', () => {
     expect(a.visualizerEnabled).toBe(false)
   })
 
-  test('resetForSessionStart clears stream/session state', () => {
+  test('resetForSessionStart clears stream/session state', async () => {
     const a = createSubject()
 
-    a.audioPlayers.set('k', { stop: jest.fn() })
+    a.audioPlayers.set('k', { stop: vi.fn() })
     a.voiceAssistantActive = true
     a.phonecallActive = true
     a.navActive = true
@@ -137,10 +143,10 @@ describe('ProjectionAudio state controls', () => {
     expect(a.audioPlayers.size).toBe(0)
   })
 
-  test('resetForSessionStop clears stream/session state', () => {
+  test('resetForSessionStop clears stream/session state', async () => {
     const a = createSubject()
 
-    a.audioPlayers.set('k', { stop: jest.fn() })
+    a.audioPlayers.set('k', { stop: vi.fn() })
     a.voiceAssistantActive = true
     a.phonecallActive = true
     a.navActive = true
@@ -169,7 +175,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.audioPlayers.size).toBe(0)
   })
 
-  test('gainFromVolume clamps invalid values and maps zero to zero', () => {
+  test('gainFromVolume clamps invalid values and maps zero to zero', async () => {
     const a = createSubject()
 
     expect(a.gainFromVolume(-1)).toBe(0)
@@ -178,7 +184,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.gainFromVolume(1)).toBeCloseTo(1, 5)
   })
 
-  test('applyGain returns original pcm for unity or invalid gain', () => {
+  test('applyGain returns original pcm for unity or invalid gain', async () => {
     const a = createSubject()
     const pcm = new Int16Array([100, -200])
 
@@ -186,7 +192,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.applyGain(pcm, Number.NaN)).toBe(pcm)
   })
 
-  test('applyGain returns silent buffer for zero or negative gain', () => {
+  test('applyGain returns silent buffer for zero or negative gain', async () => {
     const a = createSubject()
     const pcm = new Int16Array([100, -200])
 
@@ -194,25 +200,25 @@ describe('ProjectionAudio state controls', () => {
     expect(Array.from(a.applyGain(pcm, -1))).toEqual([0, 0])
   })
 
-  test('applyGain scales and clamps pcm values', () => {
+  test('applyGain scales and clamps pcm values', async () => {
     const a = createSubject()
     const pcm = new Int16Array([20000, -20000, 1000])
 
     expect(Array.from(a.applyGain(pcm, 2))).toEqual([32767, -32768, 2000])
   })
 
-  test('getMediaDelay returns configured non-negative delay', () => {
+  test('getMediaDelay returns configured non-negative delay', async () => {
     const a = createSubject({ mediaDelay: 250 })
     expect(a.getMediaDelay()).toBe(250)
   })
 
-  test('getMediaDelay falls back to zero for invalid values', () => {
+  test('getMediaDelay falls back to zero for invalid values', async () => {
     expect(createSubject({ mediaDelay: -1 }).getMediaDelay()).toBe(0)
     expect(createSubject({ mediaDelay: Number.NaN }).getMediaDelay()).toBe(0)
     expect(createSubject({}).getMediaDelay()).toBe(0)
   })
 
-  test('getLogicalStreamKey prioritizes call over voiceAssistant over nav over music', () => {
+  test('getLogicalStreamKey prioritizes call over voiceAssistant over nav over music', async () => {
     const a = createSubject()
 
     expect(a.getLogicalStreamKey({})).toBe('music')
@@ -227,7 +233,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.getLogicalStreamKey({})).toBe('call')
   })
 
-  test('getAudioOutputForStream returns null for unknown decode type', () => {
+  test('getAudioOutputForStream returns null for unknown decode type', async () => {
     const a = createSubject()
 
     const out = a.getAudioOutputForStream('music', 1, { decodeType: 999 })
@@ -235,7 +241,7 @@ describe('ProjectionAudio state controls', () => {
     expect(out).toBeNull()
   })
 
-  test('getAudioOutputForStream creates and reuses players by (logicalKey, audioType, rate, channels)', () => {
+  test('getAudioOutputForStream creates and reuses players by (logicalKey, audioType, rate, channels)', async () => {
     const a = createSubject()
 
     const musicA = a.getAudioOutputForStream('music', 1, { decodeType: 1 })
@@ -251,11 +257,11 @@ describe('ProjectionAudio state controls', () => {
     expect(a.audioPlayers.size).toBe(3)
   })
 
-  test('handleAudioData ignores music pcm when media is inactive', () => {
+  test('handleAudioData ignores music pcm when media is inactive', async () => {
     const a = createSubject()
-    const player = { write: jest.fn() }
-    a.getAudioOutputForStream = jest.fn(() => player)
-    a.getLogicalStreamKey = jest.fn(() => 'music')
+    const player = { write: vi.fn() }
+    a.getAudioOutputForStream = vi.fn(() => player)
+    a.getLogicalStreamKey = vi.fn(() => 'music')
     a.mediaActive = false
 
     a.handleAudioData({
@@ -266,11 +272,11 @@ describe('ProjectionAudio state controls', () => {
     expect(player.write).not.toHaveBeenCalled()
   })
 
-  test('handleAudioData writes pcm for nav-only playback when media is inactive', () => {
+  test('handleAudioData writes pcm for nav-only playback when media is inactive', async () => {
     const a = createSubject()
-    const player = { write: jest.fn() }
-    a.getAudioOutputForStream = jest.fn(() => player)
-    a.getLogicalStreamKey = jest.fn(() => 'nav')
+    const player = { write: vi.fn() }
+    a.getAudioOutputForStream = vi.fn(() => player)
+    a.getLogicalStreamKey = vi.fn(() => 'nav')
     a.mediaActive = false
     a.navActive = false
 
@@ -282,13 +288,13 @@ describe('ProjectionAudio state controls', () => {
     expect(player.write).toHaveBeenCalled()
   })
 
-  test('handleAudioData writes nav PCM to its own player even when media is active', () => {
+  test('handleAudioData writes nav PCM to its own player even when media is active', async () => {
     // The OS sink mixes the nav stream with the music stream natively, so we
     // just write to the nav player directly and let the OS handle the mix.
     const a = createSubject()
-    const player = { write: jest.fn() }
-    a.getAudioOutputForStream = jest.fn(() => player)
-    a.getLogicalStreamKey = jest.fn(() => 'nav')
+    const player = { write: vi.fn() }
+    a.getAudioOutputForStream = vi.fn(() => player)
+    a.getLogicalStreamKey = vi.fn(() => 'nav')
     a.mediaActive = true
     a.navActive = true
 
@@ -300,18 +306,18 @@ describe('ProjectionAudio state controls', () => {
     expect(player.write).toHaveBeenCalled()
   })
 
-  test('handleAudioData sends audioInfo only once when metadata is present', () => {
-    const sendProjectionEvent = jest.fn()
+  test('handleAudioData sends audioInfo only once when metadata is present', async () => {
+    const sendProjectionEvent = vi.fn()
     const a = new ProjectionAudio(
       () => ({ mediaDelay: 120 }) as any,
       sendProjectionEvent,
-      jest.fn(),
-      jest.fn()
+      vi.fn(),
+      vi.fn()
     ) as any
 
-    const player = { write: jest.fn() }
-    a.getAudioOutputForStream = jest.fn(() => player)
-    a.getLogicalStreamKey = jest.fn(() => 'nav')
+    const player = { write: vi.fn() }
+    a.getAudioOutputForStream = vi.fn(() => player)
+    a.getLogicalStreamKey = vi.fn(() => 'nav')
     a.mediaActive = false
 
     a.handleAudioData({
@@ -330,7 +336,7 @@ describe('ProjectionAudio state controls', () => {
     expect(audioInfoCalls).toHaveLength(1)
   })
 
-  test('handleAudioData AudioOutputStart arms media open and resets music ramp state', () => {
+  test('handleAudioData AudioOutputStart arms media open and resets music ramp state', async () => {
     const a = createSubject()
 
     a.mediaActive = false
@@ -343,7 +349,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.musicFade.target).toBe(1)
   })
 
-  test('handleAudioData AudioMediaStart implicitly starts media when not armed', () => {
+  test('handleAudioData AudioMediaStart implicitly starts media when not armed', async () => {
     const a = createSubject()
 
     const before = Date.now()
@@ -355,7 +361,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.nextMusicRampStartAt).toBeGreaterThanOrEqual(before + 120 - 5)
   })
 
-  test('handleAudioData AudioMediaStart consumes open arm and starts media', () => {
+  test('handleAudioData AudioMediaStart consumes open arm and starts media', async () => {
     const a = createSubject()
     a.audioOpenArmed = true
 
@@ -366,12 +372,12 @@ describe('ProjectionAudio state controls', () => {
     expect(a.musicGateMuted).toBe(true)
   })
 
-  test('handleAudioData AudioMediaStop deactivates media and clears music player', () => {
+  test('handleAudioData AudioMediaStop deactivates media and clears music player', async () => {
     const a = createSubject()
     a.mediaActive = true
     a.audioOpenArmed = true
     a.lastMusicPlayerKey = 'music-key'
-    a.stopPlayerByKey = jest.fn()
+    a.stopPlayerByKey = vi.fn()
 
     a.handleAudioData({ command: 12 })
 
@@ -381,7 +387,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.lastMusicPlayerKey).toBeNull()
   })
 
-  test('handleAudioData nav start activates nav and prepares ducking', () => {
+  test('handleAudioData nav start activates nav and prepares ducking', async () => {
     const a = createSubject()
     a.mediaActive = true
     a.voiceAssistantActive = false
@@ -395,12 +401,12 @@ describe('ProjectionAudio state controls', () => {
     expect(a.musicFade.target).toBe(a.navDuckingTarget)
   })
 
-  test('handleAudioData nav stop clears nav and removes nav-only player when media inactive', () => {
+  test('handleAudioData nav stop clears nav and removes nav-only player when media inactive', async () => {
     const a = createSubject()
     a.mediaActive = false
     a.navActive = true
     a.lastNavPlayerKey = 'nav-key'
-    a.stopPlayerByKey = jest.fn()
+    a.stopPlayerByKey = vi.fn()
 
     const before = Date.now()
     a.handleAudioData({ command: 8 })
@@ -411,13 +417,13 @@ describe('ProjectionAudio state controls', () => {
     expect(a.navHoldUntil).toBeGreaterThanOrEqual(before)
   })
 
-  test('handleAudioData AudioOutputStop stops remembered players when no call or voiceAssistant is active', () => {
+  test('handleAudioData AudioOutputStop stops remembered players when no call or voiceAssistant is active', async () => {
     const a = createSubject()
     a.lastMusicPlayerKey = 'music'
     a.lastNavPlayerKey = 'nav'
     a.lastVoiceAssistantPlayerKey = 'voiceAssistant'
     a.lastCallPlayerKey = 'call'
-    a.stopPlayerByKey = jest.fn()
+    a.stopPlayerByKey = vi.fn()
 
     a.handleAudioData({ command: 13 })
 
@@ -431,7 +437,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.lastCallPlayerKey).toBeNull()
   })
 
-  test('handleAudioData AudioInputConfig updates current mic decode type', () => {
+  test('handleAudioData AudioInputConfig updates current mic decode type', async () => {
     const a = createSubject()
 
     a.handleAudioData({ command: 14, decodeType: 2 })
@@ -439,7 +445,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.currentMicDecodeType).toBe(2)
   })
 
-  test('handleAudioData AudioVoiceAssistantStart updates voiceAssistant state and skips mic start without decodeType', () => {
+  test('handleAudioData AudioVoiceAssistantStart updates voiceAssistant state and skips mic start without decodeType', async () => {
     const a = createSubject({ micType: 0, disableAudioOutput: false })
 
     a.handleAudioData({ command: 4 })
@@ -449,9 +455,9 @@ describe('ProjectionAudio state controls', () => {
     expect(a.currentMicDecodeType).toBeNull()
   })
 
-  test('handleAudioData AudioPhonecallStart updates phone state and stops mic in transfer mode', () => {
+  test('handleAudioData AudioPhonecallStart updates phone state and stops mic in transfer mode', async () => {
     const a = createSubject({ micType: 1, disableAudioOutput: true })
-    a._mic = { stop: jest.fn() }
+    a._mic = { stop: vi.fn() }
 
     a.handleAudioData({ command: 15, decodeType: 1 })
 
@@ -460,12 +466,12 @@ describe('ProjectionAudio state controls', () => {
     expect(a._mic.stop).toHaveBeenCalled()
   })
 
-  test('handleAudioData AudioVoiceAssistantStop clears state and stops player/mic', () => {
+  test('handleAudioData AudioVoiceAssistantStop clears state and stops player/mic', async () => {
     const a = createSubject()
     a.voiceAssistantActive = true
     a.lastVoiceAssistantPlayerKey = 'va-key'
-    a.stopPlayerByKey = jest.fn()
-    a._mic = { stop: jest.fn() }
+    a.stopPlayerByKey = vi.fn()
+    a._mic = { stop: vi.fn() }
 
     a.handleAudioData({ command: 5 })
 
@@ -475,10 +481,10 @@ describe('ProjectionAudio state controls', () => {
     expect(a._mic.stop).toHaveBeenCalled()
   })
 
-  test('handleAudioData AudioPhonecallStop clears phone state and stops mic', () => {
+  test('handleAudioData AudioPhonecallStop clears phone state and stops mic', async () => {
     const a = createSubject()
     a.phonecallActive = true
-    a._mic = { stop: jest.fn() }
+    a._mic = { stop: vi.fn() }
 
     a.handleAudioData({ command: 3 })
 
@@ -486,8 +492,8 @@ describe('ProjectionAudio state controls', () => {
     expect(a._mic.stop).toHaveBeenCalled()
   })
 
-  test('handleAudioData AudioAttentionStart sets uiCallIncoming and emits attention', () => {
-    const emitAttention = jest.fn()
+  test('handleAudioData AudioAttentionStart sets uiCallIncoming and emits attention', async () => {
+    const emitAttention = vi.fn()
     const a = createSubject()
     a.emitAttention = emitAttention
     a.uiCallIncoming = false
@@ -498,8 +504,8 @@ describe('ProjectionAudio state controls', () => {
     expect(emitAttention).toHaveBeenCalledWith('call', true, { phase: 'incoming' })
   })
 
-  test('handleAudioData AudioAttentionStart does not re-emit when uiCallIncoming already true', () => {
-    const emitAttention = jest.fn()
+  test('handleAudioData AudioAttentionStart does not re-emit when uiCallIncoming already true', async () => {
+    const emitAttention = vi.fn()
     const a = createSubject()
     a.emitAttention = emitAttention
     a.uiCallIncoming = true
@@ -509,8 +515,8 @@ describe('ProjectionAudio state controls', () => {
     expect(emitAttention).not.toHaveBeenCalled()
   })
 
-  test('handleAudioData AudioAttentionRinging also sets uiCallIncoming', () => {
-    const emitAttention = jest.fn()
+  test('handleAudioData AudioAttentionRinging also sets uiCallIncoming', async () => {
+    const emitAttention = vi.fn()
     const a = createSubject()
     a.emitAttention = emitAttention
     a.uiCallIncoming = false
@@ -521,12 +527,12 @@ describe('ProjectionAudio state controls', () => {
     expect(emitAttention).toHaveBeenCalledWith('call', true, { phase: 'incoming' })
   })
 
-  test('handleAudioData AudioPhonecallStop emits attention ended when uiCallIncoming is true', () => {
-    const emitAttention = jest.fn()
+  test('handleAudioData AudioPhonecallStop emits attention ended when uiCallIncoming is true', async () => {
+    const emitAttention = vi.fn()
     const a = createSubject()
     a.emitAttention = emitAttention
     a.uiCallIncoming = true
-    a._mic = { stop: jest.fn() }
+    a._mic = { stop: vi.fn() }
 
     a.handleAudioData({ command: 3 }) // AudioPhonecallStop
 
@@ -534,14 +540,14 @@ describe('ProjectionAudio state controls', () => {
     expect(emitAttention).toHaveBeenCalledWith('call', false, { phase: 'ended' })
   })
 
-  test('handleAudioData AudioNaviStop emits attention nav:false when uiNavHintActive is true', () => {
-    const emitAttention = jest.fn()
+  test('handleAudioData AudioNaviStop emits attention nav:false when uiNavHintActive is true', async () => {
+    const emitAttention = vi.fn()
     const a = createSubject()
     a.emitAttention = emitAttention
     a.uiNavHintActive = true
     a.navActive = true
     a.lastNavPlayerKey = null
-    a.stopPlayerByKey = jest.fn()
+    a.stopPlayerByKey = vi.fn()
 
     a.handleAudioData({ command: 8 }) // AudioNaviStop
 
@@ -549,7 +555,7 @@ describe('ProjectionAudio state controls', () => {
     expect(emitAttention).toHaveBeenCalledWith('nav', false)
   })
 
-  test('handleAudioData AudioOutputStart does nothing when mediaActive is already true', () => {
+  test('handleAudioData AudioOutputStart does nothing when mediaActive is already true', async () => {
     const a = createSubject()
     a.mediaActive = true
     a.audioOpenArmed = false
@@ -561,7 +567,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.audioOpenArmed).toBe(false)
   })
 
-  test('handleAudioData AudioMediaStart returns early when audioOpenArmed and mediaActive both true', () => {
+  test('handleAudioData AudioMediaStart returns early when audioOpenArmed and mediaActive both true', async () => {
     const a = createSubject()
     a.audioOpenArmed = true
     a.mediaActive = true
@@ -574,12 +580,12 @@ describe('ProjectionAudio state controls', () => {
     expect(a.audioOpenArmed).toBe(true)
   })
 
-  test('handleAudioData AudioNaviStop with mediaActive=true does not stop nav player', () => {
+  test('handleAudioData AudioNaviStop with mediaActive=true does not stop nav player', async () => {
     const a = createSubject()
     a.navActive = true
     a.mediaActive = true // music still playing — let the OS sink drain nav tail naturally
     a.lastNavPlayerKey = 'nav-key'
-    a.stopPlayerByKey = jest.fn()
+    a.stopPlayerByKey = vi.fn()
 
     a.handleAudioData({ command: 8 }) // AudioNaviStop
 
@@ -589,10 +595,10 @@ describe('ProjectionAudio state controls', () => {
     expect(a.lastNavPlayerKey).toBe('nav-key')
   })
 
-  test('handleAudioData AudioInputConfig restarts mic when decodeType changes and mic is capturing', () => {
+  test('handleAudioData AudioInputConfig restarts mic when decodeType changes and mic is capturing', async () => {
     const a = createSubject()
     a.currentMicDecodeType = 1
-    a._mic = { isCapturing: jest.fn(() => true), start: jest.fn(), stop: jest.fn() }
+    a._mic = { isCapturing: vi.fn(() => true), start: vi.fn(), stop: vi.fn() }
 
     a.handleAudioData({ command: 14, decodeType: 2 }) // decodeType changed from 1 to 2
 
@@ -600,18 +606,18 @@ describe('ProjectionAudio state controls', () => {
     expect(a._mic.start).toHaveBeenCalledWith(2)
   })
 
-  test('handleAudioData AudioInputConfig does not restart mic when decodeType unchanged', () => {
+  test('handleAudioData AudioInputConfig does not restart mic when decodeType unchanged', async () => {
     const a = createSubject()
     a.currentMicDecodeType = 2
-    a._mic = { isCapturing: jest.fn(() => true), start: jest.fn(), stop: jest.fn() }
+    a._mic = { isCapturing: vi.fn(() => true), start: vi.fn(), stop: vi.fn() }
 
     a.handleAudioData({ command: 14, decodeType: 2 }) // same decodeType
 
     expect(a._mic.start).not.toHaveBeenCalled()
   })
 
-  test('handleAudioData AudioVoiceAssistantStart with micType=0 creates mic and starts it with decodeType', () => {
-    const { Microphone } = require('@main/services/audio')
+  test('handleAudioData AudioVoiceAssistantStart with micType=0 creates mic and starts it with decodeType', async () => {
+    const { Microphone } = await import('@main/services/audio')
 
     const a = createSubject({ micType: 0, disableAudioOutput: false })
     a._mic = null
@@ -624,7 +630,7 @@ describe('ProjectionAudio state controls', () => {
     expect(a.currentMicDecodeType).toBe(1)
   })
 
-  test('handleAudioData AudioVoiceAssistantStart skips mic.start when no decodeType available', () => {
+  test('handleAudioData AudioVoiceAssistantStart skips mic.start when no decodeType available', async () => {
     const a = createSubject({ micType: 0, disableAudioOutput: false })
     a._mic = null
     a.currentMicDecodeType = null
@@ -637,8 +643,8 @@ describe('ProjectionAudio state controls', () => {
     expect(a._mic.start).not.toHaveBeenCalled()
   })
 
-  test('handleAudioData AudioVoiceAssistantStart reuses existing mic and sets decodeType from msg', () => {
-    const existingMic = { on: jest.fn(), start: jest.fn(), stop: jest.fn(), isCapturing: jest.fn() }
+  test('handleAudioData AudioVoiceAssistantStart reuses existing mic and sets decodeType from msg', async () => {
+    const existingMic = { on: vi.fn(), start: vi.fn(), stop: vi.fn(), isCapturing: vi.fn() }
     const a = createSubject({ micType: 0, disableAudioOutput: false })
     a._mic = existingMic
     a.currentMicDecodeType = 1
@@ -649,18 +655,19 @@ describe('ProjectionAudio state controls', () => {
     expect(existingMic.start).toHaveBeenCalledWith(2)
   })
 
-  test('handleAudioData with pcm data and visualizerEnabled sends chunked audio', () => {
-    const sendChunked = jest.fn()
-    const a = new (require('@main/services/projection/services/ProjectionAudio').ProjectionAudio)(
+  test('handleAudioData with pcm data and visualizerEnabled sends chunked audio', async () => {
+    const sendChunked = vi.fn()
+    const { ProjectionAudio } = await import('@main/services/projection/services/ProjectionAudio')
+    const a = new ProjectionAudio(
       () => ({ mediaDelay: 120 }) as any,
-      jest.fn(),
+      vi.fn(),
       sendChunked,
-      jest.fn()
+      vi.fn()
     ) as any
 
-    const player = { write: jest.fn() }
-    a.getAudioOutputForStream = jest.fn(() => player)
-    a.getLogicalStreamKey = jest.fn(() => 'music')
+    const player = { write: vi.fn() }
+    a.getAudioOutputForStream = vi.fn(() => player)
+    a.getLogicalStreamKey = vi.fn(() => 'music')
     a.mediaActive = true
     a.setVisualizerEnabled(true)
 
@@ -676,14 +683,14 @@ describe('ProjectionAudio state controls', () => {
     )
   })
 
-  test('stopAllAudioPlayers is called during reset and stops all players ignoring errors', () => {
+  test('stopAllAudioPlayers is called during reset and stops all players ignoring errors', async () => {
     const a = createSubject()
     const throwingPlayer = {
-      stop: jest.fn(() => {
+      stop: vi.fn(function () {
         throw new Error('stop failed')
       })
     }
-    const goodPlayer = { stop: jest.fn() }
+    const goodPlayer = { stop: vi.fn() }
 
     a.audioPlayers.set('48000:2', throwingPlayer)
     a.audioPlayers.set('16000:1', goodPlayer)
@@ -696,10 +703,10 @@ describe('ProjectionAudio state controls', () => {
     expect(a.audioPlayers.size).toBe(0)
   })
 
-  test('handleAudioData with music data drops the chunk when mediaActive=false', () => {
+  test('handleAudioData with music data drops the chunk when mediaActive=false', async () => {
     const a = createSubject()
     a.mediaActive = false
-    const player = { write: jest.fn(), stop: jest.fn() }
+    const player = { write: vi.fn(), stop: vi.fn() }
     a.audioPlayers.set('music:at1:48000:2', player)
     a.handleAudioData({
       audioType: 1,
@@ -709,13 +716,13 @@ describe('ProjectionAudio state controls', () => {
     expect(player.write).not.toHaveBeenCalled()
   })
 
-  test('getAudioOutputForStream returns null for an unknown decodeType', () => {
+  test('getAudioOutputForStream returns null for an unknown decodeType', async () => {
     const a = createSubject()
     const player = a.getAudioOutputForStream('music', 1, { decodeType: 9999 })
     expect(player).toBeNull()
   })
 
-  test('handleAudioData with unknown decodeType is a silent no-op', () => {
+  test('handleAudioData with unknown decodeType is a silent no-op', async () => {
     const a = createSubject()
     a.mediaActive = true
     expect(() =>
@@ -727,10 +734,10 @@ describe('ProjectionAudio state controls', () => {
     ).not.toThrow()
   })
 
-  test('stopPlayerByKey swallows errors when player.stop throws', () => {
+  test('stopPlayerByKey swallows errors when player.stop throws', async () => {
     const a = createSubject()
     const badPlayer = {
-      stop: jest.fn(() => {
+      stop: vi.fn(function () {
         throw new Error('stop error')
       })
     }

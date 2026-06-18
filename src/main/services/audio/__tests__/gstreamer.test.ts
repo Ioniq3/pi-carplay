@@ -1,4 +1,4 @@
-jest.mock('electron', () => ({
+vi.mock('electron', () => ({
   app: { isPackaged: false, getAppPath: () => '/repo' }
 }))
 
@@ -64,7 +64,7 @@ describe('gstEnv', () => {
     const env = gstEnv('C:/gst')
     // PATH separator on win32 is ';'. The bin path itself uses whatever
     // path.join uses on the host running the test (forward slashes on
-    // mac/linux jest runs), so just assert the separator + bin marker.
+    // mac/linux test runs), so just assert the separator + bin marker.
     expect(env.PATH).toMatch(/bin;/)
     expect(env.PATH).toContain('C:/gst')
   })

@@ -8,14 +8,15 @@ import {
 } from '@main/utils'
 import { getMainWindow } from '@main/window/createWindow'
 import { app } from 'electron'
+import type { Mock } from 'vitest'
 
-jest.mock('@main/window/createWindow', () => ({
-  getMainWindow: jest.fn()
+vi.mock('@main/window/createWindow', () => ({
+  getMainWindow: vi.fn()
 }))
 
 describe('main utils', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   test('isMacPlatform reflects current process platform', () => {
@@ -125,9 +126,9 @@ describe('main utils', () => {
   })
 
   test('pushSettingsToRenderer sends settings when main window is alive', () => {
-    const send = jest.fn()
-    ;(getMainWindow as jest.Mock).mockReturnValue({
-      isDestroyed: jest.fn(() => false),
+    const send = vi.fn()
+    ;(getMainWindow as Mock).mockReturnValue({
+      isDestroyed: vi.fn(() => false),
       webContents: { send }
     })
 
@@ -138,9 +139,9 @@ describe('main utils', () => {
   })
 
   test('pushSettingsToRenderer sends runtime config unchanged when no override is given', () => {
-    const send = jest.fn()
-    ;(getMainWindow as jest.Mock).mockReturnValue({
-      isDestroyed: jest.fn(() => false),
+    const send = vi.fn()
+    ;(getMainWindow as Mock).mockReturnValue({
+      isDestroyed: vi.fn(() => false),
       webContents: { send }
     })
 
@@ -150,7 +151,7 @@ describe('main utils', () => {
   })
 
   test('pushSettingsToRenderer does nothing when no window', () => {
-    ;(getMainWindow as jest.Mock).mockReturnValue(null)
+    ;(getMainWindow as Mock).mockReturnValue(null)
 
     pushSettingsToRenderer({ config: { kiosk: true } } as any)
 
@@ -158,9 +159,9 @@ describe('main utils', () => {
   })
 
   test('pushSettingsToRenderer does nothing when window is destroyed', () => {
-    const send = jest.fn()
-    ;(getMainWindow as jest.Mock).mockReturnValue({
-      isDestroyed: jest.fn(() => true),
+    const send = vi.fn()
+    ;(getMainWindow as Mock).mockReturnValue({
+      isDestroyed: vi.fn(() => true),
       webContents: { send }
     })
 

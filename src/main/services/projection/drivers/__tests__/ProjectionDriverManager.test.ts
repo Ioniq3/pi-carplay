@@ -1,41 +1,45 @@
-import { EventEmitter } from 'node:events'
+import type { Mock } from 'vitest'
 
-class MockDongleDriver extends EventEmitter {
-  send = jest.fn(async () => true)
-  close = jest.fn(async () => undefined)
-  initialise = jest.fn(async () => undefined)
-  start = jest.fn(async () => undefined)
-}
+const { MockDongleDriver, MockAaDriver, lastAaCreated } = vi.hoisted(() => {
+  const { EventEmitter } = require('node:events')
 
-class MockAaDriver extends EventEmitter {
-  send = jest.fn(async () => true)
-  close = jest.fn()
-  setHevcSupported = jest.fn()
-  setVp9Supported = jest.fn()
-  setAv1Supported = jest.fn()
-  setInitialNightMode = jest.fn()
-  setWiredDevice = jest.fn()
-  isWiredMode = jest.fn(() => false)
-  start = jest.fn(async () => true)
-  restartStack = jest.fn(async () => undefined)
-  ctorOpts: unknown
-  constructor(opts?: unknown) {
-    super()
-    this.ctorOpts = opts
+  class MockDongleDriver extends EventEmitter {
+    send = vi.fn(async () => true)
+    close = vi.fn(async () => undefined)
+    initialise = vi.fn(async () => undefined)
+    start = vi.fn(async () => undefined)
   }
-}
 
-const lastAaCreated: { instance: MockAaDriver | null } = { instance: null }
+  class MockAaDriver extends EventEmitter {
+    send = vi.fn(async () => true)
+    close = vi.fn()
+    setHevcSupported = vi.fn()
+    setVp9Supported = vi.fn()
+    setAv1Supported = vi.fn()
+    setInitialNightMode = vi.fn()
+    setWiredDevice = vi.fn()
+    isWiredMode = vi.fn(() => false)
+    start = vi.fn(async () => true)
+    restartStack = vi.fn(async () => undefined)
+    ctorOpts: unknown
+    constructor(opts?: unknown) {
+      super()
+      this.ctorOpts = opts
+    }
+  }
 
-jest.mock('../../driver/aa/aaDriver', () => ({
-  AaDriver: jest.fn().mockImplementation((opts) => {
+  return { MockDongleDriver, MockAaDriver, lastAaCreated: { instance: null } }
+})
+
+vi.mock('../../driver/aa/aaDriver', () => ({
+  AaDriver: vi.fn().mockImplementation(function (opts) {
     const aa = new MockAaDriver(opts)
     lastAaCreated.instance = aa
     return aa
   })
 }))
 
-jest.mock('../../messages', () => ({
+vi.mock('../../messages', () => ({
   DongleDriver: MockDongleDriver
 }))
 
@@ -45,25 +49,25 @@ function buildDeps(over: Partial<DriverManagerDeps> = {}): {
   deps: DriverManagerDeps
   spies: {
     handlers: Required<DriverManagerDeps['handlers']>
-    onAaConnected: jest.Mock
-    onAaDisconnected: jest.Mock
-    onAaCreated: jest.Mock
-    onAaReleased: jest.Mock
-    onPhoneReenumerate: jest.Mock
+    onAaConnected: Mock
+    onAaDisconnected: Mock
+    onAaCreated: Mock
+    onAaReleased: Mock
+    onPhoneReenumerate: Mock
   }
 } {
   const handlers = {
-    onMessage: jest.fn(),
-    onFailure: jest.fn(),
-    onTargetedConnect: jest.fn(),
-    onVideoCodec: jest.fn(),
-    onClusterVideoCodec: jest.fn()
+    onMessage: vi.fn(),
+    onFailure: vi.fn(),
+    onTargetedConnect: vi.fn(),
+    onVideoCodec: vi.fn(),
+    onClusterVideoCodec: vi.fn()
   }
-  const onAaConnected = jest.fn()
-  const onAaDisconnected = jest.fn()
-  const onAaCreated = jest.fn()
-  const onAaReleased = jest.fn()
-  const onPhoneReenumerate = jest.fn()
+  const onAaConnected = vi.fn()
+  const onAaDisconnected = vi.fn()
+  const onAaCreated = vi.fn()
+  const onAaReleased = vi.fn()
+  const onPhoneReenumerate = vi.fn()
   const deps: DriverManagerDeps = {
     handlers,
     onAaConnected,
@@ -207,11 +211,11 @@ describe('ProjectionDriverManager', () => {
     const { deps } = buildDeps()
     const mgr = new ProjectionDriverManager(deps)
     const aa = mgr.ensureAa() as unknown as MockAaDriver
-    aa.close.mockImplementation(() => {
+    aa.close.mockImplementation(function () {
       throw new Error('boom')
     })
 
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
     expect(() => mgr.releaseAa()).not.toThrow()
     expect(mgr.getAa()).toBeNull()
     warn.mockRestore()

@@ -1,18 +1,19 @@
 import type { WebContents } from 'electron'
+import type { Mock } from 'vitest'
 import { TelemetryStore } from '../../TelemetryStore'
 import { attachLiviDashAdapter } from '../liviDashAdapter'
 
 function fakeWc(destroyed = false) {
   return {
-    send: jest.fn(),
-    isDestroyed: jest.fn(() => destroyed)
-  } as unknown as WebContents & { send: jest.Mock; isDestroyed: jest.Mock }
+    send: vi.fn(),
+    isDestroyed: vi.fn(() => destroyed)
+  } as unknown as WebContents & { send: Mock; isDestroyed: Mock }
 }
 
 beforeEach(() => {
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(() => vi.restoreAllMocks())
 
 describe('liviDashAdapter', () => {
   test('forwards the snapshot to a single webContents', () => {
@@ -62,7 +63,7 @@ describe('liviDashAdapter', () => {
   test('a thrown send is swallowed and warned', () => {
     const store = new TelemetryStore()
     const wc = fakeWc()
-    wc.send.mockImplementation(() => {
+    wc.send.mockImplementation(function () {
       throw new Error('detached')
     })
     attachLiviDashAdapter({ store, getWebContents: () => wc })

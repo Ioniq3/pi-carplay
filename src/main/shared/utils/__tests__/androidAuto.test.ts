@@ -21,7 +21,7 @@ describe('androidAuto utils', () => {
   })
 
   test('getCurrentTimeInMs returns rounded unix time in seconds', () => {
-    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1234)
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1234)
 
     expect(getCurrentTimeInMs()).toBe(1)
 

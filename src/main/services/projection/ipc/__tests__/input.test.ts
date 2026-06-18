@@ -3,7 +3,7 @@ type IpcOnHandler = (evt: unknown, ...args: unknown[]) => void
 const handlers = new Map<string, IpcHandler>()
 const onHandlers = new Map<string, IpcOnHandler>()
 
-jest.mock('@main/ipc/register', () => ({
+vi.mock('@main/ipc/register', () => ({
   registerIpcHandle: (channel: string, handler: IpcHandler) => {
     handlers.set(channel, handler)
   },
@@ -17,17 +17,17 @@ import { registerInputIpc } from '../input'
 
 function freshHost() {
   return {
-    send: jest.fn(async () => true),
-    isStarted: jest.fn(() => true)
+    send: vi.fn(async () => true),
+    isStarted: vi.fn(() => true)
   }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   handlers.clear()
   onHandlers.clear()
-  jest.spyOn(console, 'error').mockImplementation(() => {})
+  vi.spyOn(console, 'error').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 describe('input ipc', () => {
   test('projection-sendframe sends SendCommand("frame")', async () => {
@@ -37,30 +37,30 @@ describe('input ipc', () => {
     expect(host.send).toHaveBeenCalledWith(expect.any(SendCommand))
   })
 
-  test('projection-touch forwards a SendTouch', () => {
+  test('projection-touch forwards a SendTouch', async () => {
     const host = freshHost()
     registerInputIpc(host)
     onHandlers.get('projection-touch')!(null, { x: 0.5, y: 0.5, action: 0 })
     expect(host.send).toHaveBeenCalledWith(expect.any(SendTouch))
   })
 
-  test('projection-touch swallows thrown send', () => {
+  test('projection-touch swallows thrown send', async () => {
     const host = freshHost()
-    host.send.mockImplementation(() => {
+    host.send.mockImplementation(function () {
       throw new Error('not started')
     })
     registerInputIpc(host)
     expect(() => onHandlers.get('projection-touch')!(null, { x: 0, y: 0, action: 0 })).not.toThrow()
   })
 
-  test('projection-multi-touch with empty list is a no-op', () => {
+  test('projection-multi-touch with empty list is a no-op', async () => {
     const host = freshHost()
     registerInputIpc(host)
     onHandlers.get('projection-multi-touch')!(null, [])
     expect(host.send).not.toHaveBeenCalled()
   })
 
-  test('projection-multi-touch sanitizes coordinates to [0,1]', () => {
+  test('projection-multi-touch sanitizes coordinates to [0,1]', async () => {
     const host = freshHost()
     registerInputIpc(host)
     onHandlers.get('projection-multi-touch')!(null, [
@@ -70,14 +70,14 @@ describe('input ipc', () => {
     expect(host.send).toHaveBeenCalledWith(expect.any(SendMultiTouch))
   })
 
-  test('projection-multi-touch with non-array is a no-op', () => {
+  test('projection-multi-touch with non-array is a no-op', async () => {
     const host = freshHost()
     registerInputIpc(host)
     onHandlers.get('projection-multi-touch')!(null, null as never)
     expect(host.send).not.toHaveBeenCalled()
   })
 
-  test('projection-raw-message requires isStarted=true', () => {
+  test('projection-raw-message requires isStarted=true', async () => {
     const host = freshHost()
     host.isStarted.mockReturnValue(false)
     registerInputIpc(host)
@@ -85,14 +85,14 @@ describe('input ipc', () => {
     expect(host.send).not.toHaveBeenCalled()
   })
 
-  test('projection-raw-message when started sends a SendRawMessage', () => {
+  test('projection-raw-message when started sends a SendRawMessage', async () => {
     const host = freshHost()
     registerInputIpc(host)
     onHandlers.get('projection-raw-message')!(null, { type: 1, data: [1, 2, 3] })
     expect(host.send).toHaveBeenCalledWith(expect.any(SendRawMessage))
   })
 
-  test('projection-command forwards a SendCommand', () => {
+  test('projection-command forwards a SendCommand', async () => {
     const host = freshHost()
     registerInputIpc(host)
     onHandlers.get('projection-command')!(null, 'play')

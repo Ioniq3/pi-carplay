@@ -1,4 +1,4 @@
-import EventEmitter from 'events'
+import type { Mock } from 'vitest'
 
 // Reuse the same mocking style as the main ProjectionService.test.ts but
 // add a stubbed AaBtSockClient so we can exercise the AA-BT helpers
@@ -7,29 +7,32 @@ import EventEmitter from 'events'
 // real Python sock.
 
 const aaBtSockMock = {
-  listPaired: jest.fn(
+  listPaired: vi.fn(
     async () => [] as Array<{ mac: string; name?: string; connected?: boolean; trusted?: boolean }>
   ),
-  connect: jest.fn(async (_mac: string) => ({ ok: true })),
-  connectFull: jest.fn(async (_mac: string) => ({ ok: true })),
-  remove: jest.fn(async (_mac: string) => ({ ok: true })),
-  subscribe: jest.fn((_onEvent: (e: unknown) => void, _onClose?: () => void) => ({
-    close: jest.fn()
+  connect: vi.fn(async (_mac: string) => ({ ok: true })),
+  connectFull: vi.fn(async (_mac: string) => ({ ok: true })),
+  remove: vi.fn(async (_mac: string) => ({ ok: true })),
+  subscribe: vi.fn((_onEvent: (e: unknown) => void, _onClose?: () => void) => ({
+    close: vi.fn()
   }))
 }
 
-jest.mock('../../driver/aa/AaBtSockClient', () => ({
-  AaBtSockClient: jest.fn().mockImplementation(() => aaBtSockMock)
+vi.mock('../../driver/aa/AaBtSockClient', () => ({
+  AaBtSockClient: vi.fn().mockImplementation(function () {
+    return aaBtSockMock
+  })
 }))
 
-jest.mock('../../messages', () => {
+vi.mock('../../messages', async () => {
+  const EventEmitter = require('events')
   class MockDongleDriver extends EventEmitter {
-    send = jest.fn(async () => true)
-    initialise = jest.fn(async () => undefined)
-    start = jest.fn(async () => undefined)
-    stop = jest.fn(async () => undefined)
-    close = jest.fn(async () => undefined)
-    sendBluetoothPairedList = jest.fn(async () => true)
+    send = vi.fn(async () => true)
+    initialise = vi.fn(async () => undefined)
+    start = vi.fn(async () => undefined)
+    stop = vi.fn(async () => undefined)
+    close = vi.fn(async () => undefined)
+    sendBluetoothPairedList = vi.fn(async () => true)
   }
   class Stub {
     constructor(
@@ -71,54 +74,60 @@ jest.mock('../../messages', () => {
   }
 })
 
-jest.mock('@main/ipc/register', () => ({
-  registerIpcHandle: jest.fn(),
-  registerIpcOn: jest.fn()
+vi.mock('@main/ipc/register', () => ({
+  registerIpcHandle: vi.fn(),
+  registerIpcOn: vi.fn()
 }))
 
-jest.mock('../ProjectionAudio', () => ({
-  ProjectionAudio: jest.fn().mockImplementation(() => ({
-    setInitialVolumes: jest.fn(),
-    resetForSessionStart: jest.fn(),
-    resetForSessionStop: jest.fn(),
-    setStreamVolume: jest.fn(),
-    setVisualizerEnabled: jest.fn(),
-    handleAudioData: jest.fn()
-  }))
+vi.mock('../ProjectionAudio', () => ({
+  ProjectionAudio: vi.fn().mockImplementation(function () {
+    return {
+      setInitialVolumes: vi.fn(),
+      resetForSessionStart: vi.fn(),
+      resetForSessionStop: vi.fn(),
+      setStreamVolume: vi.fn(),
+      setVisualizerEnabled: vi.fn(),
+      handleAudioData: vi.fn()
+    }
+  })
 }))
 
-jest.mock('../FirmwareUpdateService', () => ({
-  FirmwareUpdateService: jest.fn().mockImplementation(() => ({
-    checkForUpdate: jest.fn(async () => ({ ok: true, hasUpdate: false, raw: {} })),
-    downloadFirmwareToHost: jest.fn(),
-    getLocalFirmwareStatus: jest.fn()
-  }))
+vi.mock('../FirmwareUpdateService', () => ({
+  FirmwareUpdateService: vi.fn().mockImplementation(function () {
+    return {
+      checkForUpdate: vi.fn(async () => ({ ok: true, hasUpdate: false, raw: {} })),
+      downloadFirmwareToHost: vi.fn(),
+      getLocalFirmwareStatus: vi.fn()
+    }
+  })
 }))
 
-const configEventsMock = {
-  on: jest.fn(),
-  off: jest.fn(),
-  emit: jest.fn()
-}
-jest.mock('@main/ipc/utils', () => ({
+const { configEventsMock } = vi.hoisted(() => ({
+  configEventsMock: {
+    on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn()
+  }
+}))
+vi.mock('@main/ipc/utils', () => ({
   configEvents: configEventsMock
 }))
 
-jest.mock('electron', () => ({
-  app: { getPath: jest.fn(() => '/tmp/appdata') },
+vi.mock('electron', () => ({
+  app: { getPath: vi.fn(() => '/tmp/appdata') },
   WebContents: class {}
 }))
 
-jest.mock('usb', () => ({
-  WebUSBDevice: { createInstance: jest.fn(async () => ({})) },
-  usb: { getDeviceList: jest.fn(() => []) }
+vi.mock('usb', () => ({
+  WebUSBDevice: { createInstance: vi.fn(async () => ({})) },
+  usb: { getDeviceList: vi.fn(() => []) }
 }))
 
 import { ProjectionService } from '../ProjectionService'
 
 type FakeAa = {
-  isWiredMode: jest.Mock
-  close: jest.Mock
+  isWiredMode: Mock
+  close: Mock
 }
 
 function newSvc(): {
@@ -137,20 +146,20 @@ function newSvc(): {
 }
 
 function fakeAa(): FakeAa {
-  return { isWiredMode: jest.fn(() => false), close: jest.fn() }
+  return { isWiredMode: vi.fn(() => false), close: vi.fn() }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   aaBtSockMock.listPaired.mockReset()
   aaBtSockMock.connect.mockReset()
   aaBtSockMock.remove.mockReset()
   aaBtSockMock.subscribe.mockReset()
   configEventsMock.emit.mockReset()
-  jest.spyOn(console, 'log').mockImplementation(() => {})
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
-  jest.spyOn(console, 'error').mockImplementation(() => {})
+  vi.spyOn(console, 'log').mockImplementation(function () {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
+  vi.spyOn(console, 'error').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 describe('refreshAaBtPairedList', () => {
   test('still queries BT presence when no AA driver is active', async () => {
@@ -283,47 +292,47 @@ describe('tryAutoConnect', () => {
 })
 
 describe('openAaBtSubscription / closeAaBtSubscription', () => {
-  test('open is a no-op without an active supervisor', () => {
+  test('open is a no-op without an active supervisor', async () => {
     const { svc } = newSvc()
     ;(svc as unknown as { openAaBtSubscription: () => void }).openAaBtSubscription()
     expect(aaBtSockMock.subscribe).not.toHaveBeenCalled()
   })
 
-  test('open with an active supervisor creates a subscription', () => {
+  test('open with an active supervisor creates a subscription', async () => {
     const { svc, setSupervisor } = newSvc()
     setSupervisor({})
-    aaBtSockMock.subscribe.mockReturnValueOnce({ close: jest.fn() })
+    aaBtSockMock.subscribe.mockReturnValueOnce({ close: vi.fn() })
     ;(svc as unknown as { openAaBtSubscription: () => void }).openAaBtSubscription()
     expect(aaBtSockMock.subscribe).toHaveBeenCalledTimes(1)
   })
 
-  test('open is idempotent', () => {
+  test('open is idempotent', async () => {
     const { svc, setSupervisor } = newSvc()
     setSupervisor({})
-    aaBtSockMock.subscribe.mockReturnValueOnce({ close: jest.fn() })
+    aaBtSockMock.subscribe.mockReturnValueOnce({ close: vi.fn() })
     ;(svc as unknown as { openAaBtSubscription: () => void }).openAaBtSubscription()
     ;(svc as unknown as { openAaBtSubscription: () => void }).openAaBtSubscription()
     expect(aaBtSockMock.subscribe).toHaveBeenCalledTimes(1)
   })
 
-  test('close ends the subscription', () => {
+  test('close ends the subscription', async () => {
     const { svc, setSupervisor } = newSvc()
     setSupervisor({})
-    const closeFn = jest.fn()
+    const closeFn = vi.fn()
     aaBtSockMock.subscribe.mockReturnValueOnce({ close: closeFn })
     ;(svc as unknown as { openAaBtSubscription: () => void }).openAaBtSubscription()
     ;(svc as unknown as { closeAaBtSubscription: () => void }).closeAaBtSubscription()
     expect(closeFn).toHaveBeenCalled()
   })
 
-  test('close is a no-op when no subscription is open', () => {
+  test('close is a no-op when no subscription is open', async () => {
     const { svc } = newSvc()
     expect(() =>
       (svc as unknown as { closeAaBtSubscription: () => void }).closeAaBtSubscription()
     ).not.toThrow()
   })
 
-  test('close swallows a throw from the underlying handle', () => {
+  test('close swallows a throw from the underlying handle', async () => {
     const { svc, setAa } = newSvc()
     setAa(fakeAa())
     aaBtSockMock.subscribe.mockReturnValueOnce({

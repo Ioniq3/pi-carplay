@@ -1,22 +1,25 @@
 import { registerIpcHandle } from '@main/ipc/register'
 import { registerUpdateIpc } from '@main/ipc/update'
 import { Updater } from '@main/ipc/update/updater'
+import type { Mock } from 'vitest'
 
-jest.mock('@main/ipc/register', () => ({
-  registerIpcHandle: jest.fn()
+vi.mock('@main/ipc/register', () => ({
+  registerIpcHandle: vi.fn()
 }))
 
-jest.mock('@main/ipc/update/updater', () => ({
-  Updater: jest.fn().mockImplementation(() => ({
-    perform: jest.fn(),
-    abort: jest.fn(),
-    install: jest.fn()
-  }))
+vi.mock('@main/ipc/update/updater', () => ({
+  Updater: vi.fn().mockImplementation(function () {
+    return {
+      perform: vi.fn(),
+      abort: vi.fn(),
+      install: vi.fn()
+    }
+  })
 }))
 
 describe('registerUpdateIpc', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   test('creates Updater and registers update handlers', () => {
@@ -26,7 +29,7 @@ describe('registerUpdateIpc', () => {
 
     expect(Updater).toHaveBeenCalledWith(services)
 
-    const updaterInstance = (Updater as jest.Mock).mock.results[0].value
+    const updaterInstance = (Updater as Mock).mock.results[0].value
 
     expect(registerIpcHandle).toHaveBeenCalledWith('app:performUpdate', updaterInstance.perform)
     expect(registerIpcHandle).toHaveBeenCalledWith('app:abortUpdate', updaterInstance.abort)

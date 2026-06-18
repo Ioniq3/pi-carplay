@@ -1,35 +1,36 @@
 import { setupLifecycle } from '@main/app/lifecycle'
 import { createMainWindow, getMainWindow } from '@main/window/createWindow'
 import { app, BrowserWindow } from 'electron'
+import type { Mock, MockInstance } from 'vitest'
 
-jest.mock('@main/window/createWindow', () => ({
-  createMainWindow: jest.fn(),
-  getMainWindow: jest.fn(() => null)
+vi.mock('@main/window/createWindow', () => ({
+  createMainWindow: vi.fn(),
+  getMainWindow: vi.fn(() => null)
 }))
 
 describe('setupLifecycle', () => {
   const originalPlatform = process.platform
-  let killSpy: jest.SpyInstance
+  let killSpy: MockInstance
 
-  beforeEach(() => {
-    jest.clearAllMocks()
-    jest.useRealTimers()
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    vi.useRealTimers()
     Object.defineProperty(process, 'platform', { value: originalPlatform })
     // before-quit ends with `process.kill(process.pid, 'SIGKILL')`; stub it
     // out so the test runner survives.
-    killSpy = jest.spyOn(process, 'kill').mockImplementation(() => true)
+    killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     killSpy.mockRestore()
   })
 
-  afterAll(() => {
+  afterAll(async () => {
     Object.defineProperty(process, 'platform', { value: originalPlatform })
   })
 
   function getRegisteredHandlers(eventName: string): Array<(...args: unknown[]) => unknown> {
-    return (app.on as jest.Mock).mock.calls
+    return (app.on as Mock).mock.calls
       .filter(([name]) => name === eventName)
       .map(([, handler]) => handler as (...args: unknown[]) => unknown)
   }
@@ -38,18 +39,18 @@ describe('setupLifecycle', () => {
     return getRegisteredHandlers(eventName)[0]
   }
 
-  test('registers lifecycle listeners', () => {
+  test('registers lifecycle listeners', async () => {
     setupLifecycle({ isQuitting: false } as never, {} as never)
 
-    const registered = (app.on as jest.Mock).mock.calls.map(([name]) => name)
+    const registered = (app.on as Mock).mock.calls.map(([name]) => name)
     expect(registered).toEqual(
       expect.arrayContaining(['window-all-closed', 'activate', 'before-quit'])
     )
   })
 
-  test('activate creates main window when no windows are open', () => {
-    ;(BrowserWindow.getAllWindows as jest.Mock).mockReturnValue([])
-    ;(getMainWindow as jest.Mock).mockReturnValue(null)
+  test('activate creates main window when no windows are open', async () => {
+    ;(BrowserWindow.getAllWindows as Mock).mockReturnValue([])
+    ;(getMainWindow as Mock).mockReturnValue(null)
 
     const runtimeState = { isQuitting: false } as never
     const services = { projectionService: {}, usbService: {}, telemetrySocket: {} } as never
@@ -64,10 +65,10 @@ describe('setupLifecycle', () => {
     expect(createMainWindow).toHaveBeenCalledWith(runtimeState, services)
   })
 
-  test('activate shows existing main window when a window already exists', () => {
-    const show = jest.fn()
-    ;(BrowserWindow.getAllWindows as jest.Mock).mockReturnValue([{}])
-    ;(getMainWindow as jest.Mock).mockReturnValue({ show })
+  test('activate shows existing main window when a window already exists', async () => {
+    const show = vi.fn()
+    ;(BrowserWindow.getAllWindows as Mock).mockReturnValue([{}])
+    ;(getMainWindow as Mock).mockReturnValue({ show })
 
     const runtimeState = { isQuitting: false } as never
     const services = { projectionService: {}, usbService: {}, telemetrySocket: {} } as never
@@ -83,7 +84,7 @@ describe('setupLifecycle', () => {
     expect(show).toHaveBeenCalledTimes(1)
   })
 
-  test('window-all-closed quits app on non-darwin for both registered handlers', () => {
+  test('window-all-closed quits app on non-darwin for both registered handlers', async () => {
     Object.defineProperty(process, 'platform', { value: 'linux' })
 
     setupLifecycle({ isQuitting: false } as never, {} as never)
@@ -97,7 +98,7 @@ describe('setupLifecycle', () => {
     expect(app.quit).toHaveBeenCalledTimes(2)
   })
 
-  test('window-all-closed does not quit app on darwin', () => {
+  test('window-all-closed does not quit app on darwin', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
 
     setupLifecycle({ isQuitting: false } as never, {} as never)
@@ -113,27 +114,27 @@ describe('setupLifecycle', () => {
 
   test('before-quit returns immediately when already quitting', async () => {
     const projectionService = {
-      beginShutdown: jest.fn(),
-      disconnectPhone: jest.fn(() => Promise.resolve()),
-      disconnectHostBtPhones: jest.fn(() => Promise.resolve()),
-      stop: jest.fn(() => Promise.resolve())
+      beginShutdown: vi.fn(),
+      disconnectPhone: vi.fn(() => Promise.resolve()),
+      disconnectHostBtPhones: vi.fn(() => Promise.resolve()),
+      stop: vi.fn(() => Promise.resolve())
     }
     const usbService = {
-      beginShutdown: jest.fn(),
-      stop: jest.fn(() => Promise.resolve())
+      beginShutdown: vi.fn(),
+      stop: vi.fn(() => Promise.resolve())
     }
     const telemetrySocket = {
-      disconnect: jest.fn(() => Promise.resolve())
+      disconnect: vi.fn(() => Promise.resolve())
     }
 
     const runtimeState = { isQuitting: true } as never
     setupLifecycle(runtimeState, { projectionService, usbService, telemetrySocket } as never)
 
     const beforeQuit = getRegisteredHandler('before-quit') as
-      | ((e: { preventDefault: jest.Mock }) => Promise<void>)
+      | ((e: { preventDefault: Mock }) => Promise<void>)
       | undefined
 
-    const event = { preventDefault: jest.fn() }
+    const event = { preventDefault: vi.fn() }
     await beforeQuit?.(event)
 
     expect(event.preventDefault).not.toHaveBeenCalled()
@@ -144,29 +145,29 @@ describe('setupLifecycle', () => {
 
   test('before-quit runs shutdown pipeline and quits app', async () => {
     const projectionService = {
-      beginShutdown: jest.fn(),
-      disconnectPhone: jest.fn(() => Promise.resolve()),
-      disconnectHostBtPhones: jest.fn(() => Promise.resolve()),
-      stop: jest.fn(() => Promise.resolve())
+      beginShutdown: vi.fn(),
+      disconnectPhone: vi.fn(() => Promise.resolve()),
+      disconnectHostBtPhones: vi.fn(() => Promise.resolve()),
+      stop: vi.fn(() => Promise.resolve())
     }
     const usbService = {
-      beginShutdown: jest.fn(),
-      stop: jest.fn(() => Promise.resolve())
+      beginShutdown: vi.fn(),
+      stop: vi.fn(() => Promise.resolve())
     }
     const telemetrySocket = {
-      disconnect: jest.fn(() => Promise.resolve())
+      disconnect: vi.fn(() => Promise.resolve())
     }
 
     const runtimeState = { isQuitting: false } as never
     setupLifecycle(runtimeState, { projectionService, usbService, telemetrySocket } as never)
 
     const beforeQuit = getRegisteredHandler('before-quit') as
-      | ((e: { preventDefault: jest.Mock }) => Promise<void>)
+      | ((e: { preventDefault: Mock }) => Promise<void>)
       | undefined
 
     expect(beforeQuit).toBeDefined()
 
-    const event = { preventDefault: jest.fn() }
+    const event = { preventDefault: vi.fn() }
     await beforeQuit?.(event)
     await new Promise<void>((resolve) => setImmediate(resolve))
 
@@ -183,32 +184,32 @@ describe('setupLifecycle', () => {
   })
 
   test('before-quit logs warning when a shutdown step throws', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
 
     const projectionService = {
-      beginShutdown: jest.fn(() => {
+      beginShutdown: vi.fn(function () {
         throw new Error('shutdown failed')
       }),
-      disconnectPhone: jest.fn(() => Promise.resolve()),
-      disconnectHostBtPhones: jest.fn(() => Promise.resolve()),
-      stop: jest.fn(() => Promise.resolve())
+      disconnectPhone: vi.fn(() => Promise.resolve()),
+      disconnectHostBtPhones: vi.fn(() => Promise.resolve()),
+      stop: vi.fn(() => Promise.resolve())
     }
     const usbService = {
-      beginShutdown: jest.fn(),
-      stop: jest.fn(() => Promise.resolve())
+      beginShutdown: vi.fn(),
+      stop: vi.fn(() => Promise.resolve())
     }
     const telemetrySocket = {
-      disconnect: jest.fn(() => Promise.resolve())
+      disconnect: vi.fn(() => Promise.resolve())
     }
 
     const runtimeState = { isQuitting: false } as never
     setupLifecycle(runtimeState, { projectionService, usbService, telemetrySocket } as never)
 
     const beforeQuit = getRegisteredHandler('before-quit') as
-      | ((e: { preventDefault: jest.Mock }) => Promise<void>)
+      | ((e: { preventDefault: Mock }) => Promise<void>)
       | undefined
 
-    const event = { preventDefault: jest.fn() }
+    const event = { preventDefault: vi.fn() }
     await beforeQuit?.(event)
     await new Promise<void>((resolve) => setImmediate(resolve))
 
@@ -217,44 +218,44 @@ describe('setupLifecycle', () => {
   })
 
   test('before-quit logs timeout warning when a step exceeds timeout', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
 
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(function () {})
 
     const projectionService = {
-      beginShutdown: jest.fn(),
-      disconnectPhone: jest.fn(
+      beginShutdown: vi.fn(),
+      disconnectPhone: vi.fn(
         () =>
           new Promise<void>((resolve) => {
             setTimeout(resolve, 5000)
           })
       ),
-      disconnectHostBtPhones: jest.fn(() => Promise.resolve()),
-      stop: jest.fn(() => Promise.resolve())
+      disconnectHostBtPhones: vi.fn(() => Promise.resolve()),
+      stop: vi.fn(() => Promise.resolve())
     }
 
     const usbService = {
-      beginShutdown: jest.fn(),
-      stop: jest.fn(() => Promise.resolve())
+      beginShutdown: vi.fn(),
+      stop: vi.fn(() => Promise.resolve())
     }
 
     const telemetrySocket = {
-      disconnect: jest.fn(() => Promise.resolve())
+      disconnect: vi.fn(() => Promise.resolve())
     }
 
     const runtimeState = { isQuitting: false } as never
     setupLifecycle(runtimeState, { projectionService, usbService, telemetrySocket } as never)
 
     const beforeQuit = getRegisteredHandler('before-quit') as
-      | ((e: { preventDefault: jest.Mock }) => Promise<void>)
+      | ((e: { preventDefault: Mock }) => Promise<void>)
       | undefined
 
     expect(beforeQuit).toBeDefined()
 
-    const promise = beforeQuit?.({ preventDefault: jest.fn() } as any)
+    const promise = beforeQuit?.({ preventDefault: vi.fn() } as any)
 
-    await jest.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(1000)
     await promise
 
     expect(warnSpy).toHaveBeenCalledWith(
@@ -267,18 +268,18 @@ describe('setupLifecycle', () => {
   })
 
   test('before-quit logs watchdog warning when shutdown takes too long', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
 
     Object.defineProperty(process, 'platform', { value: 'linux' })
 
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
-    jest.spyOn(console, 'log').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
+    vi.spyOn(console, 'log').mockImplementation(function () {})
 
     const projectionService = {
-      beginShutdown: jest.fn(),
-      disconnectPhone: jest.fn(() => Promise.resolve()),
-      disconnectHostBtPhones: jest.fn(() => Promise.resolve()),
-      stop: jest.fn(
+      beginShutdown: vi.fn(),
+      disconnectPhone: vi.fn(() => Promise.resolve()),
+      disconnectHostBtPhones: vi.fn(() => Promise.resolve()),
+      stop: vi.fn(
         () =>
           new Promise<void>((resolve) => {
             setTimeout(resolve, 7000)
@@ -287,49 +288,49 @@ describe('setupLifecycle', () => {
     }
 
     const usbService = {
-      beginShutdown: jest.fn(),
-      stop: jest.fn(() => Promise.resolve())
+      beginShutdown: vi.fn(),
+      stop: vi.fn(() => Promise.resolve())
     }
 
     const telemetrySocket = {
-      disconnect: jest.fn(() => Promise.resolve())
+      disconnect: vi.fn(() => Promise.resolve())
     }
 
     const runtimeState = { isQuitting: false } as never
     setupLifecycle(runtimeState, { projectionService, usbService, telemetrySocket } as never)
 
     const beforeQuit = getRegisteredHandler('before-quit') as
-      | ((e: { preventDefault: jest.Mock }) => Promise<void>)
+      | ((e: { preventDefault: Mock }) => Promise<void>)
       | undefined
 
-    const promise = beforeQuit?.({ preventDefault: jest.fn() } as any)
+    const promise = beforeQuit?.({ preventDefault: vi.fn() } as any)
 
-    await jest.advanceTimersByTimeAsync(3100)
+    await vi.advanceTimersByTimeAsync(3100)
 
     expect(warnSpy).toHaveBeenCalledWith(
       '[MAIN] before-quit watchdog: giving up waiting after 3000ms'
     )
 
-    await jest.advanceTimersByTimeAsync(10000)
+    await vi.advanceTimersByTimeAsync(10000)
     await promise
 
     expect(killSpy).toHaveBeenCalledWith(process.pid, 'SIGKILL')
   })
 
   test('before-quit uses fallback resolved promises when usb stop and telemetry disconnect are missing', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(function () {})
 
     const projectionService = {
-      beginShutdown: jest.fn(),
-      disconnectPhone: jest.fn(() => Promise.resolve()),
-      disconnectHostBtPhones: jest.fn(() => Promise.resolve()),
-      stop: jest.fn(() => Promise.resolve())
+      beginShutdown: vi.fn(),
+      disconnectPhone: vi.fn(() => Promise.resolve()),
+      disconnectHostBtPhones: vi.fn(() => Promise.resolve()),
+      stop: vi.fn(() => Promise.resolve())
     }
 
     const usbService = {
-      beginShutdown: jest.fn()
+      beginShutdown: vi.fn()
     }
 
     const telemetrySocket = {}
@@ -338,12 +339,12 @@ describe('setupLifecycle', () => {
     setupLifecycle(runtimeState, { projectionService, usbService, telemetrySocket } as never)
 
     const beforeQuit = getRegisteredHandler('before-quit') as
-      | ((e: { preventDefault: jest.Mock }) => Promise<void>)
+      | ((e: { preventDefault: Mock }) => Promise<void>)
       | undefined
 
-    const promise = beforeQuit?.({ preventDefault: jest.fn() } as any)
+    const promise = beforeQuit?.({ preventDefault: vi.fn() } as any)
 
-    await jest.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(1000)
     await promise
 
     expect(projectionService.beginShutdown).toHaveBeenCalledTimes(1)

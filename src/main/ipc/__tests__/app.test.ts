@@ -6,38 +6,39 @@ import { getMainWindow } from '@main/window/createWindow'
 import { restoreKioskAfterWmExit } from '@main/window/utils'
 import { spawn } from 'child_process'
 import { app, shell } from 'electron'
+import type { Mock } from 'vitest'
 
-jest.mock('@main/window/createWindow', () => ({
-  getMainWindow: jest.fn(() => null)
+vi.mock('@main/window/createWindow', () => ({
+  getMainWindow: vi.fn(() => null)
 }))
 
-jest.mock('@main/utils', () => ({
-  isMacPlatform: jest.fn(() => false)
+vi.mock('@main/utils', () => ({
+  isMacPlatform: vi.fn(() => false)
 }))
 
-jest.mock('@main/window/utils', () => ({
-  restoreKioskAfterWmExit: jest.fn()
+vi.mock('@main/window/utils', () => ({
+  restoreKioskAfterWmExit: vi.fn()
 }))
 
-jest.mock('@main/window/broadcast', () => ({
-  broadcastToRenderers: jest.fn()
+vi.mock('@main/window/broadcast', () => ({
+  broadcastToRenderers: vi.fn()
 }))
 
-jest.mock('@main/ipc/register', () => ({
-  registerIpcHandle: jest.fn(),
-  registerIpcOn: jest.fn()
+vi.mock('@main/ipc/register', () => ({
+  registerIpcHandle: vi.fn(),
+  registerIpcOn: vi.fn()
 }))
 
-jest.mock('child_process', () => ({
-  spawn: jest.fn()
+vi.mock('child_process', () => ({
+  spawn: vi.fn()
 }))
 
-const mockedGetMainWindow = getMainWindow as jest.Mock
-const mockedIsMacPlatform = isMacPlatform as jest.Mock
-const mockedRegisterIpcHandle = registerIpcHandle as jest.Mock
-const mockedRegisterIpcOn = registerIpcOn as jest.Mock
-const mockedSpawn = spawn as jest.Mock
-const mockedBroadcastToRenderers = broadcastToRenderers as jest.Mock
+const mockedGetMainWindow = getMainWindow as Mock
+const mockedIsMacPlatform = isMacPlatform as Mock
+const mockedRegisterIpcHandle = registerIpcHandle as Mock
+const mockedRegisterIpcOn = registerIpcOn as Mock
+const mockedSpawn = spawn as Mock
+const mockedBroadcastToRenderers = broadcastToRenderers as Mock
 
 describe('registerAppIpc', () => {
   const originalPlatform = process.platform
@@ -46,9 +47,9 @@ describe('registerAppIpc', () => {
   const originalArgv0 = process.env.ARGV0
   const originalOwd = process.env.OWD
 
-  beforeEach(() => {
-    jest.clearAllMocks()
-    jest.restoreAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    vi.restoreAllMocks()
     Object.defineProperty(process, 'platform', { value: originalPlatform })
     mockedGetMainWindow.mockReturnValue(null)
     mockedIsMacPlatform.mockReturnValue(false)
@@ -59,7 +60,7 @@ describe('registerAppIpc', () => {
     process.env.OWD = originalOwd
   })
 
-  afterAll(() => {
+  afterAll(async () => {
     Object.defineProperty(process, 'platform', { value: originalPlatform })
     process.env.APPIMAGE = originalAppImage
     process.env.APPDIR = originalAppDir
@@ -75,7 +76,7 @@ describe('registerAppIpc', () => {
     return mockedRegisterIpcOn.mock.calls.find(([name]) => name === channel)?.[1]
   }
 
-  test('registers app handlers and listener', () => {
+  test('registers app handlers and listener', async () => {
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as never
     const services = { usbService: {} } as never
 
@@ -90,7 +91,7 @@ describe('registerAppIpc', () => {
     expect(registeredOn).toEqual(expect.arrayContaining(['app:user-activity', 'app:media-key']))
   })
 
-  test('quit handler calls app.quit on non-mac platforms', () => {
+  test('quit handler calls app.quit on non-mac platforms', async () => {
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as never
     const services = { usbService: {} } as never
 
@@ -104,11 +105,11 @@ describe('registerAppIpc', () => {
     expect(app.quit).toHaveBeenCalledTimes(1)
   })
 
-  test('quit handler hides window on mac when not fullscreen', () => {
-    const hide = jest.fn()
+  test('quit handler hides window on mac when not fullscreen', async () => {
+    const hide = vi.fn()
     mockedIsMacPlatform.mockReturnValue(true)
     mockedGetMainWindow.mockReturnValue({
-      isFullScreen: jest.fn(() => false),
+      isFullScreen: vi.fn(() => false),
       hide
     })
 
@@ -124,15 +125,15 @@ describe('registerAppIpc', () => {
     expect(app.quit).not.toHaveBeenCalled()
   })
 
-  test('quit handler exits fullscreen first on mac and suppresses next fs sync', () => {
-    const once = jest.fn()
-    const setFullScreen = jest.fn()
+  test('quit handler exits fullscreen first on mac and suppresses next fs sync', async () => {
+    const once = vi.fn()
+    const setFullScreen = vi.fn()
     mockedIsMacPlatform.mockReturnValue(true)
     mockedGetMainWindow.mockReturnValue({
-      isFullScreen: jest.fn(() => true),
+      isFullScreen: vi.fn(() => true),
       once,
       setFullScreen,
-      hide: jest.fn()
+      hide: vi.fn()
     })
 
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as any
@@ -148,7 +149,7 @@ describe('registerAppIpc', () => {
     expect(setFullScreen).toHaveBeenCalledWith(false)
   })
 
-  test('app:quitApp calls app.quit when app is not quitting', () => {
+  test('app:quitApp calls app.quit when app is not quitting', async () => {
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as never
     const services = { usbService: {} } as never
 
@@ -162,7 +163,7 @@ describe('registerAppIpc', () => {
     expect(app.quit).toHaveBeenCalledTimes(1)
   })
 
-  test('app:quitApp does nothing when already quitting', () => {
+  test('app:quitApp does nothing when already quitting', async () => {
     const runtimeState = { isQuitting: true, suppressNextFsSync: false } as never
     const services = { usbService: {} } as never
 
@@ -174,7 +175,7 @@ describe('registerAppIpc', () => {
     expect(app.quit).not.toHaveBeenCalled()
   })
 
-  test('app:media-key fans the command out to all renderers', () => {
+  test('app:media-key fans the command out to all renderers', async () => {
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as never
     const services = { usbService: {} } as never
 
@@ -189,7 +190,7 @@ describe('registerAppIpc', () => {
     expect(mockedBroadcastToRenderers).toHaveBeenCalledWith('app:media-key', 'playPause')
   })
 
-  test('app:media-key ignores empty or non-string commands', () => {
+  test('app:media-key ignores empty or non-string commands', async () => {
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as never
     const services = { usbService: {} } as never
 
@@ -206,7 +207,7 @@ describe('registerAppIpc', () => {
     expect(mockedBroadcastToRenderers).not.toHaveBeenCalled()
   })
 
-  test('app:user-activity triggers kiosk restore sync', () => {
+  test('app:user-activity triggers kiosk restore sync', async () => {
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as never
     const services = { usbService: {} } as never
 
@@ -221,18 +222,17 @@ describe('registerAppIpc', () => {
   })
 
   test('app:restartApp shuts down usb service, relaunches and quits', async () => {
-    jest.spyOn(global, 'setTimeout').mockImplementation(((fn: TimerHandler) => {
+    vi.spyOn(global, 'setTimeout').mockImplementation(function (fn: TimerHandler) {
       if (typeof fn === 'function') fn()
       return 0 as any
-    }) as typeof setTimeout)
-
-    const unref = jest.fn()
+    } as typeof setTimeout)
+    const unref = vi.fn()
     mockedSpawn.mockReturnValue({ unref })
     Object.defineProperty(process, 'platform', { value: 'linux' })
     process.env.APPIMAGE = '/tmp/app.AppImage'
 
-    const beginShutdown = jest.fn()
-    const gracefulReset = jest.fn().mockResolvedValue(undefined)
+    const beginShutdown = vi.fn()
+    const gracefulReset = vi.fn().mockResolvedValue(undefined)
 
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as any
     const services = { usbService: { beginShutdown, gracefulReset } } as any
@@ -249,16 +249,15 @@ describe('registerAppIpc', () => {
   })
 
   test('app:restartApp ignores re-entrant calls while a restart is already in flight', async () => {
-    jest.spyOn(global, 'setTimeout').mockImplementation(((fn: TimerHandler) => {
+    vi.spyOn(global, 'setTimeout').mockImplementation(function (fn: TimerHandler) {
       if (typeof fn === 'function') fn()
       return 0 as any
-    }) as typeof setTimeout)
-
+    } as typeof setTimeout)
     Object.defineProperty(process, 'platform', { value: 'darwin' })
     delete process.env.APPIMAGE
 
-    const beginShutdown = jest.fn()
-    const gracefulReset = jest.fn().mockResolvedValue(undefined)
+    const beginShutdown = vi.fn()
+    const gracefulReset = vi.fn().mockResolvedValue(undefined)
 
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as any
     const services = { usbService: { beginShutdown, gracefulReset } } as any
@@ -276,19 +275,19 @@ describe('registerAppIpc', () => {
   })
 
   test('app:restartApp continues when gracefulReset fails', async () => {
-    jest.spyOn(global, 'setTimeout').mockImplementation(((fn: TimerHandler) => {
+    vi.spyOn(global, 'setTimeout').mockImplementation(function (fn: TimerHandler) {
       if (typeof fn === 'function') fn()
       return 0 as any
-    }) as typeof setTimeout)
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    } as typeof setTimeout)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    const unref = jest.fn()
+    const unref = vi.fn()
     mockedSpawn.mockReturnValue({ unref })
     Object.defineProperty(process, 'platform', { value: 'linux' })
     process.env.APPIMAGE = '/tmp/app.AppImage'
 
-    const beginShutdown = jest.fn()
-    const gracefulReset = jest.fn().mockRejectedValue(new Error('boom'))
+    const beginShutdown = vi.fn()
+    const gracefulReset = vi.fn().mockRejectedValue(new Error('boom'))
 
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as any
     const services = { usbService: { beginShutdown, gracefulReset } } as any
@@ -310,7 +309,7 @@ describe('registerAppIpc', () => {
 
   test('app:restartApp returns early when already quitting', async () => {
     const runtimeState = { isQuitting: true, suppressNextFsSync: false } as any
-    const services = { usbService: { beginShutdown: jest.fn(), gracefulReset: jest.fn() } } as any
+    const services = { usbService: { beginShutdown: vi.fn(), gracefulReset: vi.fn() } } as any
 
     registerAppIpc(runtimeState, services)
 
@@ -322,12 +321,11 @@ describe('registerAppIpc', () => {
   })
 
   test('app:restartApp uses APPIMAGE relaunch path on linux', async () => {
-    jest.spyOn(global, 'setTimeout').mockImplementation(((fn: TimerHandler) => {
+    vi.spyOn(global, 'setTimeout').mockImplementation(function (fn: TimerHandler) {
       if (typeof fn === 'function') fn()
       return 0 as any
-    }) as typeof setTimeout)
-
-    const unref = jest.fn()
+    } as typeof setTimeout)
+    const unref = vi.fn()
     mockedSpawn.mockReturnValue({ unref })
 
     Object.defineProperty(process, 'platform', { value: 'linux' })
@@ -339,8 +337,8 @@ describe('registerAppIpc', () => {
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as any
     const services = {
       usbService: {
-        beginShutdown: jest.fn(),
-        gracefulReset: jest.fn().mockResolvedValue(undefined)
+        beginShutdown: vi.fn(),
+        gracefulReset: vi.fn().mockResolvedValue(undefined)
       }
     } as any
 
@@ -402,7 +400,7 @@ describe('registerAppIpc', () => {
   })
 
   test('app:openExternal opens valid http urls', async () => {
-    ;(shell.openExternal as jest.Mock).mockResolvedValue(undefined)
+    ;(shell.openExternal as Mock).mockResolvedValue(undefined)
 
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as never
     const services = { usbService: {} } as never
@@ -420,16 +418,15 @@ describe('registerAppIpc', () => {
   })
 
   test('app:restartApp relaunches and quits on non-APPIMAGE path', async () => {
-    jest.spyOn(global, 'setTimeout').mockImplementation(((fn: TimerHandler) => {
+    vi.spyOn(global, 'setTimeout').mockImplementation(function (fn: TimerHandler) {
       if (typeof fn === 'function') fn()
       return 0 as any
-    }) as typeof setTimeout)
-
+    } as typeof setTimeout)
     Object.defineProperty(process, 'platform', { value: 'darwin' })
     delete process.env.APPIMAGE
 
-    const beginShutdown = jest.fn()
-    const gracefulReset = jest.fn().mockResolvedValue(undefined)
+    const beginShutdown = vi.fn()
+    const gracefulReset = vi.fn().mockResolvedValue(undefined)
 
     const runtimeState = { isQuitting: false, suppressNextFsSync: false } as any
     const services = { usbService: { beginShutdown, gracefulReset } } as any

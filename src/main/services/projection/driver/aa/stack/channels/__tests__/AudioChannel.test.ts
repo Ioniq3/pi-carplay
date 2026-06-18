@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest'
 import { AV_MSG, CH, FRAME_FLAGS } from '../../constants'
 import type { RawFrame } from '../../frame/codec'
 import { AudioChannel, type AudioChannelType } from '../AudioChannel'
@@ -14,11 +15,11 @@ function dummyFrame(channelId: number, msgId: number, payload: Buffer): RawFrame
 }
 
 function freshSend(): {
-  send: jest.Mock
+  send: Mock
   calls: { channelId: number; msgId: number; data: Buffer }[]
 } {
   const calls: { channelId: number; msgId: number; data: Buffer }[] = []
-  const send = jest.fn((channelId: number, _flags: number, msgId: number, data: Buffer) => {
+  const send = vi.fn(function (channelId: number, _flags: number, msgId: number, data: Buffer) {
     calls.push({ channelId, msgId, data })
   })
   return { send, calls }
@@ -46,7 +47,7 @@ describe('AudioChannel.handleMessage', () => {
   test('AV_MEDIA_INDICATION emits pcm + sends an ack', () => {
     const { send, calls } = freshSend()
     const ch = new AudioChannel(CH.MEDIA_AUDIO, send)
-    const pcm = jest.fn()
+    const pcm = vi.fn()
     ch.on('pcm', pcm)
 
     const payload = Buffer.from([0x11, 0x22, 0x33, 0x44])
@@ -68,7 +69,7 @@ describe('AudioChannel.handleMessage', () => {
   test('AV_MEDIA_WITH_TIMESTAMP separates the leading 8-byte timestamp from the data', () => {
     const { send } = freshSend()
     const ch = new AudioChannel(CH.MEDIA_AUDIO, send)
-    const pcm = jest.fn()
+    const pcm = vi.fn()
     ch.on('pcm', pcm)
 
     const tsBuf = Buffer.alloc(8)
@@ -89,7 +90,7 @@ describe('AudioChannel.handleMessage', () => {
   test('AV_MEDIA_WITH_TIMESTAMP without enough bytes falls back to wall-clock', () => {
     const { send } = freshSend()
     const ch = new AudioChannel(CH.MEDIA_AUDIO, send)
-    const pcm = jest.fn()
+    const pcm = vi.fn()
     ch.on('pcm', pcm)
 
     const tooShort = Buffer.from([1, 2, 3])
@@ -105,7 +106,7 @@ describe('AudioChannel.handleMessage', () => {
   test('START_INDICATION decodes session_id and emits start', () => {
     const { send } = freshSend()
     const ch = new AudioChannel(CH.MEDIA_AUDIO, send)
-    const start = jest.fn()
+    const start = vi.fn()
     ch.on('start', start)
 
     // Start proto: field 1 = sessionId
@@ -121,7 +122,7 @@ describe('AudioChannel.handleMessage', () => {
   test('STOP_INDICATION emits stop', () => {
     const { send } = freshSend()
     const ch = new AudioChannel(CH.MEDIA_AUDIO, send)
-    const stop = jest.fn()
+    const stop = vi.fn()
     ch.on('stop', stop)
 
     ch.handleMessage(AV_MSG.STOP_INDICATION, Buffer.alloc(0), dummyFrame(0, 0, Buffer.alloc(0)))
@@ -129,7 +130,7 @@ describe('AudioChannel.handleMessage', () => {
   })
 
   test('unhandled msgId is logged at debug but does not throw', () => {
-    const debug = jest.spyOn(console, 'debug').mockImplementation(() => {})
+    const debug = vi.spyOn(console, 'debug').mockImplementation(function () {})
     const { send } = freshSend()
     const ch = new AudioChannel(CH.MEDIA_AUDIO, send)
     expect(() =>
@@ -144,7 +145,7 @@ describe('AudioChannel.handleSetupRequest', () => {
   test('emits setup with the negotiated codec + format', () => {
     const { send } = freshSend()
     const ch = new AudioChannel(CH.MEDIA_AUDIO, send)
-    const setup = jest.fn()
+    const setup = vi.fn()
     ch.on('setup', setup)
 
     ch.handleSetupRequest(4, 44100, 2)
@@ -154,7 +155,7 @@ describe('AudioChannel.handleSetupRequest', () => {
   test('keeps previous sample rate / channels when called with 0s', () => {
     const { send } = freshSend()
     const ch = new AudioChannel(CH.MEDIA_AUDIO, send)
-    const setup = jest.fn()
+    const setup = vi.fn()
     ch.on('setup', setup)
 
     ch.handleSetupRequest(4, 0, 0)

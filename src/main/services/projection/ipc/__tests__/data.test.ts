@@ -1,40 +1,47 @@
 type IpcHandler = (evt: unknown, ...args: unknown[]) => unknown
 const handlers = new Map<string, IpcHandler>()
 
-const existsSyncMock = jest.fn(() => true)
-const readMediaFileMock = jest.fn(() => ({ ok: true, kind: 'media' }))
-const readNavigationFileMock = jest.fn(() => ({ ok: true, kind: 'nav' }))
+const existsSyncMock = vi.fn(() => true)
+const readMediaFileMock = vi.fn(function () {
+  return { ok: true, kind: 'media' }
+})
+const readNavigationFileMock = vi.fn(function () {
+  return { ok: true, kind: 'nav' }
+})
 
-jest.mock('@main/ipc/register', () => ({
+vi.mock('@main/ipc/register', () => ({
   registerIpcHandle: (channel: string, handler: IpcHandler) => {
     handlers.set(channel, handler)
   },
-  registerIpcOn: jest.fn()
+  registerIpcOn: vi.fn()
 }))
 
-jest.mock('fs', () => ({ existsSync: (...a: unknown[]) => existsSyncMock(...a) }))
-jest.mock('electron', () => ({ app: { getPath: () => '/tmp/livi' } }))
-jest.mock('../../services/utils/readMediaFile', () => ({
+vi.mock('fs', () => {
+  const __m = { existsSync: (...a: unknown[]) => existsSyncMock(...a) }
+  return { ...__m, default: __m }
+})
+vi.mock('electron', () => ({ app: { getPath: () => '/tmp/livi' } }))
+vi.mock('../../services/utils/readMediaFile', () => ({
   readMediaFile: (...a: unknown[]) => readMediaFileMock(...a)
 }))
-jest.mock('../../services/utils/readNavigationFile', () => ({
+vi.mock('../../services/utils/readNavigationFile', () => ({
   readNavigationFile: (...a: unknown[]) => readNavigationFileMock(...a)
 }))
-jest.mock('../../services/constants', () => ({
+vi.mock('../../services/constants', () => ({
   DEFAULT_MEDIA_DATA_RESPONSE: { __default: 'media' },
   DEFAULT_NAVIGATION_DATA_RESPONSE: { __default: 'nav' }
 }))
 
 import { registerDataIpc } from '../data'
 
-beforeEach(() => {
+beforeEach(async () => {
   handlers.clear()
   existsSyncMock.mockReset().mockReturnValue(true)
   readMediaFileMock.mockReset().mockReturnValue({ ok: true, kind: 'media' })
   readNavigationFileMock.mockReset().mockReturnValue({ ok: true, kind: 'nav' })
-  jest.spyOn(console, 'log').mockImplementation(() => {})
+  vi.spyOn(console, 'log').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 describe('data ipc — projection-media-read', () => {
   test('reads the media file when it exists', async () => {

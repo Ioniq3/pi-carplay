@@ -1,11 +1,13 @@
+import type { Mocked } from 'vitest'
+
 type IpcHandler = (evt: unknown, ...args: unknown[]) => unknown
 const handlers = new Map<string, IpcHandler>()
 
-jest.mock('@main/ipc/register', () => ({
+vi.mock('@main/ipc/register', () => ({
   registerIpcHandle: (channel: string, handler: IpcHandler) => {
     handlers.set(channel, handler)
   },
-  registerIpcOn: jest.fn()
+  registerIpcOn: vi.fn()
 }))
 
 import { SendForgetBluetoothAddr } from '../../messages/sendable'
@@ -26,36 +28,36 @@ type BtHost = Pick<
   | 'setPendingStartupConnectTarget'
 >
 
-function fakeHost(over: Partial<BtHost> = {}): jest.Mocked<BtHost> {
+function fakeHost(over: Partial<BtHost> = {}): Mocked<BtHost> {
   return {
-    isStarted: jest.fn(() => true),
-    isUsingDongle: jest.fn(() => false),
-    isUsingAa: jest.fn(() => false),
-    send: jest.fn(async () => true),
-    sendBluetoothPairedList: jest.fn(async () => true),
-    connectAaBt: jest.fn(async () => ({ ok: true })),
-    removeAaBt: jest.fn(async () => ({ ok: true })),
-    refreshAaBtPaired: jest.fn(),
-    getBoxInfo: jest.fn(() => undefined),
-    setPendingStartupConnectTarget: jest.fn(),
+    isStarted: vi.fn(() => true),
+    isUsingDongle: vi.fn(() => false),
+    isUsingAa: vi.fn(() => false),
+    send: vi.fn(async () => true),
+    sendBluetoothPairedList: vi.fn(async () => true),
+    connectAaBt: vi.fn(async () => ({ ok: true })),
+    removeAaBt: vi.fn(async () => ({ ok: true })),
+    refreshAaBtPaired: vi.fn(),
+    getBoxInfo: vi.fn(() => undefined),
+    setPendingStartupConnectTarget: vi.fn(),
     ...over
-  } as jest.Mocked<BtHost>
+  } as Mocked<BtHost>
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   handlers.clear()
 })
 
 describe('bluetooth ipc — projection-bt-pairedlist-set', () => {
   test('returns { ok: false } when not started', async () => {
-    const host = fakeHost({ isStarted: jest.fn(() => false) })
+    const host = fakeHost({ isStarted: vi.fn(() => false) })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-pairedlist-set')!
     await expect(h(null, 'abc')).resolves.toEqual({ ok: false })
   })
 
   test('sends to dongle when using dongle', async () => {
-    const host = fakeHost({ isUsingDongle: jest.fn(() => true) })
+    const host = fakeHost({ isUsingDongle: vi.fn(() => true) })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-pairedlist-set')!
     await expect(h(null, 'abc')).resolves.toEqual({ ok: true })
@@ -63,7 +65,7 @@ describe('bluetooth ipc — projection-bt-pairedlist-set', () => {
   })
 
   test('no-op on AA path', async () => {
-    const host = fakeHost({ isUsingDongle: jest.fn(() => false) })
+    const host = fakeHost({ isUsingDongle: vi.fn(() => false) })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-pairedlist-set')!
     await expect(h(null, 'abc')).resolves.toEqual({ ok: true })
@@ -73,7 +75,7 @@ describe('bluetooth ipc — projection-bt-pairedlist-set', () => {
 
 describe('bluetooth ipc — projection-bt-connect-device', () => {
   test('rejects when not started or mac empty', async () => {
-    const host = fakeHost({ isStarted: jest.fn(() => false) })
+    const host = fakeHost({ isStarted: vi.fn(() => false) })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-connect-device')!
     await expect(h(null, 'AA:BB')).resolves.toEqual({ ok: false })
@@ -88,8 +90,8 @@ describe('bluetooth ipc — projection-bt-connect-device', () => {
 
   test('AA path delegates to connectAaBt and refreshes on success', async () => {
     const host = fakeHost({
-      isUsingAa: jest.fn(() => true),
-      connectAaBt: jest.fn(async () => ({ ok: true }))
+      isUsingAa: vi.fn(() => true),
+      connectAaBt: vi.fn(async () => ({ ok: true }))
     })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-connect-device')!
@@ -99,8 +101,8 @@ describe('bluetooth ipc — projection-bt-connect-device', () => {
 
   test('AA path: connectAaBt throwing surfaces as { ok:false, error }', async () => {
     const host = fakeHost({
-      isUsingAa: jest.fn(() => true),
-      connectAaBt: jest.fn(async () => {
+      isUsingAa: vi.fn(() => true),
+      connectAaBt: vi.fn(async () => {
         throw new Error('busy')
       })
     })
@@ -111,7 +113,9 @@ describe('bluetooth ipc — projection-bt-connect-device', () => {
 
   test('dongle path: AndroidAuto entry → Android phoneWorkMode', async () => {
     const host = fakeHost({
-      getBoxInfo: jest.fn(() => ({ DevList: [{ id: 'AA:BB', type: 'AndroidAuto' }] }))
+      getBoxInfo: vi.fn(function () {
+        return { DevList: [{ id: 'AA:BB', type: 'AndroidAuto' }] }
+      })
     })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-connect-device')!
@@ -124,7 +128,9 @@ describe('bluetooth ipc — projection-bt-connect-device', () => {
 
   test('dongle path: non-AA entry → CarPlay phoneWorkMode', async () => {
     const host = fakeHost({
-      getBoxInfo: jest.fn(() => ({ DevList: [{ id: 'CC:DD', type: 'CarPlay' }] }))
+      getBoxInfo: vi.fn(function () {
+        return { DevList: [{ id: 'CC:DD', type: 'CarPlay' }] }
+      })
     })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-connect-device')!
@@ -136,7 +142,7 @@ describe('bluetooth ipc — projection-bt-connect-device', () => {
 
 describe('bluetooth ipc — projection-bt-forget-device', () => {
   test('rejects when not started or mac empty', async () => {
-    const host = fakeHost({ isStarted: jest.fn(() => false) })
+    const host = fakeHost({ isStarted: vi.fn(() => false) })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-forget-device')!
     await expect(h(null, 'AA:BB')).resolves.toEqual({ ok: false })
@@ -144,8 +150,8 @@ describe('bluetooth ipc — projection-bt-forget-device', () => {
 
   test('AA path delegates to removeAaBt and refreshes on success', async () => {
     const host = fakeHost({
-      isUsingAa: jest.fn(() => true),
-      removeAaBt: jest.fn(async () => ({ ok: true }))
+      isUsingAa: vi.fn(() => true),
+      removeAaBt: vi.fn(async () => ({ ok: true }))
     })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-forget-device')!
@@ -155,8 +161,8 @@ describe('bluetooth ipc — projection-bt-forget-device', () => {
 
   test('AA path: removeAaBt throwing surfaces as { ok:false, error }', async () => {
     const host = fakeHost({
-      isUsingAa: jest.fn(() => true),
-      removeAaBt: jest.fn(async () => {
+      isUsingAa: vi.fn(() => true),
+      removeAaBt: vi.fn(async () => {
         throw new Error('not paired')
       })
     })
@@ -166,7 +172,7 @@ describe('bluetooth ipc — projection-bt-forget-device', () => {
   })
 
   test('dongle path sends SendForgetBluetoothAddr', async () => {
-    const host = fakeHost({ isUsingAa: jest.fn(() => false) })
+    const host = fakeHost({ isUsingAa: vi.fn(() => false) })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-forget-device')!
     await expect(h(null, 'AA:BB')).resolves.toEqual({ ok: true })
@@ -175,8 +181,8 @@ describe('bluetooth ipc — projection-bt-forget-device', () => {
 
   test('dongle path returns { ok: false } when send resolves falsy', async () => {
     const host = fakeHost({
-      isUsingAa: jest.fn(() => false),
-      send: jest.fn(async () => false)
+      isUsingAa: vi.fn(() => false),
+      send: vi.fn(async () => false)
     })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-forget-device')!
@@ -193,8 +199,8 @@ describe('bluetooth ipc — projection-bt-forget-device', () => {
 
   test('forget AA-path: refresh not called when removeAaBt fails', async () => {
     const host = fakeHost({
-      isUsingAa: jest.fn(() => true),
-      removeAaBt: jest.fn(async () => ({ ok: false, error: 'unknown' }))
+      isUsingAa: vi.fn(() => true),
+      removeAaBt: vi.fn(async () => ({ ok: false, error: 'unknown' }))
     })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-forget-device')!
@@ -205,7 +211,7 @@ describe('bluetooth ipc — projection-bt-forget-device', () => {
 
 describe('bluetooth ipc — edge cases', () => {
   test('pairedlist-set tolerates null listText payload', async () => {
-    const host = fakeHost({ isUsingDongle: jest.fn(() => true) })
+    const host = fakeHost({ isUsingDongle: vi.fn(() => true) })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-pairedlist-set')!
     await h(null, null as unknown as string)
@@ -214,8 +220,8 @@ describe('bluetooth ipc — edge cases', () => {
 
   test('connect AA-path: refresh not called when connectAaBt resolves !ok', async () => {
     const host = fakeHost({
-      isUsingAa: jest.fn(() => true),
-      connectAaBt: jest.fn(async () => ({ ok: false, error: 'no peer' }))
+      isUsingAa: vi.fn(() => true),
+      connectAaBt: vi.fn(async () => ({ ok: false, error: 'no peer' }))
     })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-connect-device')!
@@ -224,7 +230,7 @@ describe('bluetooth ipc — edge cases', () => {
   })
 
   test('connect dongle-path: empty BoxInfo or non-array DevList falls back to empty list', async () => {
-    const host = fakeHost({ getBoxInfo: jest.fn(() => undefined) })
+    const host = fakeHost({ getBoxInfo: vi.fn(() => undefined) })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-connect-device')!
     await expect(h(null, 'AA:BB')).resolves.toEqual({ ok: true })
@@ -233,7 +239,9 @@ describe('bluetooth ipc — edge cases', () => {
 
   test('connect dongle-path: BoxInfo with non-array DevList shape', async () => {
     const host = fakeHost({
-      getBoxInfo: jest.fn(() => ({ DevList: 'not-an-array' }))
+      getBoxInfo: vi.fn(function () {
+        return { DevList: 'not-an-array' }
+      })
     })
     registerBluetoothIpc(host)
     const h = handlers.get('projection-bt-connect-device')!

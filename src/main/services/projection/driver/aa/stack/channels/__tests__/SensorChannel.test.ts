@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest'
 import { CH, FRAME_FLAGS, SENSOR_TYPE } from '../../constants'
 import { decodeFields, decodeVarintValue } from '../protoEnc'
 import { DRIVING_STATUS, SensorChannel } from '../SensorChannel'
@@ -6,9 +7,9 @@ const SENSOR_EVENT_INDICATION = 0x8001
 
 type Call = { channelId: number; flags: number; msgId: number; data: Buffer }
 
-function freshSend(): { send: jest.Mock; calls: Call[] } {
+function freshSend(): { send: Mock; calls: Call[] } {
   const calls: Call[] = []
-  const send = jest.fn((channelId: number, flags: number, msgId: number, data: Buffer) => {
+  const send = vi.fn(function (channelId: number, flags: number, msgId: number, data: Buffer) {
     calls.push({ channelId, flags, msgId, data })
   })
   return { send, calls }

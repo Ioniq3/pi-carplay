@@ -15,7 +15,7 @@ function dummyFrame(channelId: number, msgId: number, payload: Buffer): RawFrame
 
 function freshSend() {
   const calls: { channelId: number; msgId: number; data: Buffer }[] = []
-  const send = jest.fn((channelId: number, _f: number, msgId: number, data: Buffer) => {
+  const send = vi.fn(function (channelId: number, _f: number, msgId: number, data: Buffer) {
     calls.push({ channelId, msgId, data })
   })
   return { send, calls }
@@ -37,7 +37,7 @@ describe('VideoChannel', () => {
   test('AV_MEDIA_INDICATION emits frame + sends ack + increments frameCount', () => {
     const { send, calls } = freshSend()
     const ch = new VideoChannel(send)
-    const frame = jest.fn()
+    const frame = vi.fn()
     ch.on('frame', frame)
 
     ch.handleMessage(
@@ -53,7 +53,7 @@ describe('VideoChannel', () => {
   test('AV_MEDIA_WITH_TIMESTAMP separates the leading 8-byte timestamp', () => {
     const { send } = freshSend()
     const ch = new VideoChannel(send)
-    const frame = jest.fn()
+    const frame = vi.fn()
     ch.on('frame', frame)
 
     const ts = Buffer.alloc(8)
@@ -90,8 +90,8 @@ describe('VideoChannel', () => {
   test('VIDEO_FOCUS_REQUEST mode=PROJECTED responds with focus indication + emits "video-focus-projected"', () => {
     const { send, calls } = freshSend()
     const ch = new VideoChannel(send)
-    const projected = jest.fn()
-    const host = jest.fn()
+    const projected = vi.fn()
+    const host = vi.fn()
     ch.on('video-focus-projected', projected)
     ch.on('host-ui-requested', host)
 
@@ -111,7 +111,7 @@ describe('VideoChannel', () => {
   test('VIDEO_FOCUS_REQUEST mode=NATIVE emits "host-ui-requested"', () => {
     const { send } = freshSend()
     const ch = new VideoChannel(send)
-    const host = jest.fn()
+    const host = vi.fn()
     ch.on('host-ui-requested', host)
 
     ch.handleMessage(
@@ -132,7 +132,7 @@ describe('VideoChannel', () => {
   })
 
   test('unhandled msgId is logged at debug', () => {
-    const debug = jest.spyOn(console, 'debug').mockImplementation(() => {})
+    const debug = vi.spyOn(console, 'debug').mockImplementation(function () {})
     const { send } = freshSend()
     const ch = new VideoChannel(send)
     ch.handleMessage(0xdead, Buffer.alloc(0), dummyFrame(0, 0, Buffer.alloc(0)))
@@ -141,7 +141,7 @@ describe('VideoChannel', () => {
   })
 
   test('VIDEO_FOCUS_INDICATION is acknowledged at debug-level only', () => {
-    const debug = jest.spyOn(console, 'debug').mockImplementation(() => {})
+    const debug = vi.spyOn(console, 'debug').mockImplementation(function () {})
     const { send } = freshSend()
     const ch = new VideoChannel(send)
     expect(() =>

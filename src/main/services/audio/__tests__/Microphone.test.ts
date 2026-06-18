@@ -3,23 +3,27 @@ import { spawn } from 'child_process'
 import { app } from 'electron'
 import { EventEmitter } from 'events'
 import fs from 'fs'
+import type { Mock } from 'vitest'
 
-jest.mock('child_process', () => ({
-  spawn: jest.fn()
+vi.mock('child_process', () => ({
+  spawn: vi.fn()
 }))
 
-jest.mock('fs', () => ({
-  existsSync: jest.fn()
-}))
+vi.mock('fs', () => {
+  const __m = {
+    existsSync: vi.fn()
+  }
+  return { ...__m, default: __m }
+})
 
-jest.mock('electron', () => ({
+vi.mock('electron', () => ({
   app: {
     isPackaged: false,
-    getAppPath: jest.fn(() => '/mock/app')
+    getAppPath: vi.fn(() => '/mock/app')
   }
 }))
 
-jest.mock('@shared/types', () => ({
+vi.mock('@shared/types', () => ({
   decodeTypeMap: {
     3: { frequency: 8000, channel: 1, bitDepth: 16, format: 's16le' },
     5: { frequency: 16000, channel: 1, bitDepth: 16, format: 's16le' },
@@ -30,14 +34,14 @@ jest.mock('@shared/types', () => ({
 type MockProc = EventEmitter & {
   stdout: EventEmitter
   stderr: EventEmitter
-  kill: jest.Mock
+  kill: Mock
 }
 
 function makeProc(): MockProc {
   const p = new EventEmitter() as MockProc
   p.stdout = new EventEmitter()
   p.stderr = new EventEmitter()
-  p.kill = jest.fn()
+  p.kill = vi.fn()
   return p
 }
 
@@ -45,8 +49,8 @@ describe('Microphone', () => {
   const originalPlatform = process.platform
   const originalArch = process.arch
 
-  beforeEach(() => {
-    jest.clearAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
 
     Object.defineProperty(process, 'platform', {
       value: 'darwin',
@@ -57,13 +61,13 @@ describe('Microphone', () => {
       configurable: true
     })
     ;(app as any).isPackaged = false
-    ;(app.getAppPath as jest.Mock).mockReturnValue('/mock/app')
-    ;(fs.existsSync as jest.Mock).mockImplementation((p: fs.PathLike) => {
+    ;(app.getAppPath as Mock).mockReturnValue('/mock/app')
+    ;(fs.existsSync as Mock).mockImplementation(function (p: fs.PathLike) {
       return String(p).includes('/mock/app/assets/gstreamer/macos-arm64')
     })
   })
 
-  afterAll(() => {
+  afterAll(async () => {
     Object.defineProperty(process, 'platform', {
       value: originalPlatform,
       configurable: true
@@ -74,16 +78,16 @@ describe('Microphone', () => {
     })
   })
 
-  test('getSysdefaultPrettyName returns system default', () => {
+  test('getSysdefaultPrettyName returns system default', async () => {
     expect(Microphone.getSysdefaultPrettyName()).toBe('system default')
   })
 
-  test('start spawns gst-launch on darwin and forwards stdout data', () => {
+  test('start spawns gst-launch on darwin and forwards stdout data', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const mic = new Microphone()
-    const onData = jest.fn()
+    const onData = vi.fn()
     mic.on('data', onData)
 
     mic.start(5)
@@ -110,9 +114,9 @@ describe('Microphone', () => {
     expect(onData).toHaveBeenCalledWith(chunk)
   })
 
-  test('start uses decodeType-driven format', () => {
+  test('start uses decodeType-driven format', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const mic = new Microphone()
     mic.start(3)
@@ -124,9 +128,9 @@ describe('Microphone', () => {
     )
   })
 
-  test('start falls back to default format when decode type is unknown', () => {
+  test('start falls back to default format when decode type is unknown', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const mic = new Microphone()
     mic.start(999)
@@ -138,9 +142,9 @@ describe('Microphone', () => {
     )
   })
 
-  test('stop kills active process', () => {
+  test('stop kills active process', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const mic = new Microphone()
     mic.start(5)
@@ -149,15 +153,15 @@ describe('Microphone', () => {
     expect(proc.kill).toHaveBeenCalledTimes(1)
   })
 
-  test('stop does nothing when no process exists', () => {
+  test('stop does nothing when no process exists', async () => {
     const mic = new Microphone()
 
     expect(() => mic.stop()).not.toThrow()
   })
 
-  test('start does not spawn when gstreamer root is missing', () => {
-    ;(fs.existsSync as jest.Mock).mockReturnValue(false)
-    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+  test('start does not spawn when gstreamer root is missing', async () => {
+    ;(fs.existsSync as Mock).mockReturnValue(false)
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     const mic = new Microphone()
     mic.start(5)
@@ -166,12 +170,12 @@ describe('Microphone', () => {
     expect(errSpy).toHaveBeenCalledWith('[Microphone] Bundled GStreamer not found')
   })
 
-  test('start does not spawn on unsupported platform', () => {
+  test('start does not spawn on unsupported platform', async () => {
     Object.defineProperty(process, 'platform', {
       value: 'freebsd',
       configurable: true
     })
-    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     const mic = new Microphone()
     mic.start(5)
@@ -180,9 +184,9 @@ describe('Microphone', () => {
     expect(errSpy).toHaveBeenCalledWith('[Microphone] Unsupported platform')
   })
 
-  test('isCapturing reflects process state', () => {
+  test('isCapturing reflects process state', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const mic = new Microphone()
     expect(mic.isCapturing()).toBe(false)
@@ -194,10 +198,10 @@ describe('Microphone', () => {
     expect(mic.isCapturing()).toBe(false)
   })
 
-  test('process error cleans up capture state', () => {
+  test('process error cleans up capture state', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
-    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    ;(spawn as Mock).mockReturnValue(proc)
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     const mic = new Microphone()
     mic.start(5)
@@ -210,9 +214,9 @@ describe('Microphone', () => {
     expect(mic.isCapturing()).toBe(false)
   })
 
-  test('process close cleans up capture state', () => {
+  test('process close cleans up capture state', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const mic = new Microphone()
     mic.start(5)
@@ -224,7 +228,7 @@ describe('Microphone', () => {
     expect(mic.isCapturing()).toBe(false)
   })
 
-  test('cleanup ignores stale process objects', () => {
+  test('cleanup ignores stale process objects', async () => {
     const mic = new Microphone() as any
     const current = makeProc()
     const stale = makeProc()
@@ -240,7 +244,7 @@ describe('Microphone', () => {
     expect(mic.chunkSeq).toBe(2)
   })
 
-  test('resolveFormat returns mapped format and fallback default', () => {
+  test('resolveFormat returns mapped format and fallback default', async () => {
     const cls = Microphone as any
 
     expect(cls.resolveFormat(3)).toEqual({
@@ -258,7 +262,7 @@ describe('Microphone', () => {
     })
   })
 
-  test('toGstRawFormat maps s16le variants and uppercases unknown formats', () => {
+  test('toGstRawFormat maps s16le variants and uppercases unknown formats', async () => {
     const cls = Microphone as any
 
     expect(cls.toGstRawFormat({ format: 's16le' })).toBe('S16LE')
@@ -266,9 +270,9 @@ describe('Microphone', () => {
     expect(cls.toGstRawFormat({ format: 'pcm' })).toBe('PCM')
   })
 
-  test('start spawns gst-launch on linux with pulsesrc and linux env', () => {
+  test('start spawns gst-launch on linux with pulsesrc and linux env', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     Object.defineProperty(process, 'platform', {
       value: 'linux',
@@ -278,7 +282,7 @@ describe('Microphone', () => {
       value: 'x64',
       configurable: true
     })
-    ;(fs.existsSync as jest.Mock).mockImplementation((p: fs.PathLike) =>
+    ;(fs.existsSync as Mock).mockImplementation((p: fs.PathLike) =>
       String(p).includes('/mock/app/assets/gstreamer/linux-x64')
     )
 
@@ -307,9 +311,9 @@ describe('Microphone', () => {
     )
   })
 
-  test('start spawns gst-launch on win32 with wasapisrc and windows env', () => {
+  test('start spawns gst-launch on win32 with wasapisrc and windows env', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     Object.defineProperty(process, 'platform', {
       value: 'win32',
@@ -319,7 +323,7 @@ describe('Microphone', () => {
       value: 'x64',
       configurable: true
     })
-    ;(fs.existsSync as jest.Mock).mockImplementation((p: fs.PathLike) =>
+    ;(fs.existsSync as Mock).mockImplementation((p: fs.PathLike) =>
       String(p).includes('/mock/app/assets/gstreamer/windows-x64')
     )
 
@@ -348,9 +352,9 @@ describe('Microphone', () => {
     )
   })
 
-  test('start handles falsy spawn result and cleans up', () => {
-    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
-    ;(spawn as jest.Mock).mockReturnValue(null)
+  test('start handles falsy spawn result and cleans up', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    ;(spawn as Mock).mockReturnValue(null)
 
     const mic = new Microphone() as any
     mic.bytesRead = 77
@@ -364,10 +368,10 @@ describe('Microphone', () => {
     expect(mic.chunkSeq).toBe(0)
   })
 
-  test('stderr handler ignores empty output', () => {
+  test('stderr handler ignores empty output', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    ;(spawn as Mock).mockReturnValue(proc)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
     const mic = new Microphone()
     mic.start(5)
@@ -377,12 +381,12 @@ describe('Microphone', () => {
     expect(warnSpy).not.toHaveBeenCalled()
   })
 
-  test('stop swallows kill errors', () => {
+  test('stop swallows kill errors', async () => {
     const proc = makeProc()
-    proc.kill.mockImplementation(() => {
+    proc.kill.mockImplementation(function () {
       throw new Error('kill failed')
     })
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const mic = new Microphone()
 
@@ -392,7 +396,7 @@ describe('Microphone', () => {
     expect(mic.isCapturing()).toBe(false)
   })
 
-  test('cleanup without process argument resets internal state', () => {
+  test('cleanup without process argument resets internal state', async () => {
     const mic = new Microphone() as any
     const proc = makeProc()
 
@@ -407,23 +411,23 @@ describe('Microphone', () => {
     expect(mic.chunkSeq).toBe(0)
   })
 
-  test('toGstRawFormat falls back to S16LE when format is missing', () => {
+  test('toGstRawFormat falls back to S16LE when format is missing', async () => {
     const cls = Microphone as any
 
     expect(cls.toGstRawFormat({})).toBe('S16LE')
   })
 
-  test('logs debug messages for constructor, start, stderr, stop and close when DEBUG is enabled', () => {
-    jest.resetModules()
+  test('logs debug messages for constructor, start, stderr, stop and close when DEBUG is enabled', async () => {
+    vi.resetModules()
 
-    jest.doMock('@main/constants', () => ({
+    vi.doMock('@main/constants', () => ({
       DEBUG: true
     }))
 
-    const { spawn: freshSpawn } = require('child_process') as { spawn: jest.Mock }
-    const freshFs = require('fs') as { existsSync: jest.Mock }
-    const { app: freshApp } = require('electron') as {
-      app: { isPackaged: boolean; getAppPath: jest.Mock }
+    const { spawn: freshSpawn } = (await import('child_process')) as { spawn: Mock }
+    const freshFs = (await import('fs')) as { existsSync: Mock }
+    const { app: freshApp } = (await import('electron')) as {
+      app: { isPackaged: boolean; getAppPath: Mock }
     }
 
     Object.defineProperty(process, 'platform', {
@@ -441,14 +445,13 @@ describe('Microphone', () => {
       String(p).includes('/mock/app/assets/gstreamer/macos-arm64')
     )
 
-    const DebugMicrophone = require('@main/services/audio/Microphone')
-      .default as typeof import('@main/services/audio/Microphone').default
+    const { default: DebugMicrophone } = await import('@main/services/audio/Microphone')
 
     const proc = makeProc()
     freshSpawn.mockReturnValue(proc)
 
-    const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => undefined)
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
     const mic = new DebugMicrophone()
     mic.start(5)
@@ -479,17 +482,17 @@ describe('Microphone', () => {
     )
   })
 
-  test('logs debug message when stop is called without active process and when kill throws', () => {
-    jest.resetModules()
+  test('logs debug message when stop is called without active process and when kill throws', async () => {
+    vi.resetModules()
 
-    jest.doMock('@main/constants', () => ({
+    vi.doMock('@main/constants', () => ({
       DEBUG: true
     }))
 
-    const { spawn: freshSpawn } = require('child_process') as { spawn: jest.Mock }
-    const freshFs = require('fs') as { existsSync: jest.Mock }
-    const { app: freshApp } = require('electron') as {
-      app: { isPackaged: boolean; getAppPath: jest.Mock }
+    const { spawn: freshSpawn } = (await import('child_process')) as { spawn: Mock }
+    const freshFs = (await import('fs')) as { existsSync: Mock }
+    const { app: freshApp } = (await import('electron')) as {
+      app: { isPackaged: boolean; getAppPath: Mock }
     }
 
     Object.defineProperty(process, 'platform', {
@@ -507,11 +510,10 @@ describe('Microphone', () => {
       String(p).includes('/mock/app/assets/gstreamer/macos-arm64')
     )
 
-    const DebugMicrophone = require('@main/services/audio/Microphone')
-      .default as typeof import('@main/services/audio/Microphone').default
+    const { default: DebugMicrophone } = await import('@main/services/audio/Microphone')
 
-    const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => undefined)
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
     const mic = new DebugMicrophone()
     mic.stop()
@@ -519,7 +521,7 @@ describe('Microphone', () => {
     expect(debugSpy).toHaveBeenCalledWith('[Microphone] No active process to stop')
 
     const proc = makeProc()
-    proc.kill.mockImplementation(() => {
+    proc.kill.mockImplementation(function () {
       throw new Error('kill failed')
     })
     freshSpawn.mockReturnValue(proc)
@@ -530,7 +532,7 @@ describe('Microphone', () => {
     expect(warnSpy).toHaveBeenCalledWith('[Microphone] Failed to kill process:', expect.any(Error))
   })
 
-  test('cleanup ignores stale process in active instance', () => {
+  test('cleanup ignores stale process in active instance', async () => {
     const mic = new Microphone() as any
     const current = makeProc()
     const stale = makeProc()
@@ -546,22 +548,22 @@ describe('Microphone', () => {
     expect(mic.chunkSeq).toBe(34)
   })
 
-  test('toGstRawFormat uses fallback when format is nullish', () => {
+  test('toGstRawFormat uses fallback when format is nullish', async () => {
     const cls = Microphone as any
     expect(cls.toGstRawFormat({ format: undefined })).toBe('S16LE')
   })
 
-  test('logs debug chunk message for first stdout chunk when DEBUG is enabled', () => {
-    jest.resetModules()
+  test('logs debug chunk message for first stdout chunk when DEBUG is enabled', async () => {
+    vi.resetModules()
 
-    jest.doMock('@main/constants', () => ({
+    vi.doMock('@main/constants', () => ({
       DEBUG: true
     }))
 
-    const { spawn: freshSpawn } = require('child_process') as { spawn: jest.Mock }
-    const freshFs = require('fs') as { existsSync: jest.Mock }
-    const { app: freshApp } = require('electron') as {
-      app: { isPackaged: boolean; getAppPath: jest.Mock }
+    const { spawn: freshSpawn } = (await import('child_process')) as { spawn: Mock }
+    const freshFs = (await import('fs')) as { existsSync: Mock }
+    const { app: freshApp } = (await import('electron')) as {
+      app: { isPackaged: boolean; getAppPath: Mock }
     }
 
     Object.defineProperty(process, 'platform', {
@@ -579,13 +581,12 @@ describe('Microphone', () => {
       String(p).includes('/mock/app/assets/gstreamer/macos-arm64')
     )
 
-    const DebugMicrophone = require('@main/services/audio/Microphone')
-      .default as typeof import('@main/services/audio/Microphone').default
+    const { default: DebugMicrophone } = await import('@main/services/audio/Microphone')
 
     const proc = makeProc()
     freshSpawn.mockReturnValue(proc)
 
-    const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => undefined)
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
 
     const mic = new DebugMicrophone()
     mic.start(5)
@@ -605,19 +606,19 @@ describe('Microphone', () => {
     )
   })
 
-  test('does not log constructor debug output when DEBUG is false', () => {
-    const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => undefined)
+  test('does not log constructor debug output when DEBUG is false', async () => {
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
 
     new Microphone()
 
     expect(debugSpy).not.toHaveBeenCalled()
   })
 
-  test('does not warn for stderr output when DEBUG is false', () => {
+  test('does not warn for stderr output when DEBUG is false', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
     const mic = new Microphone()
     mic.start(5)
@@ -627,17 +628,17 @@ describe('Microphone', () => {
     expect(warnSpy).not.toHaveBeenCalled()
   })
 
-  test('logs debug chunk message again on chunk 100 when DEBUG is enabled', () => {
-    jest.resetModules()
+  test('logs debug chunk message again on chunk 100 when DEBUG is enabled', async () => {
+    vi.resetModules()
 
-    jest.doMock('@main/constants', () => ({
+    vi.doMock('@main/constants', () => ({
       DEBUG: true
     }))
 
-    const { spawn: freshSpawn } = require('child_process') as { spawn: jest.Mock }
-    const freshFs = require('fs') as { existsSync: jest.Mock }
-    const { app: freshApp } = require('electron') as {
-      app: { isPackaged: boolean; getAppPath: jest.Mock }
+    const { spawn: freshSpawn } = (await import('child_process')) as { spawn: Mock }
+    const freshFs = (await import('fs')) as { existsSync: Mock }
+    const { app: freshApp } = (await import('electron')) as {
+      app: { isPackaged: boolean; getAppPath: Mock }
     }
 
     Object.defineProperty(process, 'platform', {
@@ -655,13 +656,12 @@ describe('Microphone', () => {
       String(p).includes('/mock/app/assets/gstreamer/macos-arm64')
     )
 
-    const DebugMicrophone = require('@main/services/audio/Microphone')
-      .default as typeof import('@main/services/audio/Microphone').default
+    const { default: DebugMicrophone } = await import('@main/services/audio/Microphone')
 
     const proc = makeProc()
     freshSpawn.mockReturnValue(proc)
 
-    const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => undefined)
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
 
     const mic = new DebugMicrophone()
     mic.start(5)
@@ -680,11 +680,11 @@ describe('Microphone', () => {
     )
   })
 
-  test('cleanup from stale process is ignored after process replacement via second start', () => {
+  test('cleanup from stale process is ignored after process replacement via second start', async () => {
     const first = makeProc()
     const second = makeProc()
 
-    ;(spawn as jest.Mock).mockReturnValueOnce(first).mockReturnValueOnce(second)
+    ;(spawn as Mock).mockReturnValueOnce(first).mockReturnValueOnce(second)
 
     const mic = new Microphone()
 

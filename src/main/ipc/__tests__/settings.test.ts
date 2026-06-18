@@ -4,41 +4,44 @@ import { pickAssetForPlatform } from '@main/ipc/update/pickAsset'
 import { configEvents, saveSettings } from '@main/ipc/utils'
 import { currentKiosk } from '@main/window/utils'
 import { app } from 'electron'
+import type { Mock } from 'vitest'
 
-jest.mock('@main/ipc/register', () => ({
-  registerIpcHandle: jest.fn()
+vi.mock('@main/ipc/register', () => ({
+  registerIpcHandle: vi.fn()
 }))
 
-jest.mock('@main/window/utils', () => ({
-  currentKiosk: jest.fn(() => true)
+vi.mock('@main/window/utils', () => ({
+  currentKiosk: vi.fn(() => true)
 }))
 
-jest.mock('@main/ipc/update/pickAsset', () => ({
-  pickAssetForPlatform: jest.fn(() => ({ url: 'https://example.com/LIVI.AppImage' }))
+vi.mock('@main/ipc/update/pickAsset', () => ({
+  pickAssetForPlatform: vi.fn(function () {
+    return { url: 'https://example.com/LIVI.AppImage' }
+  })
 }))
 
-jest.mock('@main/ipc/utils', () => ({
-  configEvents: { on: jest.fn() },
-  saveSettings: jest.fn()
+vi.mock('@main/ipc/utils', () => ({
+  configEvents: { on: vi.fn() },
+  saveSettings: vi.fn()
 }))
 
 describe('registerSettingsIpc', () => {
   const runtimeState = { config: { kiosk: true } } as never
 
-  beforeEach(() => {
-    jest.clearAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
   })
 
   function getHandler<T = (...args: unknown[]) => unknown>(channel: string): T {
-    const pair = (registerIpcHandle as jest.Mock).mock.calls.find(([ch]) => ch === channel)
+    const pair = (registerIpcHandle as Mock).mock.calls.find(([ch]) => ch === channel)
     if (!pair) throw new Error(`Handler not registered for ${channel}`)
     return pair[1] as T
   }
 
-  test('registers all expected settings IPC handlers', () => {
+  test('registers all expected settings IPC handlers', async () => {
     registerSettingsIpc(runtimeState)
 
-    const channels = (registerIpcHandle as jest.Mock).mock.calls.map(([ch]) => ch)
+    const channels = (registerIpcHandle as Mock).mock.calls.map(([ch]) => ch)
     expect(channels).toEqual(
       expect.arrayContaining([
         'settings:get-kiosk',
@@ -52,7 +55,7 @@ describe('registerSettingsIpc', () => {
     expect(configEvents.on).toHaveBeenCalledWith('requestSave', expect.any(Function))
   })
 
-  test('save-settings handler delegates to saveSettings and returns true', () => {
+  test('save-settings handler delegates to saveSettings and returns true', async () => {
     registerSettingsIpc(runtimeState)
     const handler =
       getHandler<(_evt: unknown, payload: Record<string, unknown>) => boolean>('save-settings')
@@ -64,7 +67,7 @@ describe('registerSettingsIpc', () => {
     expect(result).toBe(true)
   })
 
-  test('settings:get-kiosk returns currentKiosk(runtimeState.config)', () => {
+  test('settings:get-kiosk returns currentKiosk(runtimeState.config)', async () => {
     registerSettingsIpc(runtimeState)
     const handler = getHandler<() => boolean>('settings:get-kiosk')
 
@@ -72,8 +75,8 @@ describe('registerSettingsIpc', () => {
     expect(currentKiosk).toHaveBeenCalledWith(runtimeState.config)
   })
 
-  test('app:getVersion returns electron app version', () => {
-    ;(app.getVersion as jest.Mock).mockReturnValue('9.9.9')
+  test('app:getVersion returns electron app version', async () => {
+    ;(app.getVersion as Mock).mockReturnValue('9.9.9')
 
     registerSettingsIpc(runtimeState)
     const handler = getHandler<() => string>('app:getVersion')
@@ -83,7 +86,7 @@ describe('registerSettingsIpc', () => {
   })
 
   test('app:getLatestRelease normalizes version and picks platform asset', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         tag_name: 'v1.2.3',
@@ -106,9 +109,9 @@ describe('registerSettingsIpc', () => {
   })
 
   test('app:getLatestRelease returns empty payload when fetch fails', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({ ok: false, status: 500 })
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 })
     ;(global as any).fetch = fetchMock
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
     registerSettingsIpc(runtimeState)
     const handler =
@@ -120,10 +123,10 @@ describe('registerSettingsIpc', () => {
     warnSpy.mockRestore()
   })
 
-  test('requestSave event handler delegates to saveSettings', () => {
+  test('requestSave event handler delegates to saveSettings', async () => {
     registerSettingsIpc(runtimeState)
 
-    const requestSaveHandler = (configEvents.on as jest.Mock).mock.calls.find(
+    const requestSaveHandler = (configEvents.on as Mock).mock.calls.find(
       ([event]) => event === 'requestSave'
     )?.[1] as ((settings: Partial<Record<string, unknown>>) => void) | undefined
 
@@ -137,7 +140,7 @@ describe('registerSettingsIpc', () => {
     expect(saveSettings).toHaveBeenCalledWith(runtimeState, patch)
   })
 
-  test('settings:reset-dongle-icons restores bundled icon defaults and returns them', () => {
+  test('settings:reset-dongle-icons restores bundled icon defaults and returns them', async () => {
     const richRuntimeState = {
       config: {
         kiosk: true,
@@ -178,7 +181,7 @@ describe('registerSettingsIpc', () => {
   })
 
   test('app:getLatestRelease falls back to json.name when tag_name is missing', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         name: 'v2.3.4',
@@ -200,12 +203,12 @@ describe('registerSettingsIpc', () => {
   })
 
   test('app:getLatestRelease falls back to empty version and empty assets array', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({})
     })
     ;(global as any).fetch = fetchMock
-    ;(pickAssetForPlatform as jest.Mock).mockReturnValueOnce({ url: undefined })
+    ;(pickAssetForPlatform as Mock).mockReturnValueOnce({ url: undefined })
 
     registerSettingsIpc(runtimeState)
     const handler =

@@ -34,7 +34,7 @@ import {
 } from '@main/services/projection/messages/sendable'
 
 describe('sendable messages', () => {
-  test('SendCommand serialises message header + mapped payload', () => {
+  test('SendCommand serialises message header + mapped payload', async () => {
     const msg = new SendCommand('frame')
     const buf = msg.serialise()
 
@@ -43,29 +43,29 @@ describe('sendable messages', () => {
     expect(buf.readUInt32LE(16)).toBeGreaterThanOrEqual(0)
   })
 
-  test('SendBluetoothPairedList appends NUL terminator', () => {
+  test('SendBluetoothPairedList appends NUL terminator', async () => {
     const msg = new SendBluetoothPairedList('Device A')
     const payload = msg.getPayload()
     expect(payload[payload.length - 1]).toBe(0)
   })
 
-  test('SendBluetoothPairedList does not duplicate trailing NUL', () => {
+  test('SendBluetoothPairedList does not duplicate trailing NUL', async () => {
     const msg = new SendBluetoothPairedList('Device A\0')
     const payload = msg.getPayload()
     expect(payload.toString('utf8')).toBe('Device A\0')
   })
 
-  test('SendGnssData normalizes line endings and appends CRLF', () => {
+  test('SendGnssData normalizes line endings and appends CRLF', async () => {
     const msg = new SendGnssData('$GPGGA,1\n$GPRMC,2')
     expect(msg.getPayload().toString('ascii')).toBe('$GPGGA,1\r\n$GPRMC,2\r\n')
   })
 
-  test('SendGnssData returns empty payload for empty input', () => {
+  test('SendGnssData returns empty payload for empty input', async () => {
     const msg = new SendGnssData('')
     expect(msg.getPayload().toString('ascii')).toBe('')
   })
 
-  test('SendTouch clamps coordinates into 0..10000 space', () => {
+  test('SendTouch clamps coordinates into 0..10000 space', async () => {
     const msg = new SendTouch(-1, 2, 1 as any)
     const payload = msg.getPayload()
 
@@ -74,7 +74,7 @@ describe('sendable messages', () => {
     expect(payload.readUInt32LE(8)).toBe(10000)
   })
 
-  test('SendMultiTouch concatenates touch payloads', () => {
+  test('SendMultiTouch concatenates touch payloads', async () => {
     const msg = new SendMultiTouch([
       { id: 1, x: 0.1, y: 0.2, action: 2 },
       { id: 2, x: 0.3, y: 0.4, action: 3 }
@@ -84,7 +84,7 @@ describe('sendable messages', () => {
     expect(payload.length).toBe(32)
   })
 
-  test('SendAudio serializes decodeType and pcm payload', () => {
+  test('SendAudio serializes decodeType and pcm payload', async () => {
     const pcm = new Int16Array([100, -200])
     const msg = new SendAudio(pcm, 7)
     const payload = msg.getPayload()
@@ -94,7 +94,7 @@ describe('sendable messages', () => {
     expect(payload.subarray(12).length).toBe(pcm.byteLength)
   })
 
-  test('SendFile encodes file name and content lengths', () => {
+  test('SendFile encodes file name and content lengths', async () => {
     const msg = new SendFile(Buffer.from([1, 2, 3]), '/tmp/test.bin')
     const payload = msg.getPayload()
 
@@ -109,12 +109,12 @@ describe('sendable messages', () => {
     expect(contentLen).toBe(3)
   })
 
-  test('boxTmpPath sanitizes path and defaults empty names', () => {
+  test('boxTmpPath sanitizes path and defaults empty names', async () => {
     expect(boxTmpPath('a/b/c.img')).toBe('/tmp/c.img')
     expect(boxTmpPath('   ')).toBe('/tmp/update.img')
   })
 
-  test('SendTmpFile always targets /tmp/<file>', () => {
+  test('SendTmpFile always targets /tmp/<file>', async () => {
     const msg = new SendTmpFile(Buffer.from([1, 2, 3]), '/weird/path/fw.img')
     const payload = msg.getPayload()
     const nameLen = payload.readUInt32LE(0)
@@ -126,7 +126,7 @@ describe('sendable messages', () => {
     expect(name).toBe('/tmp/fw.img')
   })
 
-  test('SendViewArea writes 24-byte screen and origin payload', () => {
+  test('SendViewArea writes 24-byte screen and origin payload', async () => {
     const msg = new SendViewArea(800, 480)
     const payload = msg.getPayload()
     const nameLen = payload.readUInt32LE(0)
@@ -142,7 +142,7 @@ describe('sendable messages', () => {
     expect(body.readUInt32LE(20)).toBe(0)
   })
 
-  test('SendViewArea insets shrink the view rect and shift the origin', () => {
+  test('SendViewArea insets shrink the view rect and shift the origin', async () => {
     const msg = new SendViewArea(800, 480, {
       insets: { top: 10, bottom: 20, left: 30, right: 40 }
     })
@@ -158,7 +158,7 @@ describe('sendable messages', () => {
     expect(body.readUInt32LE(20)).toBe(10)
   })
 
-  test('SendViewArea rounds odd insets and dimensions down to a multiple of 2', () => {
+  test('SendViewArea rounds odd insets and dimensions down to a multiple of 2', async () => {
     const msg = new SendViewArea(1281, 801, {
       insets: { top: 11, bottom: 13, left: 15, right: 17 }
     })
@@ -174,7 +174,7 @@ describe('sendable messages', () => {
     expect(body.readUInt32LE(20)).toBe(10)
   })
 
-  test('SendSafeArea rounds odd insets and dimensions down to a multiple of 2', () => {
+  test('SendSafeArea rounds odd insets and dimensions down to a multiple of 2', async () => {
     const msg = new SendSafeArea(1281, 801, {
       insets: { top: 11, bottom: 13, left: 15, right: 17 }
     })
@@ -188,7 +188,7 @@ describe('sendable messages', () => {
     expect(body.readUInt32LE(12)).toBe(10)
   })
 
-  test('SendViewArea and SendSafeArea target the cluster files via address option', () => {
+  test('SendViewArea and SendSafeArea target the cluster files via address option', async () => {
     const view = new SendViewArea(800, 480, {
       address: FileAddress.HU_NAVISCREEN_VIEWAREA_INFO
     })
@@ -211,7 +211,7 @@ describe('sendable messages', () => {
     expect(safeName).toBe('/etc/RiddleBoxData/HU_NAVISCREEN_SAFEAREA_INFO')
   })
 
-  test('SendSafeArea computes safe area and drawOutside flag', () => {
+  test('SendSafeArea computes safe area and drawOutside flag', async () => {
     const msg = new SendSafeArea(1000, 500, {
       insets: { top: 10, bottom: 20, left: 30, right: 40 }
     })
@@ -227,7 +227,7 @@ describe('sendable messages', () => {
     expect(body.readUInt32LE(16)).toBe(1)
   })
 
-  test('SendNumber and SendBoolean encode uint32 payloads', () => {
+  test('SendNumber and SendBoolean encode uint32 payloads', async () => {
     const num = new SendNumber(42, FileAddress.DPI)
     const boolTrue = new SendBoolean(true, FileAddress.NIGHT_MODE)
     const boolFalse = new SendBoolean(false, FileAddress.NIGHT_MODE)
@@ -250,7 +250,7 @@ describe('sendable messages', () => {
     expect(falseBody.readUInt32LE(0)).toBe(0)
   })
 
-  test('SendString strips non-ascii, removes line breaks and truncates to 16 chars', () => {
+  test('SendString strips non-ascii, removes line breaks and truncates to 16 chars', async () => {
     const msg = new SendString('ÄBC\nDEF\rGHIJKLMNOPQRST', FileAddress.BOX_NAME)
     const payload = msg.getPayload()
 
@@ -261,7 +261,7 @@ describe('sendable messages', () => {
     expect(body.toString('ascii')).toBe('A?BC?DEF?GHIJKLM')
   })
 
-  test('SendOpen writes 28-byte payload with dimensions fps and phone mode', () => {
+  test('SendOpen writes 28-byte payload with dimensions fps and phone mode', async () => {
     const msg = new SendOpen({ width: 800, height: 480, fps: 60 }, 3 as any)
     const payload = msg.getPayload()
 
@@ -272,7 +272,7 @@ describe('sendable messages', () => {
     expect(payload.readUInt32LE(24)).toBe(3)
   })
 
-  test('SendSafeArea respects explicit drawOutside=false even when insets exist', () => {
+  test('SendSafeArea respects explicit drawOutside=false even when insets exist', async () => {
     const msg = new SendSafeArea(1000, 500, {
       insets: { top: 10, bottom: 20, left: 30, right: 40 },
       drawOutside: false
@@ -287,7 +287,7 @@ describe('sendable messages', () => {
     expect(body.readUInt32LE(16)).toBe(0)
   })
 
-  test('SendAndroidAutoDpi writes a positive dpi number into DPI file', () => {
+  test('SendAndroidAutoDpi writes a positive dpi number into DPI file', async () => {
     const msg = new SendAndroidAutoDpi(1280, 720)
     const payload = msg.getPayload()
 
@@ -302,14 +302,14 @@ describe('sendable messages', () => {
     expect(body.readUInt32LE(0)).toBeGreaterThan(0)
   })
 
-  test('SendLogoType writes logo type as uint32 payload', () => {
+  test('SendLogoType writes logo type as uint32 payload', async () => {
     const msg = new SendLogoType(LogoType.Siri)
     const payload = msg.getPayload()
 
     expect(payload.readUInt32LE(0)).toBe(LogoType.Siri)
   })
 
-  test('HeartBeat serialises header-only message', () => {
+  test('HeartBeat serialises header-only message', async () => {
     const msg = new HeartBeat()
     const buf = msg.serialise()
 
@@ -317,7 +317,7 @@ describe('sendable messages', () => {
     expect(buf.readUInt32LE(8)).toBe(MessageType.HeartBeat)
   })
 
-  test('SendCloseDongle serialises header-only message', () => {
+  test('SendCloseDongle serialises header-only message', async () => {
     const msg = new SendCloseDongle()
     const buf = msg.serialise()
 
@@ -325,7 +325,7 @@ describe('sendable messages', () => {
     expect(buf.readUInt32LE(8)).toBe(MessageType.CloseDongle)
   })
 
-  test('SendDisconnectPhone serialises header-only message', () => {
+  test('SendDisconnectPhone serialises header-only message', async () => {
     const msg = new SendDisconnectPhone()
     const buf = msg.serialise()
 
@@ -333,7 +333,7 @@ describe('sendable messages', () => {
     expect(buf.readUInt32LE(8)).toBe(MessageType.DisconnectPhone)
   })
 
-  test('SendClusterFocusRequest serialises header-only message', () => {
+  test('SendClusterFocusRequest serialises header-only message', async () => {
     const msg = new SendClusterFocusRequest()
     const buf = msg.serialise()
 
@@ -341,7 +341,7 @@ describe('sendable messages', () => {
     expect(buf.readUInt32LE(8)).toBe(MessageType.ClusterFocusRequest)
   })
 
-  test('SendClusterFocusRelease serialises header-only message', () => {
+  test('SendClusterFocusRelease serialises header-only message', async () => {
     const msg = new SendClusterFocusRelease()
     const buf = msg.serialise()
 
@@ -349,7 +349,7 @@ describe('sendable messages', () => {
     expect(buf.readUInt32LE(8)).toBe(MessageType.ClusterFocusRelease)
   })
 
-  test('SendIconConfig includes oemIconLabel when oemName is provided', () => {
+  test('SendIconConfig includes oemIconLabel when oemName is provided', async () => {
     const msg = new SendIconConfig({ oemName: 'My Car' })
     const payload = msg.getPayload()
 
@@ -362,7 +362,7 @@ describe('sendable messages', () => {
     expect(body).toContain('oemIconLabel = My Car')
   })
 
-  test('SendIconConfig omits oemIconLabel when oemName is blank', () => {
+  test('SendIconConfig omits oemIconLabel when oemName is blank', async () => {
     const msg = new SendIconConfig({ oemName: '   ' })
     const payload = msg.getPayload()
 
@@ -374,7 +374,7 @@ describe('sendable messages', () => {
     expect(body).not.toContain('oemIconLabel =')
   })
 
-  test('SendBoxSettings builds expected dashboard, gnss and fallback wifi fields', () => {
+  test('SendBoxSettings builds expected dashboard, gnss and fallback wifi fields', async () => {
     const msg = new SendBoxSettings(
       {
         width: 1280,
@@ -421,7 +421,7 @@ describe('sendable messages', () => {
     expect(body.OemName).toBe('OEM')
   })
 
-  test('SendBoxSettings registers a full-size cluster naviScreenInfo.safearea', () => {
+  test('SendBoxSettings registers a full-size cluster naviScreenInfo.safearea', async () => {
     const msg = new SendBoxSettings(
       {
         width: 1280,
@@ -476,7 +476,7 @@ describe('sendable messages', () => {
     })
   })
 
-  test('SendBoxSettings hardcodes cluster safearea.outside to 0 on dongle path', () => {
+  test('SendBoxSettings hardcodes cluster safearea.outside to 0 on dongle path', async () => {
     // outside stays 0, non-zero values break the dongle firmware.
     const msg = new SendBoxSettings(
       {
@@ -521,7 +521,7 @@ describe('sendable messages', () => {
     expect(body.naviScreenInfo.safearea.outside).toBe(0)
   })
 
-  test('SendServerCgiScript targets LIVI_CGI and contains non-empty script', () => {
+  test('SendServerCgiScript targets LIVI_CGI and contains non-empty script', async () => {
     const msg = new SendServerCgiScript()
     const payload = msg.getPayload()
 
@@ -537,7 +537,7 @@ describe('sendable messages', () => {
     expect(body.byteLength).toBeGreaterThan(0)
   })
 
-  test('SendLiviWeb targets LIVI_WEB and contains non-empty html payload', () => {
+  test('SendLiviWeb targets LIVI_WEB and contains non-empty html payload', async () => {
     const msg = new SendLiviWeb()
     const payload = msg.getPayload()
 
@@ -553,7 +553,7 @@ describe('sendable messages', () => {
     expect(body.byteLength).toBeGreaterThan(0)
   })
 
-  test('SendRawMessage keeps type and raw payload', () => {
+  test('SendRawMessage keeps type and raw payload', async () => {
     const raw = new Uint8Array([0xde, 0xad, 0xbe, 0xef])
     const msg = new SendRawMessage(MessageType.DebugTrace, raw)
 
@@ -567,31 +567,31 @@ describe('sendable messages', () => {
     expect(buf.subarray(16)).toEqual(Buffer.from(raw))
   })
 
-  test('SendAutoConnectByBtAddress stores ascii bluetooth address payload', () => {
+  test('SendAutoConnectByBtAddress stores ascii bluetooth address payload', async () => {
     const msg = new SendAutoConnectByBtAddress('AA:BB:CC:DD:EE:FF')
 
     expect(msg.type).toBe(MessageType.WifiStatusData)
     expect(msg.getPayload().toString('ascii')).toBe('AA:BB:CC:DD:EE:FF')
   })
 
-  test('SendForgetBluetoothAddr stores ascii bluetooth address payload', () => {
+  test('SendForgetBluetoothAddr stores ascii bluetooth address payload', async () => {
     const msg = new SendForgetBluetoothAddr('11:22:33:44:55:66')
 
     expect(msg.type).toBe(MessageType.ForgetBluetoothAddr)
     expect(msg.getPayload().toString('ascii')).toBe('11:22:33:44:55:66')
   })
 
-  test('SendBoxSettings logs payload when DEBUG is true', () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+  test('SendBoxSettings logs payload when DEBUG is true', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(function () {})
 
-    jest.resetModules()
+    vi.resetModules()
 
-    jest.isolateModules(() => {
-      jest.doMock('@main/constants', () => ({
+    await vi.isolateModules(async () => {
+      vi.doMock('@main/constants', () => ({
         DEBUG: true
       }))
 
-      const { SendBoxSettings } = require('@main/services/projection/messages/sendable')
+      const { SendBoxSettings } = await import('@main/services/projection/messages/sendable')
 
       const msg = new SendBoxSettings(
         {
@@ -631,21 +631,21 @@ describe('sendable messages', () => {
     expect(logSpy).toHaveBeenCalledWith('[SendBoxSettings]', expect.any(String))
 
     logSpy.mockRestore()
-    jest.resetModules()
-    jest.dontMock('@main/constants')
+    vi.resetModules()
+    vi.doUnmock('@main/constants')
   })
 
-  test('SendBoxSettings logs payload when DEBUG is true', () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+  test('SendBoxSettings logs payload when DEBUG is true', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(function () {})
 
-    jest.resetModules()
+    vi.resetModules()
 
-    jest.isolateModules(() => {
-      jest.doMock('@main/constants', () => ({
+    await vi.isolateModules(async () => {
+      vi.doMock('@main/constants', () => ({
         DEBUG: true
       }))
 
-      const { SendBoxSettings } = require('@main/services/projection/messages/sendable')
+      const { SendBoxSettings } = await import('@main/services/projection/messages/sendable')
 
       const msg = new SendBoxSettings(
         {
@@ -685,11 +685,11 @@ describe('sendable messages', () => {
     expect(logSpy).toHaveBeenCalledWith('[SendBoxSettings]', expect.any(String))
 
     logSpy.mockRestore()
-    jest.resetModules()
-    jest.dontMock('@main/constants')
+    vi.resetModules()
+    vi.doUnmock('@main/constants')
   })
 
-  test('SendBoxSettings uses current time when syncTime is null', () => {
+  test('SendBoxSettings uses current time when syncTime is null', async () => {
     const msg = new SendBoxSettings(
       {
         width: 1280,
@@ -724,7 +724,7 @@ describe('sendable messages', () => {
     expect(body.syncTime).toBeGreaterThan(0)
   })
 
-  test('SendBoxSettings falls back to carName when oemName is undefined', () => {
+  test('SendBoxSettings falls back to carName when oemName is undefined', async () => {
     const msg = new SendBoxSettings(
       {
         width: 1280,
@@ -761,7 +761,7 @@ describe('sendable messages', () => {
     expect(body.GNSSCapability).toBe(8)
   })
 
-  test('SendBoxSettings uses default navi safe-area zeros when values are undefined', () => {
+  test('SendBoxSettings uses default navi safe-area zeros when values are undefined', async () => {
     const msg = new SendBoxSettings(
       {
         width: 1280,
@@ -815,7 +815,7 @@ describe('sendable messages', () => {
     })
   })
 
-  test('SendBoxSettings constructor uses default syncTime parameter when omitted', () => {
+  test('SendBoxSettings constructor uses default syncTime parameter when omitted', async () => {
     const msg = new SendBoxSettings({
       width: 1280,
       height: 720,
@@ -847,7 +847,7 @@ describe('sendable messages', () => {
     expect(body.syncTime).toBeGreaterThan(0)
   })
 
-  test('SendIconConfig handles undefined oemName without label', () => {
+  test('SendIconConfig handles undefined oemName without label', async () => {
     const msg = new SendIconConfig({})
     const payload = msg.getPayload()
 
@@ -859,12 +859,12 @@ describe('sendable messages', () => {
     expect(body).not.toContain('oemIconLabel =')
   })
 
-  test('SendGnssData treats nullish input as empty string', () => {
+  test('SendGnssData treats nullish input as empty string', async () => {
     const msg = new SendGnssData(undefined as any)
     expect(msg.getPayload().toString('ascii')).toBe('')
   })
 
-  test('SendSafeArea uses default options and zero insets when omitted', () => {
+  test('SendSafeArea uses default options and zero insets when omitted', async () => {
     const msg = new SendSafeArea(1000, 500)
     const payload = msg.getPayload()
     const nameLen = payload.readUInt32LE(0)
@@ -878,11 +878,11 @@ describe('sendable messages', () => {
     expect(body.readUInt32LE(16)).toBe(0)
   })
 
-  test('boxTmpPath falls back correctly for empty filename', () => {
+  test('boxTmpPath falls back correctly for empty filename', async () => {
     expect(boxTmpPath('')).toBe('/tmp/update.img')
   })
 
-  test('SendBoxSettings uses 2.4ghz fallback channel and sets vehicle/glonass flags', () => {
+  test('SendBoxSettings uses 2.4ghz fallback channel and sets vehicle/glonass flags', async () => {
     const msg = new SendBoxSettings(
       {
         width: 1280,

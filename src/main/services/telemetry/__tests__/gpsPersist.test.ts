@@ -1,5 +1,5 @@
-const requestSaveMock = jest.fn()
-jest.mock('@main/ipc/utils', () => ({
+const requestSaveMock = vi.fn()
+vi.mock('@main/ipc/utils', () => ({
   configEvents: { emit: (...args: unknown[]) => requestSaveMock(...args) }
 }))
 
@@ -8,11 +8,11 @@ import { TelemetryStore } from '../TelemetryStore'
 
 beforeEach(() => {
   requestSaveMock.mockReset()
-  jest.useFakeTimers()
-  jest.setSystemTime(new Date('2026-01-15T12:00:00Z'))
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-01-15T12:00:00Z'))
 })
 afterEach(() => {
-  jest.useRealTimers()
+  vi.useRealTimers()
 })
 
 describe('gpsPersist — hydration', () => {
@@ -73,7 +73,7 @@ describe('gpsPersist — persist behavior', () => {
     store.merge({ gps: { lat: 52, lng: 13 } })
     requestSaveMock.mockClear()
     store.merge({ gps: { lat: 53, lng: 14 } })
-    jest.advanceTimersByTime(30_000)
+    vi.advanceTimersByTime(30_000)
     expect(requestSaveMock).toHaveBeenCalled()
   })
 
@@ -82,7 +82,7 @@ describe('gpsPersist — persist behavior', () => {
     attachGpsPersist({ store })
     store.merge({ gps: { lat: 52, lng: 13 } })
     requestSaveMock.mockClear()
-    jest.advanceTimersByTime(40_000)
+    vi.advanceTimersByTime(40_000)
     store.merge({ gps: { lat: 52, lng: 13 } })
     expect(requestSaveMock).not.toHaveBeenCalled()
   })
@@ -115,7 +115,7 @@ describe('gpsPersist — persist behavior', () => {
     store.merge({ gps: { lat: 52, lng: 13 } })
     store.merge({ gps: { lat: 53, lng: 14 } })
     handle.off()
-    jest.advanceTimersByTime(60_000)
+    vi.advanceTimersByTime(60_000)
     // Only the immediate first write
     expect(requestSaveMock).toHaveBeenCalledTimes(1)
   })
@@ -128,7 +128,7 @@ describe('gpsPersist — persist behavior', () => {
     store.merge({ gps: { lat: 53, lng: 14 } })
     // Second push during the same pending window — should not start a new timer
     store.merge({ gps: { lat: 54, lng: 15 } })
-    jest.advanceTimersByTime(30_000)
+    vi.advanceTimersByTime(30_000)
     // Only one save fires (with the latest snapshot)
     expect(requestSaveMock).toHaveBeenCalledTimes(1)
   })
@@ -149,7 +149,7 @@ describe('gpsPersist — persist behavior', () => {
   })
 
   test('persist errors are caught', () => {
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
     requestSaveMock.mockImplementationOnce(() => {
       throw new Error('IPC down')
     })

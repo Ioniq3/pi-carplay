@@ -76,7 +76,7 @@ describe('FrameParser — single-frame (BULK)', () => {
   test('does not emit a frame for a payload shorter than 2 bytes (no msgId)', () => {
     const parser = new FrameParser()
     const frames = collect(parser)
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
     // hand-crafted BULK frame with 1-byte payload
     parser.push(Buffer.from([0x01, BULK, 0x00, 0x01, 0xff]))
     expect(frames).toHaveLength(0)
@@ -165,7 +165,7 @@ describe('FrameParser — multi-frame reassembly', () => {
   test('continuation without a FIRST is dropped with a warning', () => {
     const parser = new FrameParser()
     const frames = collect(parser)
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
     parser.push(makeContinuationFrame(1, FLAG_LAST, Buffer.from([0, 0])))
     expect(frames).toHaveLength(0)
     expect(warn).toHaveBeenCalled()
@@ -175,7 +175,7 @@ describe('FrameParser — multi-frame reassembly', () => {
   test('total-size mismatch on reassembly is warned but the frame is still emitted', () => {
     const parser = new FrameParser()
     const frames = collect(parser)
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
 
     const a = Buffer.from([0x00, 0x09, 0xaa])
     const b = Buffer.from([0xbb])

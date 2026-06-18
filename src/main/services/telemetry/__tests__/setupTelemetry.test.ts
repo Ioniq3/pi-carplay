@@ -1,28 +1,32 @@
-const registerIpcOnMock = jest.fn()
-const registerIpcHandleMock = jest.fn()
-const configEvents = {
-  on: jest.fn(),
-  off: jest.fn(),
-  emit: jest.fn()
-}
-const getAllRendererWebContentsMock = jest.fn(() => [])
+import type { Mock } from 'vitest'
 
-jest.mock('@main/ipc/register', () => ({
+const registerIpcOnMock = vi.fn()
+const registerIpcHandleMock = vi.fn()
+const { configEvents } = vi.hoisted(() => ({
+  configEvents: {
+    on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn()
+  }
+}))
+const getAllRendererWebContentsMock = vi.fn(() => [])
+
+vi.mock('@main/ipc/register', () => ({
   registerIpcOn: (...a: unknown[]) => registerIpcOnMock(...a),
   registerIpcHandle: (...a: unknown[]) => registerIpcHandleMock(...a)
 }))
 
-jest.mock('@main/ipc/utils', () => ({
+vi.mock('@main/ipc/utils', () => ({
   configEvents
 }))
 
-jest.mock('@main/window/broadcast', () => ({
+vi.mock('@main/window/broadcast', () => ({
   getAllRendererWebContents: () => getAllRendererWebContentsMock()
 }))
 
-const removeAllListenersMock = jest.fn()
-const removeHandlerMock = jest.fn()
-jest.mock('electron', () => ({
+const removeAllListenersMock = vi.fn()
+const removeHandlerMock = vi.fn()
+vi.mock('electron', () => ({
   ipcMain: {
     removeAllListeners: (...a: unknown[]) => removeAllListenersMock(...a),
     removeHandler: (...a: unknown[]) => removeHandlerMock(...a)
@@ -36,9 +40,9 @@ import { TelemetryStore } from '../TelemetryStore'
 
 function fakeProjection(): ProjectionService {
   return {
-    getAaDriver: jest.fn(() => null),
-    getDongleDriver: jest.fn(() => null),
-    addPluggedHook: jest.fn(() => () => {})
+    getAaDriver: vi.fn(() => null),
+    getDongleDriver: vi.fn(() => null),
+    addPluggedHook: vi.fn(() => () => {})
   } as unknown as ProjectionService
 }
 
@@ -50,9 +54,9 @@ beforeEach(() => {
   removeAllListenersMock.mockReset()
   removeHandlerMock.mockReset()
   getAllRendererWebContentsMock.mockReturnValue([])
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(() => vi.restoreAllMocks())
 
 describe('setupTelemetry', () => {
   test('registers telemetry:push and telemetry:snapshot IPC', () => {
@@ -120,7 +124,7 @@ describe('setupTelemetry', () => {
     setupTelemetry({ store, projectionService: proj })
     expect(proj.addPluggedHook).toHaveBeenCalled()
     // Calling the hook should not throw
-    const hook = (proj.addPluggedHook as jest.Mock).mock.calls[0][0] as () => void
+    const hook = (proj.addPluggedHook as Mock).mock.calls[0][0] as () => void
     expect(() => hook()).not.toThrow()
   })
 

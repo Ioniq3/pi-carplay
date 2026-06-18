@@ -3,32 +3,38 @@ import { sendUpdateEvent } from '@main/ipc/utils'
 import { spawn } from 'child_process'
 import { app } from 'electron'
 import { promises as fsp } from 'fs'
+import type { Mock } from 'vitest'
 
-jest.mock('fs', () => ({
-  promises: {
-    copyFile: jest.fn(() => Promise.resolve()),
-    chmod: jest.fn(() => Promise.resolve()),
-    rename: jest.fn(() => Promise.resolve())
+vi.mock('fs', () => {
+  const __m = {
+    promises: {
+      copyFile: vi.fn(() => Promise.resolve()),
+      chmod: vi.fn(() => Promise.resolve()),
+      rename: vi.fn(() => Promise.resolve())
+    }
   }
+  return { ...__m, default: __m }
+})
+
+vi.mock('child_process', () => ({
+  spawn: vi.fn(function () {
+    return { unref: vi.fn() }
+  })
 }))
 
-jest.mock('child_process', () => ({
-  spawn: jest.fn(() => ({ unref: jest.fn() }))
-}))
-
-jest.mock('@main/ipc/utils', () => ({
-  sendUpdateEvent: jest.fn()
+vi.mock('@main/ipc/utils', () => ({
+  sendUpdateEvent: vi.fn()
 }))
 
 describe('installOnLinuxFromFile', () => {
   const originalPlatform = process.platform
   const originalAppImage = process.env.APPIMAGE
 
-  beforeEach(() => {
-    jest.clearAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     Object.defineProperty(process, 'platform', { value: originalPlatform })
     process.env.APPIMAGE = originalAppImage
   })
@@ -51,7 +57,7 @@ describe('installOnLinuxFromFile', () => {
     process.env.APPIMAGE = '/opt/LIVI.AppImage'
 
     let onWillQuit: (() => void) | undefined
-    ;(app.once as jest.Mock).mockImplementation((event, cb) => {
+    ;(app.once as Mock).mockImplementation(function (event, cb) {
       if (event === 'will-quit') onWillQuit = cb
     })
 

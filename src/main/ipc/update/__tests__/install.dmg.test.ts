@@ -2,30 +2,34 @@ import { execFile } from 'node:child_process'
 import { installFromDmg } from '@main/ipc/update/install.dmg'
 import { getMacDesiredOwner, sendUpdateEvent } from '@main/ipc/utils'
 import { promises as fsp } from 'fs'
+import type { Mock } from 'vitest'
 
-jest.mock('node:child_process', () => ({
-  execFile: jest.fn()
+vi.mock('node:child_process', () => ({
+  execFile: vi.fn()
 }))
 
-jest.mock('fs', () => ({
-  promises: {
-    readdir: jest.fn()
+vi.mock('fs', () => {
+  const __m = {
+    promises: {
+      readdir: vi.fn()
+    }
   }
-}))
+  return { ...__m, default: __m }
+})
 
-jest.mock('@main/ipc/utils', () => ({
-  getMacDesiredOwner: jest.fn(() => Promise.resolve({ user: 'anton', group: 'staff' })),
-  sendUpdateEvent: jest.fn()
+vi.mock('@main/ipc/utils', () => ({
+  getMacDesiredOwner: vi.fn(() => Promise.resolve({ user: 'anton', group: 'staff' })),
+  sendUpdateEvent: vi.fn()
 }))
 
 describe('installFromDmg', () => {
   const originalPlatform = process.platform
 
-  beforeEach(() => {
-    jest.clearAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     Object.defineProperty(process, 'platform', { value: originalPlatform })
   })
 
@@ -36,8 +40,8 @@ describe('installFromDmg', () => {
 
   test('mounts dmg, copies app via osascript and unmounts', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
-    ;(execFile as jest.Mock).mockImplementation((cmd, args, cb) => cb(null))
-    ;(fsp.readdir as jest.Mock).mockResolvedValue([
+    ;(execFile as Mock).mockImplementation((cmd, args, cb) => cb(null))
+    ;(fsp.readdir as Mock).mockResolvedValue([
       {
         name: 'LIVI.app',
         isDirectory: () => true
@@ -65,8 +69,8 @@ describe('installFromDmg', () => {
 
   test('detaches and throws when no .app found in dmg', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
-    ;(execFile as jest.Mock).mockImplementation((cmd, args, cb) => cb(null))
-    ;(fsp.readdir as jest.Mock).mockResolvedValue([
+    ;(execFile as Mock).mockImplementation((cmd, args, cb) => cb(null))
+    ;(fsp.readdir as Mock).mockResolvedValue([
       {
         name: 'README.txt',
         isDirectory: () => false

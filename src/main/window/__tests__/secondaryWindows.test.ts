@@ -1,29 +1,29 @@
 import { EventEmitter } from 'node:events'
 
 class MockSession {
-  setPermissionCheckHandler = jest.fn()
-  setPermissionRequestHandler = jest.fn()
+  setPermissionCheckHandler = vi.fn()
+  setPermissionRequestHandler = vi.fn()
 }
 
 class MockWebContents {
   session = new MockSession()
-  setWindowOpenHandler = jest.fn()
+  setWindowOpenHandler = vi.fn()
 }
 
 class MockBrowserWindow extends EventEmitter {
   webContents = new MockWebContents()
-  loadURL = jest.fn()
-  close = jest.fn()
-  setBounds = jest.fn()
-  setContentSize = jest.fn()
-  setPosition = jest.fn()
-  setFullScreen = jest.fn()
-  setKiosk = jest.fn()
-  getPosition = jest.fn(() => [100, 100])
-  getContentSize = jest.fn(() => [800, 480])
-  isDestroyed = jest.fn(() => false)
-  isFullScreen = jest.fn(() => false)
-  isKiosk = jest.fn(() => false)
+  loadURL = vi.fn()
+  close = vi.fn()
+  setBounds = vi.fn()
+  setContentSize = vi.fn()
+  setPosition = vi.fn()
+  setFullScreen = vi.fn()
+  setKiosk = vi.fn()
+  getPosition = vi.fn(() => [100, 100])
+  getContentSize = vi.fn(() => [800, 480])
+  isDestroyed = vi.fn(() => false)
+  isFullScreen = vi.fn(() => false)
+  isKiosk = vi.fn(() => false)
   once(event: string, listener: (...args: unknown[]) => void): this {
     super.once(event, listener)
     return this
@@ -32,23 +32,26 @@ class MockBrowserWindow extends EventEmitter {
 
 const lastWindows: MockBrowserWindow[] = []
 
-jest.mock('electron', () => ({
-  BrowserWindow: jest.fn().mockImplementation(() => {
+vi.mock('electron', () => ({
+  BrowserWindow: vi.fn().mockImplementation(function () {
     const w = new MockBrowserWindow()
     lastWindows.push(w)
     return w
   }),
-  shell: { openExternal: jest.fn() }
+  shell: { openExternal: vi.fn() },
+  screen: { getAllDisplays: vi.fn(() => []) }
 }))
 
-const configEvents = { on: jest.fn(), off: jest.fn(), emit: jest.fn() }
-const saveSettingsMock = jest.fn()
-jest.mock('@main/ipc/utils', () => ({
+const { configEvents } = vi.hoisted(() => ({
+  configEvents: { on: vi.fn(), off: vi.fn(), emit: vi.fn() }
+}))
+const saveSettingsMock = vi.fn()
+vi.mock('@main/ipc/utils', () => ({
   configEvents,
   saveSettings: (...a: unknown[]) => saveSettingsMock(...a)
 }))
 
-jest.mock('@electron-toolkit/utils', () => ({
+vi.mock('@electron-toolkit/utils', () => ({
   is: { dev: false }
 }))
 
@@ -79,12 +82,12 @@ beforeEach(() => {
   lastWindows.length = 0
   saveSettingsMock.mockReset()
   configEvents.on.mockReset()
-  jest.useFakeTimers()
+  vi.useFakeTimers()
   closeAllSecondaryWindows()
 })
 afterEach(() => {
-  jest.useRealTimers()
-  jest.restoreAllMocks()
+  vi.useRealTimers()
+  vi.restoreAllMocks()
 })
 
 describe('syncSecondaryWindows — open / close', () => {
@@ -163,7 +166,7 @@ describe('window lifecycle', () => {
     const win = lastWindows[0]
     win.emit('move')
     win.emit('resize')
-    jest.advanceTimersByTime(500)
+    vi.advanceTimersByTime(500)
     expect(saveSettingsMock).toHaveBeenCalled()
   })
 
@@ -263,7 +266,7 @@ describe('secondaryWindows — bounds + ready-to-show', () => {
     const win = lastWindows[0]
     win.isFullScreen.mockReturnValue(true)
     win.emit('move')
-    jest.advanceTimersByTime(500)
+    vi.advanceTimersByTime(500)
     expect(saveSettingsMock).not.toHaveBeenCalled()
   })
 
@@ -273,7 +276,7 @@ describe('secondaryWindows — bounds + ready-to-show', () => {
     const win = lastWindows[0]
     win.isDestroyed.mockReturnValue(true)
     win.emit('move')
-    jest.advanceTimersByTime(500)
+    vi.advanceTimersByTime(500)
     expect(saveSettingsMock).not.toHaveBeenCalled()
   })
 
@@ -285,7 +288,7 @@ describe('secondaryWindows — bounds + ready-to-show', () => {
     syncSecondaryWindows(rt)
     const win = lastWindows[0]
     win.emit('move')
-    jest.advanceTimersByTime(500)
+    vi.advanceTimersByTime(500)
     expect(saveSettingsMock).not.toHaveBeenCalled()
   })
 

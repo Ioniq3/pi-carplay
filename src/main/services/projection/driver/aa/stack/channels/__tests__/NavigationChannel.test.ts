@@ -4,7 +4,7 @@ import { fieldLenDelim, fieldVarint } from '../protoEnc'
 describe('NavigationChannel — start/stop', () => {
   test('START_INDICATION emits nav-start', () => {
     const ch = new NavigationChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('nav-start', cb)
     ch.handleMessage(NAV_MSG.START_INDICATION, Buffer.alloc(0))
     expect(cb).toHaveBeenCalledTimes(1)
@@ -12,7 +12,7 @@ describe('NavigationChannel — start/stop', () => {
 
   test('STOP_INDICATION emits nav-stop', () => {
     const ch = new NavigationChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('nav-stop', cb)
     ch.handleMessage(NAV_MSG.STOP_INDICATION, Buffer.alloc(0))
     expect(cb).toHaveBeenCalledTimes(1)
@@ -28,7 +28,7 @@ describe('NavigationChannel — STATUS', () => {
     [99, 'unavailable']
   ])('status field=%s → %s', (raw, expected) => {
     const ch = new NavigationChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('nav-status', cb)
     ch.handleMessage(NAV_MSG.STATUS, fieldVarint(1, raw))
     expect(cb).toHaveBeenCalledWith({ state: expected })
@@ -36,7 +36,7 @@ describe('NavigationChannel — STATUS', () => {
 
   test('STATUS without field 1 falls back to unavailable', () => {
     const ch = new NavigationChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('nav-status', cb)
     ch.handleMessage(NAV_MSG.STATUS, Buffer.alloc(0))
     expect(cb).toHaveBeenCalledWith({ state: 'unavailable' })
@@ -65,7 +65,7 @@ describe('NavigationChannel — TURN_EVENT', () => {
     [99, 'unknown']
   ])('NextTurnEnum %s → %s', (raw, expected) => {
     const ch = new NavigationChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('nav-turn', cb)
     ch.handleMessage(NAV_MSG.TURN_EVENT, fieldVarint(3, raw))
     expect(cb.mock.calls[0][0].event).toBe(expected)
@@ -78,7 +78,7 @@ describe('NavigationChannel — TURN_EVENT', () => {
     [99, 'unspecified']
   ])('TurnSide %s → %s', (raw, expected) => {
     const ch = new NavigationChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('nav-turn', cb)
     ch.handleMessage(NAV_MSG.TURN_EVENT, fieldVarint(2, raw))
     expect(cb.mock.calls[0][0].turnSide).toBe(expected)
@@ -86,7 +86,7 @@ describe('NavigationChannel — TURN_EVENT', () => {
 
   test('decodes road, image, turn number and angle', () => {
     const ch = new NavigationChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('nav-turn', cb)
 
     const img = Buffer.from([0x89, 0x50, 0x4e, 0x47])
@@ -115,7 +115,7 @@ describe('NavigationChannel — TURN_EVENT', () => {
 describe('NavigationChannel — DISTANCE_EVENT', () => {
   test('decodes distance + time + optional display fields', () => {
     const ch = new NavigationChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('nav-distance', cb)
 
     const payload = Buffer.concat([
@@ -136,7 +136,7 @@ describe('NavigationChannel — DISTANCE_EVENT', () => {
 
   test('display fields stay undefined when omitted', () => {
     const ch = new NavigationChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('nav-distance', cb)
     ch.handleMessage(NAV_MSG.DISTANCE_EVENT, Buffer.concat([fieldVarint(1, 0), fieldVarint(2, 0)]))
     expect(cb.mock.calls[0][0]).toEqual({
@@ -151,7 +151,7 @@ describe('NavigationChannel — DISTANCE_EVENT', () => {
 describe('NavigationChannel — STATE (modern)', () => {
   test('decodes the first step maneuver/road/cue + destination address', () => {
     const ch = new NavigationChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('nav-state', cb)
 
     // NavigationStep { maneuver=1{type=1=8}, road=2{name=1}, cue=4{alternate_text=1} }
@@ -175,7 +175,7 @@ describe('NavigationChannel — STATE (modern)', () => {
 describe('NavigationChannel — CURRENT_POSITION (modern)', () => {
   test('decodes step distance + destination distance + ETA + current road', () => {
     const ch = new NavigationChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('nav-position', cb)
 
     // NavigationStepDistance { distance=1{meters=345, display="350", units=1}, time=2=102 }

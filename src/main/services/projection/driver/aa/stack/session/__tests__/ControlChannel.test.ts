@@ -1,24 +1,29 @@
+import type { Mock } from 'vitest'
 import { CH, CTRL_MSG, FRAME_FLAGS, STATUS_OK } from '../../constants'
 import type { ProtoTypes } from '../../proto/index'
 import { ControlChannel } from '../ControlChannel'
 
 type ProtoType = {
   name: string
-  verify: jest.Mock
-  create: jest.Mock
-  encode: jest.Mock
-  decode: jest.Mock
-  toObject: jest.Mock
+  verify: Mock
+  create: Mock
+  encode: Mock
+  decode: Mock
+  toObject: Mock
 }
 
 function fakeProtoType(name: string, decoded: Record<string, unknown> = {}): ProtoType {
   return {
     name,
-    verify: jest.fn(() => null),
-    create: jest.fn((fields) => fields),
-    encode: jest.fn(() => ({ finish: () => new Uint8Array([0xab, 0xcd]) })),
-    decode: jest.fn(() => ({ ...decoded })),
-    toObject: jest.fn((m) => m as Record<string, unknown>)
+    verify: vi.fn(() => null),
+    create: vi.fn((fields) => fields),
+    encode: vi.fn(function () {
+      return { finish: () => new Uint8Array([0xab, 0xcd]) }
+    }),
+    decode: vi.fn(function () {
+      return { ...decoded }
+    }),
+    toObject: vi.fn((m) => m as Record<string, unknown>)
   }
 }
 
@@ -39,9 +44,9 @@ function fakeProto(): ProtoTypes {
 }
 
 type Call = { channelId: number; flags: number; msgId: number; data: Buffer }
-function makeSend(): { send: jest.Mock; calls: Call[] } {
+function makeSend(): { send: Mock; calls: Call[] } {
   const calls: Call[] = []
-  const send = jest.fn((channelId: number, flags: number, msgId: number, data: Buffer) => {
+  const send = vi.fn(function (channelId: number, flags: number, msgId: number, data: Buffer) {
     calls.push({ channelId, flags, msgId, data })
   })
   return { send, calls }
@@ -52,7 +57,7 @@ describe('ControlChannel — ServiceDiscoveryRequest', () => {
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('service-discovery-request', cb)
 
     ch.handleMessage(CTRL_MSG.SERVICE_DISCOVERY_REQUEST, Buffer.alloc(0))
@@ -68,9 +73,9 @@ describe('ControlChannel — ServiceDiscoveryRequest', () => {
     })
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('service-discovery-request', cb)
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
 
     ch.handleMessage(CTRL_MSG.SERVICE_DISCOVERY_REQUEST, Buffer.alloc(0))
     expect(cb).toHaveBeenCalledWith({})
@@ -83,7 +88,7 @@ describe('ControlChannel — ping', () => {
     const proto = fakeProto()
     const { send, calls } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('ping', cb)
 
     ch.handleMessage(CTRL_MSG.PING_REQUEST, Buffer.alloc(0))
@@ -98,7 +103,7 @@ describe('ControlChannel — ping', () => {
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('pong', cb)
     ch.handleMessage(CTRL_MSG.PING_RESPONSE, Buffer.alloc(0))
     expect(cb).toHaveBeenCalled()
@@ -110,7 +115,7 @@ describe('ControlChannel — channel open', () => {
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('channel-open-request', cb)
     ch.handleMessage(CTRL_MSG.CHANNEL_OPEN_REQUEST, Buffer.alloc(0))
     expect(cb).toHaveBeenCalledWith(9)
@@ -123,7 +128,7 @@ describe('ControlChannel — channel open', () => {
     })
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('channel-open-request', cb)
     ch.handleMessage(CTRL_MSG.CHANNEL_OPEN_REQUEST, Buffer.alloc(0))
     expect(cb).toHaveBeenCalledWith(4)
@@ -134,7 +139,7 @@ describe('ControlChannel — channel open', () => {
     ;(proto.ChannelOpenRequest as unknown as ProtoType).decode.mockReturnValueOnce({})
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('channel-open-request', cb)
     ch.handleMessage(CTRL_MSG.CHANNEL_OPEN_REQUEST, Buffer.alloc(0))
     expect(cb).toHaveBeenCalledWith(0)
@@ -147,7 +152,7 @@ describe('ControlChannel — channel open', () => {
     })
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('channel-open-request', cb)
     ch.handleMessage(CTRL_MSG.CHANNEL_OPEN_REQUEST, Buffer.alloc(0))
     expect(cb).not.toHaveBeenCalled()
@@ -168,7 +173,7 @@ describe('ControlChannel — channel open', () => {
     ;(proto.PingRequest as unknown as ProtoType).decode.mockReturnValueOnce({})
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('ping', cb)
     ch.handleMessage(CTRL_MSG.PING_REQUEST, Buffer.alloc(0))
     expect(cb).toHaveBeenCalledWith(0)
@@ -179,7 +184,7 @@ describe('ControlChannel — channel open', () => {
     ;(proto.ChannelOpenResponse as unknown as ProtoType).decode.mockReturnValueOnce({
       status: 999
     })
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
     ch.handleMessage(CTRL_MSG.CHANNEL_OPEN_RESPONSE, Buffer.alloc(0))
@@ -223,7 +228,7 @@ describe('ControlChannel — audio focus', () => {
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('audio-focus-request', cb)
     ch.handleMessage(CTRL_MSG.AUDIO_FOCUS_REQUEST, buildFocusReq(1))
     expect(cb).toHaveBeenCalled()
@@ -247,7 +252,7 @@ describe('ControlChannel — voice session', () => {
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('voice-session', cb)
     ch.handleMessage(CTRL_MSG.VOICE_SESSION_NOTIFICATION, Buffer.from([0x08, 0x01]))
     expect(cb).toHaveBeenCalledWith(true)
@@ -257,7 +262,7 @@ describe('ControlChannel — voice session', () => {
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('voice-session', cb)
     ch.handleMessage(CTRL_MSG.VOICE_SESSION_NOTIFICATION, Buffer.from([0x08, 0x02]))
     expect(cb).toHaveBeenCalledWith(false)
@@ -269,7 +274,7 @@ describe('ControlChannel — shutdown', () => {
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('shutdown', cb)
     const payload = Buffer.alloc(4)
     payload.writeUInt32BE(7, 0)
@@ -293,7 +298,7 @@ describe('ControlChannel — handleAVSetupRequest passthrough', () => {
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('av-setup-request', cb)
     ch.handleAVSetupRequest(3, Buffer.from([0x01]))
     expect(cb).toHaveBeenCalledWith(3, Buffer.from([0x01]))
@@ -302,7 +307,7 @@ describe('ControlChannel — handleAVSetupRequest passthrough', () => {
 
 describe('ControlChannel — unhandled and defensive paths', () => {
   test('unknown msgId is logged at debug', () => {
-    const debug = jest.spyOn(console, 'debug').mockImplementation(() => {})
+    const debug = vi.spyOn(console, 'debug').mockImplementation(function () {})
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
@@ -312,7 +317,7 @@ describe('ControlChannel — unhandled and defensive paths', () => {
   })
 
   test('AV SETUP_REQUEST on the control channel is ignored at debug-level', () => {
-    const debug = jest.spyOn(console, 'debug').mockImplementation(() => {})
+    const debug = vi.spyOn(console, 'debug').mockImplementation(function () {})
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
@@ -325,7 +330,7 @@ describe('ControlChannel — unhandled and defensive paths', () => {
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('shutdown', cb)
     ch.handleMessage(CTRL_MSG.SHUTDOWN_REQUEST, Buffer.alloc(0))
     expect(cb).toHaveBeenCalledWith(0)
@@ -335,7 +340,7 @@ describe('ControlChannel — unhandled and defensive paths', () => {
     const proto = fakeProto()
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('shutdown', cb)
     // 3 bytes — readUInt32BE will throw
     ch.handleMessage(CTRL_MSG.SHUTDOWN_REQUEST, Buffer.from([1, 2, 3]))
@@ -344,10 +349,10 @@ describe('ControlChannel — unhandled and defensive paths', () => {
 
   test('Ping parse error is logged but does not throw', () => {
     const proto = fakeProto()
-    ;(proto.PingRequest as unknown as { decode: jest.Mock }).decode.mockImplementationOnce(() => {
+    ;(proto.PingRequest as unknown as { decode: Mock }).decode.mockImplementationOnce(() => {
       throw new Error('bad varint')
     })
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
     expect(() => ch.handleMessage(CTRL_MSG.PING_REQUEST, Buffer.alloc(0))).not.toThrow()
@@ -358,10 +363,10 @@ describe('ControlChannel — unhandled and defensive paths', () => {
   test('NavigationFocusRequest send failure is swallowed', () => {
     const proto = fakeProto()
     const { send } = makeSend()
-    send.mockImplementation(() => {
+    send.mockImplementation(function () {
       throw new Error('write failed')
     })
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const ch = new ControlChannel(proto, send)
     expect(() =>
       ch.handleMessage(CTRL_MSG.NAVIGATION_FOCUS_REQUEST, Buffer.from([0x08, 0x01]))
@@ -372,12 +377,10 @@ describe('ControlChannel — unhandled and defensive paths', () => {
 
   test('BindingRequest decode failure is logged but does not throw', () => {
     const proto = fakeProto()
-    ;(proto.BindingRequest as unknown as { decode: jest.Mock }).decode.mockImplementationOnce(
-      () => {
-        throw new Error('proto err')
-      }
-    )
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    ;(proto.BindingRequest as unknown as { decode: Mock }).decode.mockImplementationOnce(() => {
+      throw new Error('proto err')
+    })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const { send } = makeSend()
     const ch = new ControlChannel(proto, send)
     expect(() => ch.handleMessage(CTRL_MSG.BINDING_REQUEST, Buffer.alloc(0))).not.toThrow()
@@ -388,12 +391,12 @@ describe('ControlChannel — unhandled and defensive paths', () => {
   test('AudioFocus send failure is logged but does not stop the emit', () => {
     const proto = fakeProto()
     const { send } = makeSend()
-    send.mockImplementation(() => {
+    send.mockImplementation(function () {
       throw new Error('not ready')
     })
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const ch = new ControlChannel(proto, send)
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('audio-focus-request', cb)
     ch.handleMessage(CTRL_MSG.AUDIO_FOCUS_REQUEST, Buffer.from([0x08, 0x01]))
     expect(cb).toHaveBeenCalled()

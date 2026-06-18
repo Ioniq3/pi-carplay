@@ -13,6 +13,7 @@ import {
   VideoData
 } from '@projection/messages/readable'
 import { CommandMapping } from '@shared/types/ProjectionEnums'
+import type { Mock } from 'vitest'
 import { AaEventBridge, type AaEventBridgeDeps } from '../AaEventBridge'
 import type { AAStack, AAStackConfig } from '../stack/index'
 import type { UsbAoapBridge } from '../stack/transport/UsbAoapBridge'
@@ -38,12 +39,12 @@ function baseCfg(over: Partial<AAStackConfig> = {}): AAStackConfig {
 
 function makeBridge(over: Partial<AaEventBridgeDeps> = {}) {
   const aa = new EventEmitter() as unknown as AAStack
-  const emitMessage = jest.fn<void, [Message]>()
-  const emitCodec = jest.fn<void, ['video-codec' | 'cluster-video-codec', string]>()
-  const startMic = jest.fn<void, [string]>()
-  const stopMic = jest.fn<void, [string]>()
-  const consumeWiredBridge = jest.fn<UsbAoapBridge | null, []>(() => null)
-  const isClosed = jest.fn<boolean, []>(() => false)
+  const emitMessage = vi.fn<void, [Message]>()
+  const emitCodec = vi.fn<void, ['video-codec' | 'cluster-video-codec', string]>()
+  const startMic = vi.fn<void, [string]>()
+  const stopMic = vi.fn<void, [string]>()
+  const consumeWiredBridge = vi.fn<UsbAoapBridge | null, []>(() => null)
+  const isClosed = vi.fn<boolean, []>(() => false)
   const deps: AaEventBridgeDeps = {
     emitMessage,
     emitCodec,
@@ -68,15 +69,15 @@ function makeBridge(over: Partial<AaEventBridgeDeps> = {}) {
   }
 }
 
-function messagesOfType(emitMessage: jest.Mock, type: MessageType): Message[] {
+function messagesOfType(emitMessage: Mock, type: MessageType): Message[] {
   return emitMessage.mock.calls.map((c) => c[0] as Message).filter((m) => m.header?.type === type)
 }
 
-function commands(emitMessage: jest.Mock): Command[] {
+function commands(emitMessage: Mock): Command[] {
   return messagesOfType(emitMessage, MessageType.Command) as Command[]
 }
 
-function metas(emitMessage: jest.Mock): MetaData[] {
+function metas(emitMessage: Mock): MetaData[] {
   return messagesOfType(emitMessage, MessageType.MetaData) as MetaData[]
 }
 
@@ -92,7 +93,7 @@ function asNavi(m: MetaData): NavigationData {
 
 describe('AaEventBridge', () => {
   describe('connect / disconnect lifecycle', () => {
-    test('connected emits DongleReady + Plugged(AndroidAuto)', () => {
+    test('connected emits DongleReady + Plugged(AndroidAuto)', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('connected')
 
@@ -103,7 +104,7 @@ describe('AaEventBridge', () => {
       expect(plugged).toBeInstanceOf(Plugged)
     })
 
-    test('disconnected emits Unplugged + releases video focus if it was held', () => {
+    test('disconnected emits Unplugged + releases video focus if it was held', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('video-focus-projected')
       emitMessage.mockClear()
@@ -118,7 +119,7 @@ describe('AaEventBridge', () => {
       expect(releaseEmitted).toBe(true)
     })
 
-    test('disconnected without prior video focus does not emit releaseVideoFocus', () => {
+    test('disconnected without prior video focus does not emit releaseVideoFocus', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('disconnected')
       const releaseEmitted = commands(emitMessage).some(
@@ -129,22 +130,22 @@ describe('AaEventBridge', () => {
 
     test('watchdog disconnect consumes the wired bridge and tears it down', async () => {
       const wiredBridge = {
-        forceReenum: jest.fn(async () => undefined),
-        stop: jest.fn(async () => undefined)
+        forceReenum: vi.fn(async () => undefined),
+        stop: vi.fn(async () => undefined)
       } as unknown as UsbAoapBridge
-      const consume = jest.fn(() => wiredBridge)
+      const consume = vi.fn(() => wiredBridge)
       const { aa } = makeBridge({ consumeWiredBridge: consume })
 
       aa.emit('disconnected', 'pre-RUNNING watchdog')
       expect(consume).toHaveBeenCalledTimes(1)
 
       await new Promise((r) => setImmediate(r))
-      expect((wiredBridge as unknown as { forceReenum: jest.Mock }).forceReenum).toHaveBeenCalled()
-      expect((wiredBridge as unknown as { stop: jest.Mock }).stop).toHaveBeenCalled()
+      expect((wiredBridge as unknown as { forceReenum: Mock }).forceReenum).toHaveBeenCalled()
+      expect((wiredBridge as unknown as { stop: Mock }).stop).toHaveBeenCalled()
     })
 
-    test('non-watchdog disconnect does not touch the wired bridge', () => {
-      const consume = jest.fn(() => null)
+    test('non-watchdog disconnect does not touch the wired bridge', async () => {
+      const consume = vi.fn(() => null)
       const { aa } = makeBridge({ consumeWiredBridge: consume })
       aa.emit('disconnected', 'normal')
       expect(consume).not.toHaveBeenCalled()
@@ -152,13 +153,13 @@ describe('AaEventBridge', () => {
   })
 
   describe('video focus', () => {
-    test('video-focus-projected emits requestVideoFocus command', () => {
+    test('video-focus-projected emits requestVideoFocus command', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('video-focus-projected')
       expect(commands(emitMessage)[0].value).toBe(CommandMapping.requestVideoFocus)
     })
 
-    test('first video-frame requests focus when not already held', () => {
+    test('first video-frame requests focus when not already held', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('video-frame', Buffer.from([0, 0, 0, 1]), 0n)
       expect(commands(emitMessage).some((c) => c.value === CommandMapping.requestVideoFocus)).toBe(
@@ -166,7 +167,7 @@ describe('AaEventBridge', () => {
       )
     })
 
-    test('subsequent video-frames do NOT re-request focus', () => {
+    test('subsequent video-frames do NOT re-request focus', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('video-focus-projected')
       emitMessage.mockClear()
@@ -176,7 +177,7 @@ describe('AaEventBridge', () => {
       )
     })
 
-    test('cluster-video-focus-projected emits requestClusterFocus command', () => {
+    test('cluster-video-focus-projected emits requestClusterFocus command', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('cluster-video-focus-projected')
       expect(commands(emitMessage)[0].value).toBe(CommandMapping.requestClusterFocus)
@@ -184,7 +185,7 @@ describe('AaEventBridge', () => {
   })
 
   describe('video frames', () => {
-    test('video-frame forwards a VideoData message with main MessageType', () => {
+    test('video-frame forwards a VideoData message with main MessageType', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('video-frame', Buffer.alloc(64), 0n)
       const msg = emitMessage.mock.calls
@@ -193,7 +194,7 @@ describe('AaEventBridge', () => {
       expect(msg).toBeInstanceOf(VideoData)
     })
 
-    test('cluster-video-frame forwards a ClusterVideoData message', () => {
+    test('cluster-video-frame forwards a ClusterVideoData message', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('cluster-video-frame', Buffer.alloc(64), 0n)
       const msg = emitMessage.mock.calls
@@ -204,13 +205,13 @@ describe('AaEventBridge', () => {
   })
 
   describe('codec selection', () => {
-    test('video-codec is forwarded via emitCodec', () => {
+    test('video-codec is forwarded via emitCodec', async () => {
       const { aa, emitCodec } = makeBridge()
       aa.emit('video-codec', 'h265')
       expect(emitCodec).toHaveBeenCalledWith('video-codec', 'h265')
     })
 
-    test('cluster-video-codec is forwarded via emitCodec', () => {
+    test('cluster-video-codec is forwarded via emitCodec', async () => {
       const { aa, emitCodec } = makeBridge()
       aa.emit('cluster-video-codec', 'vp9')
       expect(emitCodec).toHaveBeenCalledWith('cluster-video-codec', 'vp9')
@@ -218,7 +219,7 @@ describe('AaEventBridge', () => {
   })
 
   describe('audio', () => {
-    test('audio-frame emits an AudioData message', () => {
+    test('audio-frame emits an AudioData message', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('audio-frame', Buffer.alloc(32), 0n, 'media', 0)
       const msg = emitMessage.mock.calls
@@ -227,14 +228,14 @@ describe('AaEventBridge', () => {
       expect(msg).toBeInstanceOf(AudioData)
     })
 
-    test('audio-start emits an AudioData lifecycle command', () => {
+    test('audio-start emits an AudioData lifecycle command', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('audio-start', 'media', 0)
       const msgs = messagesOfType(emitMessage, MessageType.AudioData)
       expect(msgs.length).toBeGreaterThan(0)
     })
 
-    test('audio-stop emits an AudioData lifecycle command', () => {
+    test('audio-stop emits an AudioData lifecycle command', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('audio-stop', 'speech', 0)
       const msgs = messagesOfType(emitMessage, MessageType.AudioData)
@@ -243,7 +244,7 @@ describe('AaEventBridge', () => {
   })
 
   describe('microphone', () => {
-    test('mic-start / mic-stop forward to deps', () => {
+    test('mic-start / mic-stop forward to deps', async () => {
       const { aa, startMic, stopMic } = makeBridge()
       aa.emit('mic-start')
       aa.emit('mic-stop')
@@ -251,7 +252,7 @@ describe('AaEventBridge', () => {
       expect(stopMic).toHaveBeenCalledWith('mic-stop')
     })
 
-    test('voice-session active=true starts mic, active=false stops mic', () => {
+    test('voice-session active=true starts mic, active=false stops mic', async () => {
       const { aa, startMic, stopMic } = makeBridge()
       aa.emit('voice-session', true)
       aa.emit('voice-session', false)
@@ -261,7 +262,7 @@ describe('AaEventBridge', () => {
   })
 
   describe('host UI', () => {
-    test('host-ui-requested emits a Command(requestHostUI)', () => {
+    test('host-ui-requested emits a Command(requestHostUI)', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('host-ui-requested')
       expect(commands(emitMessage)[0].value).toBe(CommandMapping.requestHostUI)
@@ -274,7 +275,7 @@ describe('AaEventBridge', () => {
       return p?.media ?? {}
     }
 
-    test('media-metadata builds a MetaData JSON with song/artist/album/duration', () => {
+    test('media-metadata builds a MetaData JSON with song/artist/album/duration', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('media-metadata', {
         song: 'Title',
@@ -292,19 +293,19 @@ describe('AaEventBridge', () => {
       })
     })
 
-    test('media-metadata with albumArt emits a second MetaData message', () => {
+    test('media-metadata with albumArt emits a second MetaData message', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('media-metadata', { song: 'x', albumArt: Buffer.from([1, 2, 3]) })
       expect(metas(emitMessage)).toHaveLength(2)
     })
 
-    test('media-metadata with no recognizable fields and no albumArt emits nothing', () => {
+    test('media-metadata with no recognizable fields and no albumArt emits nothing', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('media-metadata', {})
       expect(metas(emitMessage)).toHaveLength(0)
     })
 
-    test('media-status playing=1 / paused=0', () => {
+    test('media-status playing=1 / paused=0', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('media-status', { state: 'playing', mediaSource: 'Spotify', playbackSeconds: 5 })
       aa.emit('media-status', { state: 'paused' })
@@ -324,7 +325,7 @@ describe('AaEventBridge', () => {
       return (asNavi(m).navi ?? {}) as Record<string, unknown>
     }
 
-    test('nav-start sets NaviStatus=1 + NaviAPPName', () => {
+    test('nav-start sets NaviStatus=1 + NaviAPPName', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('nav-start')
       expect(naviInfo(metas(emitMessage)[0])).toMatchObject({
@@ -333,7 +334,7 @@ describe('AaEventBridge', () => {
       })
     })
 
-    test('nav-stop sets NaviStatus=0', () => {
+    test('nav-stop sets NaviStatus=0', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('nav-start')
       emitMessage.mockClear()
@@ -341,7 +342,7 @@ describe('AaEventBridge', () => {
       expect(naviInfo(metas(emitMessage)[0]).NaviStatus).toBe(0)
     })
 
-    test('nav-status active/rerouting → 1, idle → 0', () => {
+    test('nav-status active/rerouting → 1, idle → 0', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('nav-status', { state: 'active' })
       aa.emit('nav-status', { state: 'idle' })
@@ -350,7 +351,7 @@ describe('AaEventBridge', () => {
       expect(naviInfo(all[1]).NaviStatus).toBe(0)
     })
 
-    test('nav-distance maps to the maneuver distance, not the destination', () => {
+    test('nav-distance maps to the maneuver distance, not the destination', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('nav-distance', {
         distanceMeters: 500,
@@ -369,7 +370,7 @@ describe('AaEventBridge', () => {
       expect(info.NaviTimeToDestination).toBeUndefined()
     })
 
-    test('nav-state maps the modern maneuver enum + road + destination address', () => {
+    test('nav-state maps the modern maneuver enum + road + destination address', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('nav-state', {
         maneuverType: 8, // TURN_NORMAL_RIGHT
@@ -384,7 +385,7 @@ describe('AaEventBridge', () => {
       })
     })
 
-    test('nav-position maps step distance + destination distance + ETA', () => {
+    test('nav-position maps step distance + destination distance + ETA', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('nav-position', {
         stepDistanceMeters: 345,
@@ -400,20 +401,20 @@ describe('AaEventBridge', () => {
       })
     })
 
-    test('nav-turn with image emits a separate DashboardImage MetaData', () => {
+    test('nav-turn with image emits a separate DashboardImage MetaData', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('nav-turn', { road: 'Main St', image: Buffer.from([1, 2, 3]) })
       // 1× dashboard-info (road update), 1× dashboard-image
       expect(metas(emitMessage)).toHaveLength(2)
     })
 
-    test('nav-turn without any recognizable fields emits no nav-info patch', () => {
+    test('nav-turn without any recognizable fields emits no nav-info patch', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('nav-turn', {})
       expect(metas(emitMessage)).toHaveLength(0)
     })
 
-    test('disconnect resets the nav bag', () => {
+    test('disconnect resets the nav bag', async () => {
       const { aa, emitMessage } = makeBridge()
       aa.emit('nav-start')
       emitMessage.mockClear()
@@ -425,17 +426,17 @@ describe('AaEventBridge', () => {
   })
 
   describe('errors', () => {
-    test('AAStack error during open session is logged as warning', () => {
-      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    test('AAStack error during open session is logged as warning', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
       const { aa } = makeBridge()
       aa.emit('error', new Error('transient'))
       expect(warn).toHaveBeenCalled()
       warn.mockRestore()
     })
 
-    test('AAStack error during close is suppressed (debug only)', () => {
-      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
-      const debug = jest.spyOn(console, 'debug').mockImplementation(() => {})
+    test('AAStack error during close is suppressed (debug only)', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
+      const debug = vi.spyOn(console, 'debug').mockImplementation(function () {})
       const { aa } = makeBridge({ isClosed: () => true })
       aa.emit('error', new Error('suppressed'))
       expect(warn).not.toHaveBeenCalled()
@@ -446,7 +447,7 @@ describe('AaEventBridge', () => {
   })
 
   describe('emitPlugged (manual)', () => {
-    test('publicly callable, emits a Plugged message', () => {
+    test('publicly callable, emits a Plugged message', async () => {
       const { bridge, emitMessage } = makeBridge()
       emitMessage.mockClear()
       bridge.emitPlugged()
@@ -454,7 +455,7 @@ describe('AaEventBridge', () => {
     })
   })
 
-  test('verifies DongleReady is the message class for the Open header', () => {
+  test('verifies DongleReady is the message class for the Open header', async () => {
     const { aa, emitMessage } = makeBridge()
     aa.emit('connected')
     const open = emitMessage.mock.calls
@@ -479,22 +480,22 @@ describe('AaEventBridge', () => {
 
   test('watchdog forceReenum throwing is swallowed', async () => {
     const wiredBridge = {
-      forceReenum: jest.fn(async () => {
+      forceReenum: vi.fn(async () => {
         throw new Error('USB hung')
       }),
-      stop: jest.fn(async () => undefined)
+      stop: vi.fn(async () => undefined)
     } as unknown as import('../stack/transport/UsbAoapBridge').UsbAoapBridge
     const { aa } = makeBridge({ consumeWiredBridge: () => wiredBridge })
     aa.emit('disconnected', 'pre-RUNNING watchdog')
     await new Promise((r) => setImmediate(r))
     await new Promise((r) => setImmediate(r))
-    expect((wiredBridge as unknown as { stop: jest.Mock }).stop).toHaveBeenCalled()
+    expect((wiredBridge as unknown as { stop: Mock }).stop).toHaveBeenCalled()
   })
 
   test('watchdog bridge.stop throwing is swallowed', async () => {
     const wiredBridge = {
-      forceReenum: jest.fn(async () => undefined),
-      stop: jest.fn(async () => {
+      forceReenum: vi.fn(async () => undefined),
+      stop: vi.fn(async () => {
         throw new Error('hung')
       })
     } as unknown as import('../stack/transport/UsbAoapBridge').UsbAoapBridge
@@ -502,10 +503,10 @@ describe('AaEventBridge', () => {
     aa.emit('disconnected', 'pre-RUNNING watchdog')
     await new Promise((r) => setImmediate(r))
     await new Promise((r) => setImmediate(r))
-    expect((wiredBridge as unknown as { forceReenum: jest.Mock }).forceReenum).toHaveBeenCalled()
+    expect((wiredBridge as unknown as { forceReenum: Mock }).forceReenum).toHaveBeenCalled()
   })
 
-  test('publishNavi preserves naviApp when already present in the bag', () => {
+  test('publishNavi preserves naviApp when already present in the bag', async () => {
     const { aa, emitMessage } = makeBridge()
     aa.emit('nav-start') // sets naviApp = "Google Maps"
     emitMessage.mockClear()
@@ -515,7 +516,7 @@ describe('AaEventBridge', () => {
     expect(asNavi(meta).navi?.NaviAPPName).toBe('Google Maps')
   })
 
-  test('Unplugged message class on disconnect', () => {
+  test('Unplugged message class on disconnect', async () => {
     const { aa, emitMessage } = makeBridge()
     aa.emit('disconnected')
     const u = emitMessage.mock.calls

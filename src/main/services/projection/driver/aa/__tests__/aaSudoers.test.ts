@@ -2,29 +2,35 @@ import { EventEmitter } from 'node:events'
 
 class MockChild extends EventEmitter {}
 
-const execFileSyncMock = jest.fn()
-const spawnMock = jest.fn()
-const existsSyncMock = jest.fn()
-const writeFileSyncMock = jest.fn()
-const showMessageBoxMock = jest.fn()
+const execFileSyncMock = vi.fn()
+const spawnMock = vi.fn()
+const existsSyncMock = vi.fn()
+const writeFileSyncMock = vi.fn()
+const showMessageBoxMock = vi.fn()
 const lastChild: { instance: MockChild | null } = { instance: null }
 
-jest.mock('node:child_process', () => ({
+vi.mock('node:child_process', () => ({
   execFileSync: (...a: unknown[]) => execFileSyncMock(...a),
   spawn: (...a: unknown[]) => spawnMock(...a)
 }))
 
-jest.mock('node:fs', () => ({
-  existsSync: (...a: unknown[]) => existsSyncMock(...a),
-  writeFileSync: (...a: unknown[]) => writeFileSyncMock(...a)
-}))
+vi.mock('node:fs', () => {
+  const __m = {
+    existsSync: (...a: unknown[]) => existsSyncMock(...a),
+    writeFileSync: (...a: unknown[]) => writeFileSyncMock(...a)
+  }
+  return { ...__m, default: __m }
+})
 
-jest.mock('node:os', () => ({
-  userInfo: () => ({ username: 'tester' })
-}))
+vi.mock('node:os', () => {
+  const __m = {
+    userInfo: () => ({ username: 'tester' })
+  }
+  return { ...__m, default: __m }
+})
 
-jest.mock('electron', () => ({
-  app: { getPath: jest.fn(() => '/tmp/livi-test') },
+vi.mock('electron', () => ({
+  app: { getPath: vi.fn(() => '/tmp/livi-test') },
   BrowserWindow: class {},
   dialog: {
     showMessageBox: (...a: unknown[]) => showMessageBoxMock(...a)
@@ -34,7 +40,7 @@ jest.mock('electron', () => ({
 import type { BrowserWindow } from 'electron'
 import { aaSudoersExists, checkAndInstallAaSudoers } from '../aaSudoers'
 
-beforeEach(() => {
+beforeEach(async () => {
   execFileSyncMock.mockReset()
   spawnMock.mockReset()
   existsSyncMock.mockReset()
@@ -43,17 +49,17 @@ beforeEach(() => {
   lastChild.instance = null
   delete process.env.PKEXEC_UID
   delete process.env.SUDO_USER
-  jest.spyOn(console, 'log').mockImplementation(() => {})
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
-  jest.spyOn(console, 'error').mockImplementation(() => {})
+  vi.spyOn(console, 'log').mockImplementation(function () {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
+  vi.spyOn(console, 'error').mockImplementation(function () {})
 
-  spawnMock.mockImplementation(() => {
+  spawnMock.mockImplementation(function () {
     const c = new MockChild()
     lastChild.instance = c
     return c
   })
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 describe('aaSudoersExists', () => {
   test('true when "sudo -l" output mentions LIVI_AA_BT', () => {
@@ -66,7 +72,7 @@ describe('aaSudoersExists', () => {
     expect(aaSudoersExists()).toBe(true)
   })
 
-  test('false when sudo -l throws and the sentinel file is missing', () => {
+  test('false when sudo -l throws and the sentinel file is missing', async () => {
     execFileSyncMock.mockImplementationOnce(() => {
       throw new Error('no sudo')
     })
@@ -74,7 +80,7 @@ describe('aaSudoersExists', () => {
     expect(aaSudoersExists()).toBe(false)
   })
 
-  test('true when the sentinel file is present', () => {
+  test('true when the sentinel file is present', async () => {
     execFileSyncMock.mockImplementationOnce(() => {
       throw new Error('no sudo')
     })
@@ -82,7 +88,7 @@ describe('aaSudoersExists', () => {
     expect(aaSudoersExists()).toBe(true)
   })
 
-  test('false when existsSync throws', () => {
+  test('false when existsSync throws', async () => {
     execFileSyncMock.mockImplementationOnce(() => {
       throw new Error('no sudo')
     })

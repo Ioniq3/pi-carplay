@@ -16,73 +16,84 @@ import {
 } from '@main/window/utils'
 import { screen } from 'electron'
 import { existsSync, writeFileSync } from 'fs'
+import type { Mock } from 'vitest'
 
-jest.mock('fs', () => ({
-  existsSync: jest.fn(() => false),
-  writeFileSync: jest.fn()
+vi.mock('fs', () => {
+  const __m = {
+    existsSync: vi.fn(() => false),
+    writeFileSync: vi.fn()
+  }
+  return { ...__m, default: __m }
+})
+
+vi.mock('node:child_process', () => ({
+  execFile: vi.fn()
 }))
 
-jest.mock('node:child_process', () => ({
-  execFile: jest.fn()
-}))
+vi.mock('node:os', () => {
+  const __m = {
+    userInfo: vi.fn(function () {
+      return { username: 'fallback-user' }
+    })
+  }
+  return { ...__m, default: __m }
+})
 
-jest.mock('node:os', () => ({
-  userInfo: jest.fn(() => ({ username: 'fallback-user' }))
-}))
-
-jest.mock('electron', () => ({
+vi.mock('electron', () => ({
   screen: {
-    getDisplayMatching: jest.fn(() => ({
-      workAreaSize: { width: 1920, height: 1080 }
-    }))
+    getDisplayMatching: vi.fn(function () {
+      return {
+        workAreaSize: { width: 1920, height: 1080 }
+      }
+    })
   }
 }))
 
-jest.mock('@main/config/paths', () => ({
+vi.mock('@main/config/paths', () => ({
   CONFIG_PATH: '/tmp/config.json'
 }))
 
-jest.mock('@shared/types', () => ({
+vi.mock('@shared/types', () => ({
   DEFAULT_BINDINGS: { play: 'Space' }
 }))
 
-jest.mock('@main/window/createWindow', () => ({
-  getMainWindow: jest.fn()
+vi.mock('@main/window/createWindow', () => ({
+  getMainWindow: vi.fn()
 }))
 
-jest.mock('@main/utils', () => ({
-  applyNullDeletes: jest.fn(),
-  pushSettingsToRenderer: jest.fn(),
-  sizesEqual: jest.fn(() => true)
+vi.mock('@main/utils', () => ({
+  applyNullDeletes: vi.fn(),
+  pushSettingsToRenderer: vi.fn(),
+  sizesEqual: vi.fn(() => true)
 }))
 
-jest.mock('@main/window/utils', () => ({
-  applyAspectRatioFullscreen: jest.fn(),
-  applyAspectRatioWindowed: jest.fn(),
-  applyWindowedContentSize: jest.fn()
+vi.mock('@main/window/utils', () => ({
+  applyAspectRatioFullscreen: vi.fn(),
+  applyAspectRatioWindowed: vi.fn(),
+  applyWindowedContentSize: vi.fn()
 }))
 
-const mockedExistsSync = existsSync as jest.Mock
-const mockedWriteFileSync = writeFileSync as jest.Mock
-const mockedExecFile = execFile as jest.Mock
-const mockedUserInfo = os.userInfo as jest.Mock
-const mockedGetMainWindow = getMainWindow as jest.Mock
-const mockedApplyNullDeletes = applyNullDeletes as jest.Mock
-const mockedPushSettingsToRenderer = pushSettingsToRenderer as jest.Mock
-const mockedSizesEqual = sizesEqual as jest.Mock
-const mockedApplyAspectRatioFullscreen = applyAspectRatioFullscreen as jest.Mock
-const mockedApplyAspectRatioWindowed = applyAspectRatioWindowed as jest.Mock
-const mockedApplyWindowedContentSize = applyWindowedContentSize as jest.Mock
-const mockedGetDisplayMatching = screen.getDisplayMatching as jest.Mock
+const mockedExistsSync = existsSync as Mock
+const mockedWriteFileSync = writeFileSync as Mock
+const mockedExecFile = execFile as Mock
+const mockedUserInfo = os.userInfo as Mock
+const mockedGetMainWindow = getMainWindow as Mock
+const mockedApplyNullDeletes = applyNullDeletes as Mock
+const mockedPushSettingsToRenderer = pushSettingsToRenderer as Mock
+const mockedSizesEqual = sizesEqual as Mock
+const mockedApplyAspectRatioFullscreen = applyAspectRatioFullscreen as Mock
+const mockedApplyAspectRatioWindowed = applyAspectRatioWindowed as Mock
+const mockedApplyWindowedContentSize = applyWindowedContentSize as Mock
+const mockedGetDisplayMatching = screen.getDisplayMatching as Mock
 
 describe('ipc utils', () => {
   const originalPlatform = process.platform
   const originalUser = process.env.USER
   const originalSudoUser = process.env.SUDO_USER
 
-  beforeEach(() => {
-    jest.clearAllMocks()
-    jest.restoreAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    vi.restoreAllMocks()
     configEvents.removeAllListeners('changed')
     mockedExistsSync.mockReturnValue(false)
     mockedSizesEqual.mockReturnValue(true)
@@ -91,14 +102,14 @@ describe('ipc utils', () => {
     process.env.SUDO_USER = originalSudoUser
   })
 
-  afterAll(() => {
+  afterAll(async () => {
     Object.defineProperty(process, 'platform', { value: originalPlatform })
     process.env.USER = originalUser
     process.env.SUDO_USER = originalSudoUser
   })
 
-  test('sendUpdateEvent forwards payload to renderer channel', () => {
-    const send = jest.fn()
+  test('sendUpdateEvent forwards payload to renderer channel', async () => {
+    const send = vi.fn()
     mockedGetMainWindow.mockReturnValue({ webContents: { send } })
 
     sendUpdateEvent({ phase: 'check' } as never)
@@ -106,14 +117,14 @@ describe('ipc utils', () => {
     expect(send).toHaveBeenCalledWith('update:event', { phase: 'check' })
   })
 
-  test('sendUpdateEvent does nothing when no main window exists', () => {
+  test('sendUpdateEvent does nothing when no main window exists', async () => {
     mockedGetMainWindow.mockReturnValue(null)
 
     expect(() => sendUpdateEvent({ phase: 'check' } as never)).not.toThrow()
   })
 
-  test('sendUpdateProgress forwards payload to renderer progress channel', () => {
-    const send = jest.fn()
+  test('sendUpdateProgress forwards payload to renderer progress channel', async () => {
+    const send = vi.fn()
     mockedGetMainWindow.mockReturnValue({ webContents: { send } })
 
     sendUpdateProgress({ phase: 'download', percent: 25 } as never)
@@ -121,7 +132,7 @@ describe('ipc utils', () => {
     expect(send).toHaveBeenCalledWith('update:progress', { phase: 'download', percent: 25 })
   })
 
-  test('sendUpdateProgress does nothing when no main window exists', () => {
+  test('sendUpdateProgress does nothing when no main window exists', async () => {
     mockedGetMainWindow.mockReturnValue(null)
 
     expect(() => sendUpdateProgress({ phase: 'download', percent: 25 } as never)).not.toThrow()
@@ -136,7 +147,7 @@ describe('ipc utils', () => {
   test('getMacDesiredOwner uses stat owner when destination app exists', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
     mockedExistsSync.mockReturnValue(true)
-    mockedExecFile.mockImplementation((cmd, args, cb) => {
+    mockedExecFile.mockImplementation(function (cmd, args, cb) {
       if (cmd === 'stat') cb(null, 'alice:wheel')
     })
 
@@ -149,7 +160,7 @@ describe('ipc utils', () => {
   test('getMacDesiredOwner falls back to stat user with default staff group when group is missing', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
     mockedExistsSync.mockReturnValue(true)
-    mockedExecFile.mockImplementation((cmd, args, cb) => {
+    mockedExecFile.mockImplementation(function (cmd, args, cb) {
       if (cmd === 'stat') cb(null, 'alice')
     })
 
@@ -163,7 +174,7 @@ describe('ipc utils', () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
     process.env.SUDO_USER = 'sudo-user'
     mockedExistsSync.mockReturnValue(true)
-    mockedExecFile.mockImplementation((cmd, args, cb) => {
+    mockedExecFile.mockImplementation(function (cmd, args, cb) {
       if (cmd === 'stat') cb(new Error('stat failed'))
       if (cmd === 'id') cb(null, 'staff admin wheel')
     })
@@ -179,7 +190,7 @@ describe('ipc utils', () => {
     process.env.SUDO_USER = ''
     process.env.USER = 'plain-user'
     mockedExistsSync.mockReturnValue(false)
-    mockedExecFile.mockImplementation((cmd, args, cb) => {
+    mockedExecFile.mockImplementation(function (cmd, args, cb) {
       if (cmd === 'id') cb(new Error('id failed'))
     })
 
@@ -194,7 +205,7 @@ describe('ipc utils', () => {
     process.env.SUDO_USER = ''
     process.env.USER = ''
     mockedExistsSync.mockReturnValue(false)
-    mockedExecFile.mockImplementation((cmd, args, cb) => {
+    mockedExecFile.mockImplementation(function (cmd, args, cb) {
       if (cmd === 'id') cb(new Error('id failed'))
     })
     mockedUserInfo.mockReturnValue({ username: 'os-user' })
@@ -210,7 +221,7 @@ describe('ipc utils', () => {
     process.env.SUDO_USER = ''
     process.env.USER = 'fallback-user'
     mockedExistsSync.mockReturnValue(true)
-    mockedExecFile.mockImplementation((cmd, args, cb) => {
+    mockedExecFile.mockImplementation(function (cmd, args, cb) {
       // stat returns a colon-only string — user part is empty, so if (user) is false
       if (cmd === 'stat') cb(null, ':wheel')
       if (cmd === 'id') cb(null, 'staff wheel')
@@ -226,7 +237,7 @@ describe('ipc utils', () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
     process.env.SUDO_USER = 'sudo-user'
     mockedExistsSync.mockReturnValue(true)
-    mockedExecFile.mockImplementation((cmd, args, cb) => {
+    mockedExecFile.mockImplementation(function (cmd, args, cb) {
       if (cmd === 'stat') cb(new Error('stat failed'))
       // id returns groups without 'admin'
       if (cmd === 'id') cb(null, 'staff wheel dialout')
@@ -238,11 +249,11 @@ describe('ipc utils', () => {
     })
   })
 
-  test('saveSettings merges config and bindings, writes file and updates runtime state', () => {
+  test('saveSettings merges config and bindings, writes file and updates runtime state', async () => {
     mockedGetMainWindow.mockReturnValue(null)
     mockedSizesEqual.mockReturnValue(true)
 
-    const onChanged = jest.fn()
+    const onChanged = vi.fn()
     configEvents.on('changed', onChanged)
 
     const runtimeState = {
@@ -288,9 +299,9 @@ describe('ipc utils', () => {
     )
   })
 
-  test('saveSettings warns when config write fails', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
-    mockedWriteFileSync.mockImplementation(() => {
+  test('saveSettings warns when config write fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
+    mockedWriteFileSync.mockImplementation(function () {
       throw new Error('disk full')
     })
     mockedGetMainWindow.mockReturnValue(null)
@@ -310,12 +321,12 @@ describe('ipc utils', () => {
     expect(mockedPushSettingsToRenderer).toHaveBeenCalledWith(runtimeState)
   })
 
-  test('saveSettings updates zoom factor when window exists', () => {
-    const setZoomFactor = jest.fn()
+  test('saveSettings updates zoom factor when window exists', async () => {
+    const setZoomFactor = vi.fn()
     mockedGetMainWindow.mockReturnValue({
       webContents: { setZoomFactor },
-      isFullScreen: jest.fn(() => false),
-      setFullScreen: jest.fn()
+      isFullScreen: vi.fn(() => false),
+      setFullScreen: vi.fn()
     })
     mockedSizesEqual.mockReturnValue(true)
 
@@ -334,13 +345,13 @@ describe('ipc utils', () => {
     expect(setZoomFactor).toHaveBeenCalledWith(1.25)
   })
 
-  test('saveSettings on mac enters fullscreen kiosk and applies fullscreen sizing when size changed', () => {
+  test('saveSettings on mac enters fullscreen kiosk and applies fullscreen sizing when size changed', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
 
     const mainWindow = {
-      webContents: { setZoomFactor: jest.fn() },
-      isFullScreen: jest.fn(() => false),
-      setFullScreen: jest.fn()
+      webContents: { setZoomFactor: vi.fn() },
+      isFullScreen: vi.fn(() => false),
+      setFullScreen: vi.fn()
     }
     mockedGetMainWindow.mockReturnValue(mainWindow)
     mockedSizesEqual.mockReturnValue(false)
@@ -365,13 +376,13 @@ describe('ipc utils', () => {
     expect(mainWindow.setFullScreen).toHaveBeenCalledWith(true)
   })
 
-  test('saveSettings on mac leaves fullscreen kiosk and reapplies windowed size when size changed', () => {
+  test('saveSettings on mac leaves fullscreen kiosk and reapplies windowed size when size changed', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
 
     const mainWindow = {
-      webContents: { setZoomFactor: jest.fn() },
-      isFullScreen: jest.fn(() => true),
-      setFullScreen: jest.fn()
+      webContents: { setZoomFactor: vi.fn() },
+      isFullScreen: vi.fn(() => true),
+      setFullScreen: vi.fn()
     }
     mockedGetMainWindow.mockReturnValue(mainWindow)
     mockedSizesEqual.mockReturnValue(false)
@@ -395,13 +406,13 @@ describe('ipc utils', () => {
     expect(mockedApplyWindowedContentSize).toHaveBeenCalledWith(mainWindow, 800, 480)
   })
 
-  test('saveSettings on mac updates fullscreen sizing when kiosk is unchanged and size changes', () => {
+  test('saveSettings on mac updates fullscreen sizing when kiosk is unchanged and size changes', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
 
     const mainWindow = {
-      webContents: { setZoomFactor: jest.fn() },
-      isFullScreen: jest.fn(() => true),
-      setFullScreen: jest.fn()
+      webContents: { setZoomFactor: vi.fn() },
+      isFullScreen: vi.fn(() => true),
+      setFullScreen: vi.fn()
     }
     mockedGetMainWindow.mockReturnValue(mainWindow)
     mockedSizesEqual.mockReturnValue(false)
@@ -422,13 +433,13 @@ describe('ipc utils', () => {
     expect(mainWindow.setFullScreen).not.toHaveBeenCalled()
   })
 
-  test('saveSettings on mac updates windowed sizing when kiosk is unchanged and size changes in windowed mode', () => {
+  test('saveSettings on mac updates windowed sizing when kiosk is unchanged and size changes in windowed mode', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
 
     const mainWindow = {
-      webContents: { setZoomFactor: jest.fn() },
-      isFullScreen: jest.fn(() => false),
-      setFullScreen: jest.fn()
+      webContents: { setZoomFactor: vi.fn() },
+      isFullScreen: vi.fn(() => false),
+      setFullScreen: vi.fn()
     }
     mockedGetMainWindow.mockReturnValue(mainWindow)
     mockedSizesEqual.mockReturnValue(false)
@@ -448,14 +459,16 @@ describe('ipc utils', () => {
     expect(mockedApplyAspectRatioFullscreen).not.toHaveBeenCalled()
   })
 
-  test('saveSettings on linux entering kiosk removes aspect ratio constraints and sizes to work area', () => {
+  test('saveSettings on linux entering kiosk removes aspect ratio constraints and sizes to work area', async () => {
     Object.defineProperty(process, 'platform', { value: 'linux' })
 
     const mainWindow = {
-      webContents: { setZoomFactor: jest.fn() },
-      setKiosk: jest.fn(),
-      getBounds: jest.fn(() => ({ x: 0, y: 0, width: 800, height: 480 })),
-      setContentSize: jest.fn()
+      webContents: { setZoomFactor: vi.fn() },
+      setKiosk: vi.fn(),
+      getBounds: vi.fn(function () {
+        return { x: 0, y: 0, width: 800, height: 480 }
+      }),
+      setContentSize: vi.fn()
     }
     mockedGetMainWindow.mockReturnValue(mainWindow)
     mockedSizesEqual.mockReturnValue(true)
@@ -479,16 +492,16 @@ describe('ipc utils', () => {
     expect(mainWindow.setContentSize).toHaveBeenCalledWith(1600, 900)
   })
 
-  test('saveSettings on linux leaving kiosk reapplies windowed size on resize and immediate tick', () => {
+  test('saveSettings on linux leaving kiosk reapplies windowed size on resize and immediate tick', async () => {
     Object.defineProperty(process, 'platform', { value: 'linux' })
 
-    const on = jest.fn()
-    const removeListener = jest.fn()
-    const isDestroyed = jest.fn(() => false)
+    const on = vi.fn()
+    const removeListener = vi.fn()
+    const isDestroyed = vi.fn(() => false)
 
     const mainWindow = {
-      webContents: { setZoomFactor: jest.fn() },
-      setKiosk: jest.fn(),
+      webContents: { setZoomFactor: vi.fn() },
+      setKiosk: vi.fn(),
       on,
       removeListener,
       isDestroyed
@@ -496,13 +509,12 @@ describe('ipc utils', () => {
     mockedGetMainWindow.mockReturnValue(mainWindow)
     mockedSizesEqual.mockReturnValue(true)
 
-    const immediateSpy = jest.spyOn(global, 'setImmediate').mockImplementation(((
+    const immediateSpy = vi.spyOn(global, 'setImmediate').mockImplementation(((
       fn: (...args: unknown[]) => void
     ) => {
       fn()
       return {} as NodeJS.Immediate
     }) as typeof setImmediate)
-
     const runtimeState = {
       config: {
         mainScreenWidth: 1280,
@@ -531,24 +543,23 @@ describe('ipc utils', () => {
     expect(mockedApplyWindowedContentSize).toHaveBeenCalledWith(mainWindow, 800, 480)
   })
 
-  test('saveSettings on linux skips immediate resize apply when window is destroyed', () => {
+  test('saveSettings on linux skips immediate resize apply when window is destroyed', async () => {
     Object.defineProperty(process, 'platform', { value: 'linux' })
 
     const mainWindow = {
-      webContents: { setZoomFactor: jest.fn() },
-      setKiosk: jest.fn(),
-      on: jest.fn(),
-      removeListener: jest.fn(),
-      isDestroyed: jest.fn(() => true)
+      webContents: { setZoomFactor: vi.fn() },
+      setKiosk: vi.fn(),
+      on: vi.fn(),
+      removeListener: vi.fn(),
+      isDestroyed: vi.fn(() => true)
     }
     mockedGetMainWindow.mockReturnValue(mainWindow)
     mockedSizesEqual.mockReturnValue(true)
 
-    jest.spyOn(global, 'setImmediate').mockImplementation(((fn: (...args: unknown[]) => void) => {
+    vi.spyOn(global, 'setImmediate').mockImplementation(((fn: (...args: unknown[]) => void) => {
       fn()
       return {} as NodeJS.Immediate
     }) as typeof setImmediate)
-
     const runtimeState = {
       config: {
         mainScreenWidth: 1280,
@@ -567,12 +578,12 @@ describe('ipc utils', () => {
     expect(mockedApplyWindowedContentSize).not.toHaveBeenCalled()
   })
 
-  test('saveSettings on linux applies windowed size when only size changes outside kiosk', () => {
+  test('saveSettings on linux applies windowed size when only size changes outside kiosk', async () => {
     Object.defineProperty(process, 'platform', { value: 'linux' })
 
     const mainWindow = {
-      webContents: { setZoomFactor: jest.fn() },
-      setKiosk: jest.fn()
+      webContents: { setZoomFactor: vi.fn() },
+      setKiosk: vi.fn()
     }
     mockedGetMainWindow.mockReturnValue(mainWindow)
     mockedSizesEqual.mockReturnValue(false)
@@ -591,13 +602,13 @@ describe('ipc utils', () => {
     expect(mockedApplyWindowedContentSize).toHaveBeenCalledWith(mainWindow, 1024, 600)
   })
 
-  test('saveSettings on mac enters fullscreen kiosk without size change', () => {
+  test('saveSettings on mac enters fullscreen kiosk without size change', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
 
     const mainWindow = {
-      webContents: { setZoomFactor: jest.fn() },
-      isFullScreen: jest.fn(() => false),
-      setFullScreen: jest.fn()
+      webContents: { setZoomFactor: vi.fn() },
+      isFullScreen: vi.fn(() => false),
+      setFullScreen: vi.fn()
     }
     mockedGetMainWindow.mockReturnValue(mainWindow)
     mockedSizesEqual.mockReturnValue(true)
@@ -618,13 +629,13 @@ describe('ipc utils', () => {
     expect(mockedApplyAspectRatioFullscreen).not.toHaveBeenCalled()
   })
 
-  test('saveSettings on mac leaves fullscreen kiosk without size change', () => {
+  test('saveSettings on mac leaves fullscreen kiosk without size change', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' })
 
     const mainWindow = {
-      webContents: { setZoomFactor: jest.fn() },
-      isFullScreen: jest.fn(() => true),
-      setFullScreen: jest.fn()
+      webContents: { setZoomFactor: vi.fn() },
+      isFullScreen: vi.fn(() => true),
+      setFullScreen: vi.fn()
     }
     mockedGetMainWindow.mockReturnValue(mainWindow)
     mockedSizesEqual.mockReturnValue(true)
@@ -644,12 +655,12 @@ describe('ipc utils', () => {
     expect(mockedApplyWindowedContentSize).not.toHaveBeenCalled()
   })
 
-  test('saveSettings on linux does not apply windowed size when size changes in kiosk mode', () => {
+  test('saveSettings on linux does not apply windowed size when size changes in kiosk mode', async () => {
     Object.defineProperty(process, 'platform', { value: 'linux' })
 
     const mainWindow = {
-      webContents: { setZoomFactor: jest.fn() },
-      setKiosk: jest.fn()
+      webContents: { setZoomFactor: vi.fn() },
+      setKiosk: vi.fn()
     }
     mockedGetMainWindow.mockReturnValue(mainWindow)
     mockedSizesEqual.mockReturnValue(false)

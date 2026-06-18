@@ -1,12 +1,12 @@
 import { EventEmitter } from 'node:events'
 
 class MockSocket extends EventEmitter {
-  write = jest.fn()
-  destroy = jest.fn()
+  write = vi.fn()
+  destroy = vi.fn()
 }
 
-const createConnection = jest.fn()
-jest.mock('net', () => ({
+const createConnection = vi.fn()
+vi.mock('net', () => ({
   __esModule: true,
   createConnection: (...a: unknown[]) => createConnection(...a)
 }))
@@ -17,13 +17,15 @@ function nextSocket(): MockSocket {
   return createConnection.mock.results[createConnection.mock.results.length - 1].value as MockSocket
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   createConnection.mockReset()
-  createConnection.mockImplementation(() => new MockSocket())
-  jest.spyOn(console, 'log').mockImplementation(() => {})
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
+  createConnection.mockImplementation(function () {
+    return new MockSocket()
+  })
+  vi.spyOn(console, 'log').mockImplementation(function () {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 describe('triggerRfcommRetrigger', () => {
   test('writes "R" on connect and resolves true on "OK" reply', async () => {
@@ -61,11 +63,11 @@ describe('triggerRfcommRetrigger', () => {
   })
 
   test('resolves false on timeout', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     const p = triggerRfcommRetrigger()
     nextSocket()
-    jest.advanceTimersByTime(3_500)
+    vi.advanceTimersByTime(3_500)
     expect(await p).toBe(false)
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 })

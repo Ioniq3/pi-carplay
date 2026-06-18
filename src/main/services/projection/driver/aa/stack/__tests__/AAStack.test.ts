@@ -1,65 +1,74 @@
 import { EventEmitter } from 'node:events'
+import type { Mock } from 'vitest'
 
 class MockSession extends EventEmitter {
-  sendTouch = jest.fn()
-  sendButton = jest.fn()
-  sendRotary = jest.fn()
-  sendFuelData = jest.fn()
-  sendSpeedData = jest.fn()
-  sendRpmData = jest.fn()
-  sendGearData = jest.fn()
-  sendNightModeData = jest.fn()
-  sendParkingBrakeData = jest.fn()
-  sendLightData = jest.fn()
-  sendEnvironmentData = jest.fn()
-  sendOdometerData = jest.fn()
-  sendDrivingStatusData = jest.fn()
-  sendGpsLocationData = jest.fn()
-  sendVehicleEnergyModel = jest.fn()
-  sendMicPcm = jest.fn()
-  requestVideoFocus = jest.fn()
-  requestClusterKeyframe = jest.fn()
-  setClusterStreamActive = jest.fn()
-  requestShutdown = jest.fn(async () => undefined)
-  start = jest.fn(async () => undefined)
-  close = jest.fn()
+  sendTouch = vi.fn()
+  sendButton = vi.fn()
+  sendRotary = vi.fn()
+  sendFuelData = vi.fn()
+  sendSpeedData = vi.fn()
+  sendRpmData = vi.fn()
+  sendGearData = vi.fn()
+  sendNightModeData = vi.fn()
+  sendParkingBrakeData = vi.fn()
+  sendLightData = vi.fn()
+  sendEnvironmentData = vi.fn()
+  sendOdometerData = vi.fn()
+  sendDrivingStatusData = vi.fn()
+  sendGpsLocationData = vi.fn()
+  sendVehicleEnergyModel = vi.fn()
+  sendMicPcm = vi.fn()
+  requestVideoFocus = vi.fn()
+  requestClusterKeyframe = vi.fn()
+  setClusterStreamActive = vi.fn()
+  requestShutdown = vi.fn(async () => undefined)
+  start = vi.fn(async () => undefined)
+  close = vi.fn()
 }
 
 class MockTcpServer extends EventEmitter {
-  listen = jest.fn()
-  close = jest.fn()
+  listen = vi.fn()
+  close = vi.fn()
 }
 
-jest.mock('../session/Session', () => ({
-  Session: jest.fn().mockImplementation(() => new MockSession())
+vi.mock('../session/Session', () => ({
+  Session: vi.fn().mockImplementation(function () {
+    return new MockSession()
+  })
 }))
 
-jest.mock('../transport/TcpServer', () => ({
-  TcpServer: jest.fn().mockImplementation(() => new MockTcpServer())
+vi.mock('../transport/TcpServer', () => ({
+  TcpServer: vi.fn().mockImplementation(function () {
+    return new MockTcpServer()
+  })
 }))
 
-jest.mock('../system/hwaddr', () => ({
-  detectBtMac: jest.fn(() => 'AA:BB:CC:DD:EE:FF'),
-  detectWifiBssid: jest.fn(() => '11:22:33:44:55:66')
+vi.mock('../system/hwaddr', () => ({
+  detectBtMac: vi.fn(() => 'AA:BB:CC:DD:EE:FF'),
+  detectWifiBssid: vi.fn(() => '11:22:33:44:55:66')
 }))
 
 import type * as net from 'node:net'
 import { AAStack, type AAStackConfig } from '../index'
 
-beforeEach(() => {
-  jest.spyOn(console, 'log').mockImplementation(() => {})
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
-  jest.spyOn(console, 'error').mockImplementation(() => {})
-  ;(jest.requireMock('../session/Session') as { Session: jest.Mock }).Session.mockReset()
-  ;(jest.requireMock('../session/Session') as { Session: jest.Mock }).Session.mockImplementation(
-    () => new MockSession()
+beforeEach(async () => {
+  vi.spyOn(console, 'log').mockImplementation(function () {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
+  vi.spyOn(console, 'error').mockImplementation(function () {})
+  ;((await vi.importMock('../session/Session')) as { Session: Mock }).Session.mockReset()
+  ;((await vi.importMock('../session/Session')) as { Session: Mock }).Session.mockImplementation(
+    function () {
+      return new MockSession()
+    }
   )
-  ;(jest.requireMock('../transport/TcpServer') as { TcpServer: jest.Mock }).TcpServer.mockReset()
+  ;((await vi.importMock('../transport/TcpServer')) as { TcpServer: Mock }).TcpServer.mockReset()
   ;(
-    jest.requireMock('../transport/TcpServer') as { TcpServer: jest.Mock }
-  ).TcpServer.mockImplementation(() => new MockTcpServer())
+    (await vi.importMock('../transport/TcpServer')) as { TcpServer: Mock }
+  ).TcpServer.mockImplementation(function () {
+    return new MockTcpServer()
+  })
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 function baseCfg(over: Partial<AAStackConfig> = {}): AAStackConfig {
   return {
@@ -82,14 +91,14 @@ function setup() {
 }
 
 describe('AAStack — construction', () => {
-  test('auto-detects btMacAddress + wifiBssid when missing', () => {
+  test('auto-detects btMacAddress + wifiBssid when missing', async () => {
     const cfg = baseCfg()
     new AAStack(cfg)
     expect(cfg.btMacAddress).toBe('AA:BB:CC:DD:EE:FF')
     expect(cfg.wifiBssid).toBe('11:22:33:44:55:66')
   })
 
-  test('skips auto-detection when provided', () => {
+  test('skips auto-detection when provided', async () => {
     const cfg = baseCfg({ btMacAddress: 'preset', wifiBssid: 'wlan-mac' })
     new AAStack(cfg)
     expect(cfg.btMacAddress).toBe('preset')
@@ -98,30 +107,30 @@ describe('AAStack — construction', () => {
 })
 
 describe('AAStack — lifecycle', () => {
-  test('start() listens on the configured port', () => {
+  test('start() listens on the configured port', async () => {
     const stack = new AAStack(baseCfg({ port: 5277 }))
     const server = (stack as unknown as { _server: MockTcpServer })._server
     stack.start()
     expect(server.listen).toHaveBeenCalledWith(5277)
   })
 
-  test('stop() closes the active session and the server', () => {
+  test('stop() closes the active session and the server', async () => {
     const { stack, server, session } = setup()
     stack.stop()
     expect(session.close).toHaveBeenCalled()
     expect(server.close).toHaveBeenCalled()
   })
 
-  test('stop() without an active session still closes the server', () => {
+  test('stop() without an active session still closes the server', async () => {
     const stack = new AAStack(baseCfg())
     const server = (stack as unknown as { _server: MockTcpServer })._server
     stack.stop()
     expect(server.close).toHaveBeenCalled()
   })
 
-  test('session.close throwing is swallowed during stop()', () => {
+  test('session.close throwing is swallowed during stop()', async () => {
     const { stack, session } = setup()
-    session.close.mockImplementation(() => {
+    session.close.mockImplementation(function () {
       throw new Error('already closed')
     })
     expect(() => stack.stop()).not.toThrow()
@@ -129,7 +138,7 @@ describe('AAStack — lifecycle', () => {
 })
 
 describe('AAStack — event forwarding', () => {
-  test('forwards video / audio / nav events from the active session', () => {
+  test('forwards video / audio / nav events from the active session', async () => {
     const { session, stack } = setup()
     const events: string[] = []
     const expected = [
@@ -163,7 +172,7 @@ describe('AAStack — event forwarding', () => {
 
   test('session "error" is forwarded', () => {
     const { session, stack } = setup()
-    const onError = jest.fn()
+    const onError = vi.fn()
     stack.on('error', onError)
     session.emit('error', new Error('x'))
     expect(onError).toHaveBeenCalled()
@@ -172,7 +181,7 @@ describe('AAStack — event forwarding', () => {
   test('server "error" is forwarded', () => {
     const stack = new AAStack(baseCfg())
     const server = (stack as unknown as { _server: MockTcpServer })._server
-    const onError = jest.fn()
+    const onError = vi.fn()
     stack.on('error', onError)
     server.emit('error', new Error('eaddrinuse'))
     expect(onError).toHaveBeenCalled()
@@ -180,7 +189,7 @@ describe('AAStack — event forwarding', () => {
 })
 
 describe('AAStack — outbound API delegates to active session', () => {
-  test('without an active session, calls are silently dropped', () => {
+  test('without an active session, calls are silently dropped', async () => {
     const stack = new AAStack(baseCfg())
     expect(() => {
       stack.sendTouch(0, [{ x: 0, y: 0, id: 0 }])
@@ -249,21 +258,21 @@ describe('AAStack — outbound API delegates to active session', () => {
 })
 
 describe('AAStack.attachSocket', () => {
-  test('constructs a Session and starts it', () => {
+  test('constructs a Session and starts it', async () => {
     const stack = new AAStack(baseCfg())
-    const sock = { setNoDelay: jest.fn() } as unknown as net.Socket
+    const sock = { setNoDelay: vi.fn() } as unknown as net.Socket
     const session = stack.attachSocket(sock)
-    expect((sock as unknown as { setNoDelay: jest.Mock }).setNoDelay).toHaveBeenCalledWith(true)
+    expect((sock as unknown as { setNoDelay: Mock }).setNoDelay).toHaveBeenCalledWith(true)
     expect(session).toBeDefined()
     expect((session as unknown as MockSession).start).toHaveBeenCalled()
   })
 
   test('attachSocket session "error" + "disconnected" are logged with the loopback tag', () => {
-    const errLog = jest.spyOn(console, 'error').mockImplementation(() => {})
-    const log = jest.spyOn(console, 'log').mockImplementation(() => {})
+    const errLog = vi.spyOn(console, 'error').mockImplementation(function () {})
+    const log = vi.spyOn(console, 'log').mockImplementation(function () {})
     const stack = new AAStack(baseCfg())
     stack.on('error', () => {})
-    const sock = { setNoDelay: jest.fn() } as unknown as net.Socket
+    const sock = { setNoDelay: vi.fn() } as unknown as net.Socket
     const session = stack.attachSocket(sock) as unknown as MockSession
     session.emit('error', new Error('reset'))
     session.emit('disconnected', 'phone closed')
@@ -275,27 +284,27 @@ describe('AAStack.attachSocket', () => {
   })
 
   test('attachSocket session.start rejecting is caught and logged', async () => {
-    const errLog = jest.spyOn(console, 'error').mockImplementation(() => {})
-    const { Session } = jest.requireMock('../session/Session') as { Session: jest.Mock }
-    Session.mockImplementationOnce(() => {
+    const errLog = vi.spyOn(console, 'error').mockImplementation(function () {})
+    const { Session } = (await vi.importMock('../session/Session')) as { Session: Mock }
+    Session.mockImplementationOnce(function () {
       const s = new MockSession()
-      s.start = jest.fn(async () => {
+      s.start = vi.fn(async () => {
         throw new Error('TLS rejected')
       })
       return s
     })
     const stack = new AAStack(baseCfg())
-    const sock = { setNoDelay: jest.fn() } as unknown as net.Socket
+    const sock = { setNoDelay: vi.fn() } as unknown as net.Socket
     stack.attachSocket(sock)
     await new Promise((r) => setImmediate(r))
     expect(errLog).toHaveBeenCalledWith(expect.stringContaining('start error'), 'TLS rejected')
     errLog.mockRestore()
   })
 
-  test('attachSocket session.disconnected with no reason yields empty-string log', () => {
-    const log = jest.spyOn(console, 'log').mockImplementation(() => {})
+  test('attachSocket session.disconnected with no reason yields empty-string log', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(function () {})
     const stack = new AAStack(baseCfg())
-    const sock = { setNoDelay: jest.fn() } as unknown as net.Socket
+    const sock = { setNoDelay: vi.fn() } as unknown as net.Socket
     const session = stack.attachSocket(sock) as unknown as MockSession
     session.emit('disconnected', undefined)
     expect(log).toHaveBeenCalled()

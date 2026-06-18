@@ -1,31 +1,32 @@
 import { EventEmitter } from 'node:events'
+import type { Mock } from 'vitest'
 
 class MockNetSocket extends EventEmitter {
   remoteAddress = '127.0.0.1'
   remotePort = 12345
-  setNoDelay = jest.fn()
-  setTimeout = jest.fn()
+  setNoDelay = vi.fn()
+  setTimeout = vi.fn()
 }
 
 class MockServer extends EventEmitter {
-  listen = jest.fn((_port: number, _addr: string, cb: () => void) => cb())
-  close = jest.fn()
+  listen = vi.fn((_port: number, _addr: string, cb: () => void) => cb())
+  close = vi.fn()
 }
 
-const createServerMock = jest.fn()
-jest.mock('net', () => ({
+const createServerMock = vi.fn()
+vi.mock('net', () => ({
   __esModule: true,
   createServer: (...args: unknown[]) => createServerMock(...args)
 }))
 
 class MockSession extends EventEmitter {
-  start = jest.fn(async () => undefined)
-  close = jest.fn()
+  start = vi.fn(async () => undefined)
+  close = vi.fn()
 }
 
-const sessionCtor = jest.fn()
-jest.mock('../../session/Session', () => ({
-  Session: jest.fn().mockImplementation((sock: unknown, cfg: unknown) => {
+const sessionCtor = vi.fn()
+vi.mock('../../session/Session', () => ({
+  Session: vi.fn().mockImplementation(function (sock: unknown, cfg: unknown) {
     sessionCtor(sock, cfg)
     return new MockSession()
   })
@@ -33,16 +34,16 @@ jest.mock('../../session/Session', () => ({
 
 import { TcpServer } from '../TcpServer'
 
-beforeEach(() => {
+beforeEach(async () => {
   createServerMock.mockReset()
   sessionCtor.mockReset()
-  jest.spyOn(console, 'log').mockImplementation(() => {})
-  jest.spyOn(console, 'error').mockImplementation(() => {})
+  vi.spyOn(console, 'log').mockImplementation(function () {})
+  vi.spyOn(console, 'error').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 describe('TcpServer', () => {
-  test('listen() opens a net.createServer on the supplied port', () => {
+  test('listen() opens a net.createServer on the supplied port', async () => {
     let handler: ((s: unknown) => void) | null = null
     const srv = new MockServer()
     createServerMock.mockImplementationOnce((_opts: unknown, h: (s: unknown) => void) => {
@@ -65,7 +66,7 @@ describe('TcpServer', () => {
     })
 
     const tcp = new TcpServer({} as never)
-    const sessionCb = jest.fn()
+    const sessionCb = vi.fn()
     tcp.on('session', sessionCb)
     tcp.listen()
 
@@ -76,7 +77,7 @@ describe('TcpServer', () => {
     expect(sessionCb).toHaveBeenCalled()
   })
 
-  test('close() closes the server', () => {
+  test('close() closes the server', async () => {
     const srv = new MockServer()
     createServerMock.mockImplementationOnce(() => srv)
     const tcp = new TcpServer({} as never)
@@ -85,9 +86,9 @@ describe('TcpServer', () => {
     expect(srv.close).toHaveBeenCalled()
   })
 
-  test('session error/disconnected events are logged with the remote address', () => {
-    const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {})
-    const log = jest.spyOn(console, 'log').mockImplementation(() => {})
+  test('session error/disconnected events are logged with the remote address', async () => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(function () {})
+    const log = vi.spyOn(console, 'log').mockImplementation(function () {})
 
     let connHandler: ((s: MockNetSocket) => void) | null = null
     const srv = new MockServer()
@@ -100,7 +101,7 @@ describe('TcpServer', () => {
     tcp.listen()
     const sock = new MockNetSocket()
     connHandler!(sock)
-    const session = (jest.requireMock('../../session/Session') as { Session: jest.Mock }).Session
+    const session = ((await vi.importMock('../../session/Session')) as { Session: Mock }).Session
       .mock.results[0].value as MockSession
     session.emit('error', new Error('reset'))
     session.emit('disconnected', 'phone closed')
@@ -113,11 +114,11 @@ describe('TcpServer', () => {
   })
 
   test('session.start rejection is logged but never throws out of the listener', async () => {
-    const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {})
-    const { Session } = jest.requireMock('../../session/Session') as { Session: jest.Mock }
-    Session.mockImplementationOnce(() => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(function () {})
+    const { Session } = (await vi.importMock('../../session/Session')) as { Session: Mock }
+    Session.mockImplementationOnce(function () {
       const s = new MockSession()
-      s.start = jest.fn(async () => {
+      s.start = vi.fn(async () => {
         throw new Error('TLS broken')
       })
       return s
@@ -145,7 +146,7 @@ describe('TcpServer', () => {
     const srv = new MockServer()
     createServerMock.mockImplementationOnce(() => srv)
     const tcp = new TcpServer({} as never)
-    const onError = jest.fn()
+    const onError = vi.fn()
     tcp.on('error', onError)
     tcp.listen()
     srv.emit('error', new Error('eaddrinuse'))

@@ -1,17 +1,21 @@
 import { loadConfig } from '@main/config/loadConfig'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
+import type { Mock } from 'vitest'
 
-jest.mock('fs', () => ({
-  existsSync: jest.fn(),
-  readFileSync: jest.fn(),
-  writeFileSync: jest.fn()
-}))
+vi.mock('fs', () => {
+  const __m = {
+    existsSync: vi.fn(),
+    readFileSync: vi.fn(),
+    writeFileSync: vi.fn()
+  }
+  return { ...__m, default: __m }
+})
 
-jest.mock('@main/config/paths', () => ({
+vi.mock('@main/config/paths', () => ({
   CONFIG_PATH: '/tmp/config.json'
 }))
 
-jest.mock('@shared/types', () => ({
+vi.mock('@shared/types', () => ({
   DEFAULT_CONFIG: {
     width: 800,
     height: 480,
@@ -22,11 +26,11 @@ jest.mock('@shared/types', () => ({
 
 describe('loadConfig', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   test('returns defaults and writes config when file does not exist', () => {
-    ;(existsSync as jest.Mock).mockReturnValue(false)
+    ;(existsSync as Mock).mockReturnValue(false)
 
     const result = loadConfig()
 
@@ -35,8 +39,8 @@ describe('loadConfig', () => {
   })
 
   test('reads and returns merged config from file', () => {
-    ;(existsSync as jest.Mock).mockReturnValue(true)
-    ;(readFileSync as jest.Mock).mockReturnValue(
+    ;(existsSync as Mock).mockReturnValue(true)
+    ;(readFileSync as Mock).mockReturnValue(
       JSON.stringify({ width: 1024, height: 600, kiosk: false, bindings: {} })
     )
 
@@ -48,10 +52,10 @@ describe('loadConfig', () => {
   })
 
   test('falls back to defaults and rewrites file when json is invalid', () => {
-    ;(existsSync as jest.Mock).mockReturnValue(true)
-    ;(readFileSync as jest.Mock).mockReturnValue('{bad-json')
+    ;(existsSync as Mock).mockReturnValue(true)
+    ;(readFileSync as Mock).mockReturnValue('{bad-json')
 
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
     const result = loadConfig()
 

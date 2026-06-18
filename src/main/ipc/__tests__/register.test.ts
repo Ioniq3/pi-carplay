@@ -1,32 +1,33 @@
 import { registerIpcHandle, registerIpcOn } from '@main/ipc/register'
 import { ipcMain } from 'electron'
+import type { Mock } from 'vitest'
 
 describe('register IPC helpers', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   test('registerIpcHandle replaces previous handler before registering a new one', () => {
-    const handler = jest.fn()
+    const handler = vi.fn()
 
     registerIpcHandle('test:handle', handler)
 
     expect(ipcMain.removeHandler).toHaveBeenCalledWith('test:handle')
     expect(ipcMain.handle).toHaveBeenCalledWith('test:handle', handler)
-    expect((ipcMain.removeHandler as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
-      (ipcMain.handle as jest.Mock).mock.invocationCallOrder[0]
+    expect((ipcMain.removeHandler as Mock).mock.invocationCallOrder[0]).toBeLessThan(
+      (ipcMain.handle as Mock).mock.invocationCallOrder[0]
     )
   })
 
   test('registerIpcOn replaces previous listeners before registering a new one', () => {
-    const listener = jest.fn()
+    const listener = vi.fn()
 
     registerIpcOn('test:on', listener)
 
     expect(ipcMain.removeAllListeners).toHaveBeenCalledWith('test:on')
     expect(ipcMain.on).toHaveBeenCalledWith('test:on', listener)
-    expect((ipcMain.removeAllListeners as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
-      (ipcMain.on as jest.Mock).mock.invocationCallOrder[0]
+    expect((ipcMain.removeAllListeners as Mock).mock.invocationCallOrder[0]).toBeLessThan(
+      (ipcMain.on as Mock).mock.invocationCallOrder[0]
     )
   })
 })

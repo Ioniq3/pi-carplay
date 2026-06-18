@@ -1,40 +1,16 @@
-import fs from 'node:fs'
-import path from 'node:path'
+const modules = import.meta.glob('../**/*.ts')
 
-function collectTsFiles(dir: string): string[] {
-  const out: string[] = []
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const fullPath = path.join(dir, entry.name)
-    if (entry.isDirectory()) {
-      out.push(...collectTsFiles(fullPath))
-      continue
-    }
-    if (fullPath.endsWith('.ts') && !fullPath.endsWith('.d.ts') && !fullPath.endsWith('.test.ts')) {
-      out.push(fullPath)
-    }
-  }
-  return out
-}
+const entries = Object.entries(modules).filter(
+  ([p]) =>
+    !p.includes('/__tests__/') &&
+    !p.endsWith('.test.ts') &&
+    !p.endsWith('.d.ts') &&
+    p !== '../index.ts' &&
+    p !== '../services/usb/USBWorker.ts'
+)
 
 describe('main module smoke imports', () => {
-  const mainRoot = path.resolve(__dirname, '..')
-  const projectRoot = path.resolve(mainRoot, '../..')
-  const excluded = new Set([
-    path.resolve(mainRoot, 'index.ts'),
-    path.resolve(mainRoot, 'services/usb/USBWorker.ts')
-  ])
-
-  const files = collectTsFiles(mainRoot)
-    .filter((file) => !excluded.has(file))
-    .sort((a, b) => a.localeCompare(b))
-
-  test.each(
-    files.map((file) => [path.relative(projectRoot, file), file])
-  )('imports %s', (_label, filePath) => {
-    expect(() => {
-      jest.isolateModules(() => {
-        require(filePath)
-      })
-    }).not.toThrow()
+  test.each(entries)('imports %s', async (_modulePath, load) => {
+    await expect((load as () => Promise<unknown>)()).resolves.toBeDefined()
   })
 })

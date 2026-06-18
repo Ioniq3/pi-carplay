@@ -81,7 +81,7 @@ const createBoxSettingsPayload = () => {
 
 describe('projection messages common', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
     setProjectionyMessageTap(null)
   })
 
@@ -186,7 +186,7 @@ describe('projection messages common', () => {
   })
 
   test('toMessage returns null and warns for unknown type without payload', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
 
     const message = new MessageHeader(0, 0xdead as MessageType).toMessage()
 
@@ -218,7 +218,7 @@ describe('projection messages common', () => {
   })
 
   test('toMessage returns null and warns for unknown type with binary payload', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const header = new MessageHeader(4, 0xbeef as MessageType)
     const data = Buffer.from([0xde, 0xad, 0xbe, 0xef])
 
@@ -231,7 +231,7 @@ describe('projection messages common', () => {
   })
 
   test('toMessage also logs trimmed utf8 text for unknown text payloads', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const header = new MessageHeader(6, 0xbeef as MessageType)
     const data = Buffer.from('hello\0\0', 'utf8')
 
@@ -245,7 +245,7 @@ describe('projection messages common', () => {
   })
 
   test('projection message tap receives payload metadata', () => {
-    const tap = jest.fn()
+    const tap = vi.fn()
     setProjectionyMessageTap(tap)
 
     const data = createVideoPayload()
@@ -263,7 +263,7 @@ describe('projection messages common', () => {
   })
 
   test('projection message tap errors are swallowed', () => {
-    const tap = jest.fn(() => {
+    const tap = vi.fn(function () {
       throw new Error('boom')
     })
     setProjectionyMessageTap(tap)
@@ -280,7 +280,7 @@ describe('projection messages common', () => {
   })
 
   test('toMessage does not log utf8 text for unknown payloads with empty trimmed text', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const header = new MessageHeader(4, 0xbeef as MessageType)
     const data = Buffer.from('\0\0\0\0', 'utf8')
 

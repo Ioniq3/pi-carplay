@@ -31,23 +31,23 @@ import {
 } from '@main/services/projection/messages/sendable'
 import { CommandMapping, MicType, PhoneWorkMode } from '@shared/types'
 
-jest.mock('@main/helpers/vendorSessionInfo', () => ({
-  decryptVendorSessionText: jest.fn(async () => 'decrypted-session')
+vi.mock('@main/helpers/vendorSessionInfo', () => ({
+  decryptVendorSessionText: vi.fn(async () => 'decrypted-session')
 }))
 
 describe('DongleDriver core behavior', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-    jest.useFakeTimers()
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
   })
 
-  afterEach(() => {
-    jest.useRealTimers()
+  afterEach(async () => {
+    vi.useRealTimers()
   })
 
-  test('emitDongleInfoIfChanged emits only when payload key changes', () => {
+  test('emitDongleInfoIfChanged emits only when payload key changes', async () => {
     const d = new DongleDriver() as any
-    const onInfo = jest.fn()
+    const onInfo = vi.fn()
     d.on('dongle-info', onInfo)
 
     d._dongleFwVersion = '1.0.0'
@@ -65,12 +65,12 @@ describe('DongleDriver core behavior', () => {
 
   test('scheduleWifiConnect debounces timers and sends wifiConnect command once', async () => {
     const d = new DongleDriver() as any
-    d.send = jest.fn(async () => true)
+    d.send = vi.fn(async () => true)
 
     d.scheduleWifiConnect(100)
     d.scheduleWifiConnect(200)
 
-    jest.advanceTimersByTime(200)
+    vi.advanceTimersByTime(200)
     await Promise.resolve()
 
     expect(d.send).toHaveBeenCalledTimes(1)
@@ -80,7 +80,7 @@ describe('DongleDriver core behavior', () => {
   test('applyAndroidWorkMode no-ops when mode unchanged', async () => {
     const d = new DongleDriver() as any
     d._androidWorkModeRuntime = AndroidWorkMode.AndroidAuto
-    d.send = jest.fn(async () => true)
+    d.send = vi.fn(async () => true)
 
     await d.applyAndroidWorkMode(AndroidWorkMode.AndroidAuto)
 
@@ -90,7 +90,7 @@ describe('DongleDriver core behavior', () => {
   test('applyAndroidWorkMode updates mode and sends config + wifi enable', async () => {
     const d = new DongleDriver() as any
     d._androidWorkModeRuntime = AndroidWorkMode.Off
-    d.send = jest.fn(async () => true)
+    d.send = vi.fn(async () => true)
 
     await d.applyAndroidWorkMode(AndroidWorkMode.AndroidAuto)
 
@@ -98,7 +98,7 @@ describe('DongleDriver core behavior', () => {
     expect(d.send).toHaveBeenCalledTimes(2)
   })
 
-  test('resolveAndroidWorkModeOnPlugged keeps runtime mode for AndroidAuto unless runtime is Off', () => {
+  test('resolveAndroidWorkModeOnPlugged keeps runtime mode for AndroidAuto unless runtime is Off', async () => {
     const d = new DongleDriver() as any
 
     d._androidWorkModeRuntime = AndroidWorkMode.Search
@@ -110,14 +110,14 @@ describe('DongleDriver core behavior', () => {
     )
   })
 
-  test('resolveAndroidWorkModeOnPlugged leaves mode unchanged for non-AndroidAuto phones', () => {
+  test('resolveAndroidWorkModeOnPlugged leaves mode unchanged for non-AndroidAuto phones', async () => {
     const d = new DongleDriver() as any
     d._androidWorkModeRuntime = AndroidWorkMode.CarLife
 
     expect(d.resolveAndroidWorkModeOnPlugged(PhoneType.CarPlay)).toBe(AndroidWorkMode.CarLife)
   })
 
-  test('resolvePhoneWorkModeOnPlugged maps CarPlay and Android correctly', () => {
+  test('resolvePhoneWorkModeOnPlugged maps CarPlay and Android correctly', async () => {
     const d = new DongleDriver() as any
 
     expect(d.resolvePhoneWorkModeOnPlugged(PhoneType.CarPlay)).toBe(PhoneWorkMode.CarPlay)
@@ -154,7 +154,7 @@ describe('DongleDriver core behavior', () => {
 
   test('send transfers serialized message and returns true on ok status', async () => {
     const d = new DongleDriver() as any
-    const transferOut = jest.fn(async () => ({ status: 'ok' }))
+    const transferOut = vi.fn(async () => ({ status: 'ok' }))
 
     d._device = { opened: true, transferOut }
     d._outEP = { endpointNumber: 7 }
@@ -166,7 +166,7 @@ describe('DongleDriver core behavior', () => {
 
   test('send returns false on transfer error', async () => {
     const d = new DongleDriver() as any
-    const transferOut = jest.fn(async () => {
+    const transferOut = vi.fn(async () => {
       throw new Error('boom')
     })
 
@@ -179,7 +179,7 @@ describe('DongleDriver core behavior', () => {
 
   test('sendBluetoothPairedList delegates to send with SendBluetoothPairedList', async () => {
     const d = new DongleDriver() as any
-    d.send = jest.fn(async () => true)
+    d.send = vi.fn(async () => true)
 
     await d.sendBluetoothPairedList('abc')
 
@@ -188,17 +188,17 @@ describe('DongleDriver core behavior', () => {
 
   test('sendGnssData delegates to send with SendGnssData', async () => {
     const d = new DongleDriver() as any
-    d.send = jest.fn(async () => true)
+    d.send = vi.fn(async () => true)
 
     await d.sendGnssData('$GPGGA')
 
     expect(d.send).toHaveBeenCalledWith(expect.any(SendGnssData))
   })
 
-  test('onOpened starts heartbeat once and sends post-open config', () => {
+  test('onOpened starts heartbeat once and sends post-open config', async () => {
     const d = new DongleDriver() as any
-    d.sendPostOpenConfig = jest.fn()
-    d.send = jest.fn(async () => true)
+    d.sendPostOpenConfig = vi.fn()
+    d.send = vi.fn(async () => true)
 
     d.onOpened()
     d.onOpened()
@@ -207,7 +207,7 @@ describe('DongleDriver core behavior', () => {
     expect(d._heartbeatInterval).toBeTruthy()
   })
 
-  test('onUnplugged clears phone hints and heartbeat interval', () => {
+  test('onUnplugged clears phone hints and heartbeat interval', async () => {
     const d = new DongleDriver() as any
     d._lastPluggedPhoneType = PhoneType.CarPlay
     d._pendingModeHintFromBoxInfo = PhoneWorkMode.Android
@@ -222,8 +222,8 @@ describe('DongleDriver core behavior', () => {
 
   test('onPlugged updates last phone type, reconciles modes and emits config-changed when needed', async () => {
     const d = new DongleDriver() as any
-    const emitSpy = jest.spyOn(d, 'emit')
-    d.reconcileModes = jest.fn(async () => undefined)
+    const emitSpy = vi.spyOn(d, 'emit')
+    d.reconcileModes = vi.fn(async () => undefined)
     d._cfg = { lastPhoneWorkMode: PhoneWorkMode.CarPlay }
 
     await d.onPlugged({ phoneType: PhoneType.AndroidAuto })
@@ -241,10 +241,10 @@ describe('DongleDriver core behavior', () => {
     d._lastPluggedPhoneType = PhoneType.AndroidAuto
     d._phoneWorkModeRuntime = PhoneWorkMode.CarPlay
     d._androidWorkModeRuntime = AndroidWorkMode.AndroidAuto
-    d.applyPhoneWorkMode = jest.fn(async () => undefined)
-    d.applyAndroidWorkMode = jest.fn(async () => undefined)
-    d.logPhoneWorkModeChange = jest.fn()
-    d.logAndroidWorkModeChange = jest.fn()
+    d.applyPhoneWorkMode = vi.fn(async () => undefined)
+    d.applyAndroidWorkMode = vi.fn(async () => undefined)
+    d.logPhoneWorkModeChange = vi.fn()
+    d.logAndroidWorkModeChange = vi.fn()
 
     await d.reconcileModes('plugged')
 
@@ -257,10 +257,10 @@ describe('DongleDriver core behavior', () => {
     d._lastPluggedPhoneType = PhoneType.AndroidAuto
     d._phoneWorkModeRuntime = PhoneWorkMode.Android
     d._androidWorkModeRuntime = AndroidWorkMode.Off
-    d.applyPhoneWorkMode = jest.fn(async () => undefined)
-    d.applyAndroidWorkMode = jest.fn(async () => undefined)
-    d.logPhoneWorkModeChange = jest.fn()
-    d.logAndroidWorkModeChange = jest.fn()
+    d.applyPhoneWorkMode = vi.fn(async () => undefined)
+    d.applyAndroidWorkMode = vi.fn(async () => undefined)
+    d.logPhoneWorkModeChange = vi.fn()
+    d.logAndroidWorkModeChange = vi.fn()
 
     await d.reconcileModes('plugged')
 
@@ -286,7 +286,7 @@ describe('DongleDriver core behavior', () => {
   test('start returns early when device is not opened', async () => {
     const d = new DongleDriver() as any
     d._device = { opened: false }
-    d.send = jest.fn(async () => true)
+    d.send = vi.fn(async () => true)
 
     await d.start({ width: 800, height: 480, fps: 60, lastPhoneWorkMode: PhoneWorkMode.CarPlay })
 
@@ -297,7 +297,7 @@ describe('DongleDriver core behavior', () => {
     const d = new DongleDriver() as any
     d._device = { opened: true }
     d._started = true
-    d.send = jest.fn(async () => true)
+    d.send = vi.fn(async () => true)
 
     await d.start({ width: 800, height: 480, fps: 60, lastPhoneWorkMode: PhoneWorkMode.CarPlay })
 
@@ -307,8 +307,8 @@ describe('DongleDriver core behavior', () => {
   test('start stores config, sets initial modes and sends SendOpen', async () => {
     const d = new DongleDriver() as any
     d._device = { opened: true }
-    d.send = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
+    d.send = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
 
     const cfg = {
       width: 800,
@@ -370,8 +370,8 @@ describe('DongleDriver core behavior', () => {
 
     const device = {
       opened: true,
-      selectConfiguration: jest.fn(),
-      claimInterface: jest.fn()
+      selectConfiguration: vi.fn(),
+      claimInterface: vi.fn()
     }
 
     await d.initialise(device)
@@ -390,9 +390,9 @@ describe('DongleDriver core behavior', () => {
 
     const device = {
       opened: true,
-      selectConfiguration: jest.fn(async () => undefined),
+      selectConfiguration: vi.fn(async () => undefined),
       configuration: null,
-      claimInterface: jest.fn()
+      claimInterface: vi.fn()
     }
 
     await expect(d.initialise(device as any)).rejects.toThrow('Device has no configuration')
@@ -403,9 +403,9 @@ describe('DongleDriver core behavior', () => {
 
     const device = {
       opened: true,
-      selectConfiguration: jest.fn(async () => undefined),
+      selectConfiguration: vi.fn(async () => undefined),
       configuration: { interfaces: [] },
-      claimInterface: jest.fn()
+      claimInterface: vi.fn()
     }
 
     await expect(d.initialise(device as any)).rejects.toThrow('No interface 0')
@@ -416,11 +416,11 @@ describe('DongleDriver core behavior', () => {
 
     const device = {
       opened: true,
-      selectConfiguration: jest.fn(async () => undefined),
+      selectConfiguration: vi.fn(async () => undefined),
       configuration: {
         interfaces: [{ interfaceNumber: 2, alternate: null }]
       },
-      claimInterface: jest.fn(async () => undefined)
+      claimInterface: vi.fn(async () => undefined)
     }
 
     await expect(d.initialise(device as any)).rejects.toThrow('No active alternate on interface')
@@ -431,7 +431,7 @@ describe('DongleDriver core behavior', () => {
 
     const device = {
       opened: true,
-      selectConfiguration: jest.fn(async () => undefined),
+      selectConfiguration: vi.fn(async () => undefined),
       configuration: {
         interfaces: [
           {
@@ -440,7 +440,7 @@ describe('DongleDriver core behavior', () => {
           }
         ]
       },
-      claimInterface: jest.fn(async () => undefined)
+      claimInterface: vi.fn(async () => undefined)
     }
 
     await expect(d.initialise(device as any)).rejects.toThrow('Endpoints missing')
@@ -448,14 +448,14 @@ describe('DongleDriver core behavior', () => {
 
   test('initialise sets interface and endpoints and starts read loop once', async () => {
     const d = new DongleDriver() as any
-    d.readLoop = jest.fn(async () => undefined)
+    d.readLoop = vi.fn(async () => undefined)
 
     const inEp = { direction: 'in', endpointNumber: 1 }
     const outEp = { direction: 'out', endpointNumber: 2 }
 
     const device = {
       opened: true,
-      selectConfiguration: jest.fn(async () => undefined),
+      selectConfiguration: vi.fn(async () => undefined),
       configuration: {
         interfaces: [
           {
@@ -464,7 +464,7 @@ describe('DongleDriver core behavior', () => {
           }
         ]
       },
-      claimInterface: jest.fn(async () => undefined)
+      claimInterface: vi.fn(async () => undefined)
     }
 
     await d.initialise(device as any)
@@ -481,7 +481,7 @@ describe('DongleDriver core behavior', () => {
     const d = new DongleDriver() as any
     d._inEP = { endpointNumber: 7 }
     d._device = {
-      transferIn: jest.fn(async () => ({ data: null }))
+      transferIn: vi.fn(async () => ({ data: null }))
     }
 
     await expect(d.readOneMessage()).rejects.toThrow(HeaderBuildError)
@@ -494,7 +494,7 @@ describe('DongleDriver core behavior', () => {
     const header = MessageHeader.asBuffer(MessageType.Open, 0)
 
     d._device = {
-      transferIn: jest.fn(async () => ({
+      transferIn: vi.fn(async () => ({
         data: new DataView(
           header.buffer.slice(header.byteOffset, header.byteOffset + header.byteLength)
         )
@@ -513,7 +513,7 @@ describe('DongleDriver core behavior', () => {
     const header = MessageHeader.asBuffer(MessageType.SoftwareVersion, payload.length)
 
     d._device = {
-      transferIn: jest
+      transferIn: vi
         .fn()
         .mockResolvedValueOnce({
           data: new DataView(
@@ -533,7 +533,7 @@ describe('DongleDriver core behavior', () => {
 
   test('handleMessage stores software version and emits dongle info', async () => {
     const d = new DongleDriver() as any
-    d.emitDongleInfoIfChanged = jest.fn()
+    d.emitDongleInfoIfChanged = vi.fn()
 
     const msg = Object.create(SoftwareVersion.prototype)
     msg.version = '2.0.0'
@@ -546,8 +546,8 @@ describe('DongleDriver core behavior', () => {
 
   test('handleMessage delegates BoxInfo to onBoxInfo and emits message', async () => {
     const d = new DongleDriver() as any
-    d.onBoxInfo = jest.fn(async () => undefined)
-    const emitSpy = jest.spyOn(d, 'emit')
+    d.onBoxInfo = vi.fn(async () => undefined)
+    const emitSpy = vi.spyOn(d, 'emit')
 
     const msg = Object.create(BoxInfo.prototype)
     msg.settings = { productType: 'A15W' }
@@ -559,11 +559,11 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('handleMessage emits message for VendorSessionInfo even when decrypt fails', async () => {
-    const { decryptVendorSessionText } = jest.requireMock('@main/helpers/vendorSessionInfo')
+    const { decryptVendorSessionText } = await vi.importMock('@main/helpers/vendorSessionInfo')
     decryptVendorSessionText.mockRejectedValueOnce(new Error('boom'))
 
     const d = new DongleDriver() as any
-    const emitSpy = jest.spyOn(d, 'emit')
+    const emitSpy = vi.spyOn(d, 'emit')
 
     const msg = Object.create(VendorSessionInfo.prototype)
     msg.raw = Buffer.from('abcd')
@@ -575,7 +575,7 @@ describe('DongleDriver core behavior', () => {
 
   test('handleMessage emits DongleReady message', async () => {
     const d = new DongleDriver() as any
-    const emitSpy = jest.spyOn(d, 'emit')
+    const emitSpy = vi.spyOn(d, 'emit')
 
     const msg = Object.create(DongleReady.prototype)
 
@@ -586,9 +586,9 @@ describe('DongleDriver core behavior', () => {
 
   test('handleMessage routes Opened Unplugged and Plugged hooks', async () => {
     const d = new DongleDriver() as any
-    d.onOpened = jest.fn()
-    d.onUnplugged = jest.fn()
-    d.onPlugged = jest.fn(async () => undefined)
+    d.onOpened = vi.fn()
+    d.onUnplugged = vi.fn()
+    d.onPlugged = vi.fn(async () => undefined)
 
     const opened = Object.create(Opened.prototype)
     const unplugged = Object.create(Unplugged.prototype)
@@ -605,7 +605,7 @@ describe('DongleDriver core behavior', () => {
 
   test('handleMessage tolerates BluetoothPeerConnected no-op path', async () => {
     const d = new DongleDriver() as any
-    const emitSpy = jest.spyOn(d, 'emit')
+    const emitSpy = vi.spyOn(d, 'emit')
     const msg = Object.create(BluetoothPeerConnected.prototype)
 
     await d.handleMessage(msg)
@@ -613,7 +613,7 @@ describe('DongleDriver core behavior', () => {
     expect(emitSpy).toHaveBeenCalledWith('message', msg)
   })
 
-  test('setPendingStartupConnectTarget stores trimmed btMac and phoneWorkMode', () => {
+  test('setPendingStartupConnectTarget stores trimmed btMac and phoneWorkMode', async () => {
     const d = new DongleDriver() as any
 
     d.setPendingStartupConnectTarget({
@@ -627,7 +627,7 @@ describe('DongleDriver core behavior', () => {
     })
   })
 
-  test('setPendingStartupConnectTarget clears target for empty btMac', () => {
+  test('setPendingStartupConnectTarget clears target for empty btMac', async () => {
     const d = new DongleDriver() as any
     d._pendingStartupConnectTarget = { btMac: 'x', phoneWorkMode: PhoneWorkMode.CarPlay }
 
@@ -639,7 +639,7 @@ describe('DongleDriver core behavior', () => {
     expect(d._pendingStartupConnectTarget).toBeNull()
   })
 
-  test('setPendingStartupConnectTarget clears target when called with null', () => {
+  test('setPendingStartupConnectTarget clears target when called with null', async () => {
     const d = new DongleDriver() as any
     d._pendingStartupConnectTarget = { btMac: 'x', phoneWorkMode: PhoneWorkMode.CarPlay }
 
@@ -648,7 +648,7 @@ describe('DongleDriver core behavior', () => {
     expect(d._pendingStartupConnectTarget).toBeNull()
   })
 
-  test('clearPendingStartupConnectTarget clears pending target', () => {
+  test('clearPendingStartupConnectTarget clears pending target', async () => {
     const d = new DongleDriver() as any
     d._pendingStartupConnectTarget = { btMac: 'x', phoneWorkMode: PhoneWorkMode.CarPlay }
 
@@ -657,7 +657,7 @@ describe('DongleDriver core behavior', () => {
     expect(d._pendingStartupConnectTarget).toBeNull()
   })
 
-  test('isBenignUsbShutdownError detects benign usb shutdown messages', () => {
+  test('isBenignUsbShutdownError detects benign usb shutdown messages', async () => {
     const d = new DongleDriver() as any
 
     expect(d.isBenignUsbShutdownError(new Error('LIBUSB_ERROR_NO_DEVICE'))).toBe(true)
@@ -681,7 +681,7 @@ describe('DongleDriver core behavior', () => {
   test('tryResetUnderlyingUsbDevice returns true when callback reset succeeds', async () => {
     const d = new DongleDriver() as any
     const raw = {
-      reset: jest.fn((cb) => cb(null))
+      reset: vi.fn((cb) => cb(null))
     }
 
     await expect(d.tryResetUnderlyingUsbDevice({ device: raw })).resolves.toBe(true)
@@ -690,7 +690,7 @@ describe('DongleDriver core behavior', () => {
   test('tryResetUnderlyingUsbDevice returns false when callback reset fails', async () => {
     const d = new DongleDriver() as any
     const raw = {
-      reset: jest.fn((cb) => cb(new Error('boom')))
+      reset: vi.fn((cb) => cb(new Error('boom')))
     }
 
     await expect(d.tryResetUnderlyingUsbDevice({ device: raw })).resolves.toBe(false)
@@ -709,7 +709,7 @@ describe('DongleDriver core behavior', () => {
     const d = new DongleDriver() as any
     d._phoneWorkModeRuntime = PhoneWorkMode.CarPlay
     d._lastModeSwitchAt = Date.now()
-    d.send = jest.fn()
+    d.send = vi.fn()
     d._cfg = { width: 800, height: 480, fps: 60 }
     d._device = { opened: true }
 
@@ -724,8 +724,8 @@ describe('DongleDriver core behavior', () => {
     d._lastModeSwitchAt = 0
     d._cfg = { width: 800, height: 480, fps: 60 }
     d._device = { opened: true }
-    d.send = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
+    d.send = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
 
     await d.applyPhoneWorkMode(PhoneWorkMode.Android)
 
@@ -739,9 +739,9 @@ describe('DongleDriver core behavior', () => {
     const d = new DongleDriver() as any
     d._cfg = { width: 800, height: 480, fps: 60 }
     d._phoneWorkModeRuntime = PhoneWorkMode.Android
-    d.applyPhoneWorkMode = jest.fn(async () => undefined)
-    d.logPhoneWorkModeChange = jest.fn()
-    d.emitDongleInfoIfChanged = jest.fn()
+    d.applyPhoneWorkMode = vi.fn(async () => undefined)
+    d.logPhoneWorkModeChange = vi.fn()
+    d.emitDongleInfoIfChanged = vi.fn()
 
     const msg = Object.create(BoxInfo.prototype)
     msg.settings = { MDLinkType: 'RiddleLinktype_UNKNOWN?' }
@@ -758,9 +758,9 @@ describe('DongleDriver core behavior', () => {
     const d = new DongleDriver() as any
     d._cfg = { width: 800, height: 480, fps: 60 }
     d._phoneWorkModeRuntime = PhoneWorkMode.CarPlay
-    d.applyPhoneWorkMode = jest.fn(async () => undefined)
-    d.logPhoneWorkModeChange = jest.fn()
-    d.emitDongleInfoIfChanged = jest.fn()
+    d.applyPhoneWorkMode = vi.fn(async () => undefined)
+    d.logPhoneWorkModeChange = vi.fn()
+    d.emitDongleInfoIfChanged = vi.fn()
 
     const msg = Object.create(BoxInfo.prototype)
     msg.settings = { MDLinkType: 'RiddleLinktype_UNKOWN?' }
@@ -773,7 +773,7 @@ describe('DongleDriver core behavior', () => {
   test('sendPostOpenConfig returns early when already sent', async () => {
     const d = new DongleDriver() as any
     d._postOpenConfigSent = true
-    d.send = jest.fn()
+    d.send = vi.fn()
 
     await d.sendPostOpenConfig()
 
@@ -783,7 +783,7 @@ describe('DongleDriver core behavior', () => {
   test('sendPostOpenConfig returns early when config is missing', async () => {
     const d = new DongleDriver() as any
     d._cfg = null
-    d.send = jest.fn()
+    d.send = vi.fn()
 
     await d.sendPostOpenConfig()
 
@@ -795,7 +795,7 @@ describe('DongleDriver core behavior', () => {
     d._cfg = { width: 800, height: 480, fps: 60 }
     d._closing = true
     d._device = { opened: true }
-    d.send = jest.fn()
+    d.send = vi.fn()
 
     await d.sendPostOpenConfig()
 
@@ -824,9 +824,9 @@ describe('DongleDriver core behavior', () => {
     d._device = { opened: true }
     d._closing = false
     d._androidWorkModeRuntime = AndroidWorkMode.AndroidAuto
-    d.send = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
-    d.scheduleWifiConnect = jest.fn()
+    d.send = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
+    d.scheduleWifiConnect = vi.fn()
 
     await d.sendPostOpenConfig()
 
@@ -861,9 +861,9 @@ describe('DongleDriver core behavior', () => {
     d._device = { opened: true }
     d._closing = false
     d._androidWorkModeRuntime = AndroidWorkMode.AndroidAuto
-    d.send = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
-    d.scheduleWifiConnect = jest.fn()
+    d.send = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
+    d.scheduleWifiConnect = vi.fn()
 
     await d.sendPostOpenConfig()
 
@@ -908,9 +908,9 @@ describe('DongleDriver core behavior', () => {
       phoneWorkMode: PhoneWorkMode.Android
     }
     d._wifiConnectTimer = setTimeout(() => {}, 1000)
-    d.send = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
-    const emitSpy = jest.spyOn(d, 'emit')
+    d.send = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
+    const emitSpy = vi.spyOn(d, 'emit')
 
     await d.sendPostOpenConfig()
 
@@ -923,20 +923,19 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('sendPostOpenConfig logs targeted auto-connect in DEBUG mode', async () => {
-    const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => {})
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(function () {})
 
-    jest.resetModules()
+    vi.resetModules()
 
-    await jest.isolateModulesAsync(async () => {
-      jest.doMock('@main/constants', () => ({
+    await vi.isolateModulesAsync(async () => {
+      vi.doMock('@main/constants', () => ({
         DEBUG: true
       }))
 
-      const {
-        DongleDriver,
-        AndroidWorkMode
-      } = require('@main/services/projection/driver/dongle/dongleDriver')
-      const { PhoneWorkMode, MicType } = require('@shared/types')
+      const { DongleDriver, AndroidWorkMode } = await import(
+        '@main/services/projection/driver/dongle/dongleDriver'
+      )
+      const { PhoneWorkMode, MicType } = await import('@shared/types')
 
       const d = new DongleDriver() as any
       d._cfg = {
@@ -963,8 +962,8 @@ describe('DongleDriver core behavior', () => {
         btMac: 'AA:BB:CC:DD:EE:FF',
         phoneWorkMode: PhoneWorkMode.Android
       }
-      d.send = jest.fn(async () => true)
-      d.sleep = jest.fn(async () => undefined)
+      d.send = vi.fn(async () => true)
+      d.sleep = vi.fn(async () => undefined)
 
       await d.sendPostOpenConfig()
     })
@@ -978,8 +977,8 @@ describe('DongleDriver core behavior', () => {
     )
 
     debugSpy.mockRestore()
-    jest.resetModules()
-    jest.dontMock('@main/constants')
+    vi.resetModules()
+    vi.doUnmock('@main/constants')
   })
 
   test('reconcileModes uses pending mode hint from boxinfo without touching android mode', async () => {
@@ -989,10 +988,10 @@ describe('DongleDriver core behavior', () => {
     d._phoneWorkModeRuntime = PhoneWorkMode.CarPlay
     d._androidWorkModeRuntime = AndroidWorkMode.Search
 
-    d.applyPhoneWorkMode = jest.fn(async () => undefined)
-    d.applyAndroidWorkMode = jest.fn(async () => undefined)
-    d.logPhoneWorkModeChange = jest.fn()
-    d.logAndroidWorkModeChange = jest.fn()
+    d.applyPhoneWorkMode = vi.fn(async () => undefined)
+    d.applyAndroidWorkMode = vi.fn(async () => undefined)
+    d.logPhoneWorkModeChange = vi.fn()
+    d.logAndroidWorkModeChange = vi.fn()
 
     await d.reconcileModes('boxinfo')
 
@@ -1014,8 +1013,8 @@ describe('DongleDriver core behavior', () => {
     d._device = { opened: true }
     d._closing = false
     d.errorCount = 5
-    d.close = jest.fn(async () => undefined)
-    const emitSpy = jest.spyOn(d, 'emit')
+    d.close = vi.fn(async () => undefined)
+    const emitSpy = vi.spyOn(d, 'emit')
 
     await d.readLoop()
 
@@ -1029,7 +1028,7 @@ describe('DongleDriver core behavior', () => {
     d._device = { opened: true }
     d._closing = false
 
-    d.readOneMessage = jest
+    d.readOneMessage = vi
       .fn()
       .mockResolvedValueOnce(null)
       .mockImplementationOnce(async () => {
@@ -1037,7 +1036,7 @@ describe('DongleDriver core behavior', () => {
         return null
       })
 
-    d.handleMessage = jest.fn(async () => undefined)
+    d.handleMessage = vi.fn(async () => undefined)
 
     await d.readLoop()
 
@@ -1053,7 +1052,7 @@ describe('DongleDriver core behavior', () => {
 
     const msg = Object.create(DongleReady.prototype)
 
-    d.readOneMessage = jest
+    d.readOneMessage = vi
       .fn()
       .mockResolvedValueOnce(msg)
       .mockImplementationOnce(async () => {
@@ -1061,7 +1060,7 @@ describe('DongleDriver core behavior', () => {
         return null
       })
 
-    d.handleMessage = jest.fn(async () => undefined)
+    d.handleMessage = vi.fn(async () => undefined)
 
     await d.readLoop()
 
@@ -1070,12 +1069,12 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('readLoop warns on HeaderBuildError and increments errorCount', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const d = new DongleDriver() as any
     d._device = { opened: true }
     d._closing = false
 
-    d.readOneMessage = jest
+    d.readOneMessage = vi
       .fn()
       .mockRejectedValueOnce(new HeaderBuildError('bad header'))
       .mockImplementationOnce(async () => {
@@ -1092,12 +1091,12 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('readLoop logs non-header errors and increments errorCount', async () => {
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(function () {})
     const d = new DongleDriver() as any
     d._device = { opened: true }
     d._closing = false
 
-    d.readOneMessage = jest
+    d.readOneMessage = vi
       .fn()
       .mockRejectedValueOnce(new Error('boom'))
       .mockImplementationOnce(async () => {
@@ -1105,7 +1104,7 @@ describe('DongleDriver core behavior', () => {
         return null
       })
 
-    d.isBenignUsbShutdownError = jest.fn(() => false)
+    d.isBenignUsbShutdownError = vi.fn(() => false)
 
     await d.readLoop()
 
@@ -1120,8 +1119,8 @@ describe('DongleDriver core behavior', () => {
     d._device = { opened: true }
     d._closing = false
 
-    d.readOneMessage = jest.fn().mockRejectedValueOnce(new Error('LIBUSB_ERROR_NO_DEVICE'))
-    d.isBenignUsbShutdownError = jest.fn(() => true)
+    d.readOneMessage = vi.fn().mockRejectedValueOnce(new Error('LIBUSB_ERROR_NO_DEVICE'))
+    d.isBenignUsbShutdownError = vi.fn(() => true)
 
     await d.readLoop()
 
@@ -1130,14 +1129,14 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('close retries device.close after pending request and underlying reset success', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const d = new DongleDriver() as any
 
     const dev = {
       opened: true,
-      reset: jest.fn(async () => undefined),
-      releaseInterface: jest.fn(async () => undefined),
-      close: jest
+      reset: vi.fn(async () => undefined),
+      releaseInterface: vi.fn(async () => undefined),
+      close: vi
         .fn()
         .mockRejectedValueOnce(new Error('pending request'))
         .mockResolvedValueOnce(undefined)
@@ -1147,9 +1146,9 @@ describe('DongleDriver core behavior', () => {
     d._ifaceNumber = 1
     d._readerActive = true
     d._started = true
-    d.tryResetUnderlyingUsbDevice = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
-    d.waitForReaderStop = jest.fn(async () => undefined)
+    d.tryResetUnderlyingUsbDevice = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
+    d.waitForReaderStop = vi.fn(async () => undefined)
 
     await d.close()
 
@@ -1163,14 +1162,14 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('close keeps device reference when pending request persists on second close', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const d = new DongleDriver() as any
 
     const dev = {
       opened: true,
-      reset: jest.fn(async () => undefined),
-      releaseInterface: jest.fn(async () => undefined),
-      close: jest.fn(async () => {
+      reset: vi.fn(async () => undefined),
+      releaseInterface: vi.fn(async () => undefined),
+      close: vi.fn(async () => {
         throw new Error('pending request')
       })
     }
@@ -1179,9 +1178,9 @@ describe('DongleDriver core behavior', () => {
     d._ifaceNumber = 1
     d._readerActive = true
     d._started = true
-    d.tryResetUnderlyingUsbDevice = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
-    d.waitForReaderStop = jest.fn(async () => undefined)
+    d.tryResetUnderlyingUsbDevice = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
+    d.waitForReaderStop = vi.fn(async () => undefined)
 
     await d.close()
 
@@ -1194,14 +1193,14 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('close warns when second close after pending request fails with another error', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const d = new DongleDriver() as any
 
     const dev = {
       opened: true,
-      reset: jest.fn(async () => undefined),
-      releaseInterface: jest.fn(async () => undefined),
-      close: jest
+      reset: vi.fn(async () => undefined),
+      releaseInterface: vi.fn(async () => undefined),
+      close: vi
         .fn()
         .mockRejectedValueOnce(new Error('pending request'))
         .mockRejectedValueOnce(new Error('other close error'))
@@ -1211,9 +1210,9 @@ describe('DongleDriver core behavior', () => {
     d._ifaceNumber = 1
     d._readerActive = true
     d._started = true
-    d.tryResetUnderlyingUsbDevice = jest.fn(async () => false)
-    d.sleep = jest.fn(async () => undefined)
-    d.waitForReaderStop = jest.fn(async () => undefined)
+    d.tryResetUnderlyingUsbDevice = vi.fn(async () => false)
+    d.sleep = vi.fn(async () => undefined)
+    d.waitForReaderStop = vi.fn(async () => undefined)
 
     await d.close()
 
@@ -1223,7 +1222,7 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('close warns on outer close error', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const d = new DongleDriver() as any
 
     const dev = {}
@@ -1245,8 +1244,8 @@ describe('DongleDriver core behavior', () => {
     warnSpy.mockRestore()
   })
 
-  test('logPhoneWorkModeChange and logAndroidWorkModeChange include extra text', () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+  test('logPhoneWorkModeChange and logAndroidWorkModeChange include extra text', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(function () {})
     const d = new DongleDriver() as any
 
     d.logPhoneWorkModeChange(
@@ -1277,10 +1276,10 @@ describe('DongleDriver core behavior', () => {
     const d = new DongleDriver() as any
 
     const sleepPromise = d.sleep(25)
-    jest.advanceTimersByTime(25)
+    vi.advanceTimersByTime(25)
     await expect(sleepPromise).resolves.toBeUndefined()
 
-    const sleepSpy = jest.spyOn(d, 'sleep')
+    const sleepSpy = vi.spyOn(d, 'sleep')
     d._readerActive = true
 
     const waitPromise = d.waitForReaderStop(100)
@@ -1288,16 +1287,16 @@ describe('DongleDriver core behavior', () => {
     expect(sleepSpy).toHaveBeenCalledWith(10)
 
     d._readerActive = false
-    jest.advanceTimersByTime(10)
+    vi.advanceTimersByTime(10)
 
     await expect(waitPromise).resolves.toBeUndefined()
 
     sleepSpy.mockRestore()
   })
 
-  test('emitDongleInfoIfChanged falls back to String(box) when JSON.stringify throws', () => {
+  test('emitDongleInfoIfChanged falls back to String(box) when JSON.stringify throws', async () => {
     const d = new DongleDriver() as any
-    const emitSpy = jest.spyOn(d, 'emit')
+    const emitSpy = vi.spyOn(d, 'emit')
 
     const badBox = {
       toString: () => 'bad-box'
@@ -1317,24 +1316,24 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('handleMessage logs decrypted VendorSessionInfo in DEBUG mode', async () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(function () {})
 
-    jest.resetModules()
+    vi.resetModules()
 
-    await jest.isolateModulesAsync(async () => {
-      jest.doMock('@main/constants', () => ({
+    await vi.isolateModulesAsync(async () => {
+      vi.doMock('@main/constants', () => ({
         DEBUG: true
       }))
 
-      jest.doMock('@main/helpers/vendorSessionInfo', () => ({
-        decryptVendorSessionText: jest.fn(async () => 'decrypted-session')
+      vi.doMock('@main/helpers/vendorSessionInfo', () => ({
+        decryptVendorSessionText: vi.fn(async () => 'decrypted-session')
       }))
 
-      const { DongleDriver } = require('@main/services/projection/driver/dongle/dongleDriver')
-      const { VendorSessionInfo } = require('@main/services/projection/messages/readable')
+      const { DongleDriver } = await import('@main/services/projection/driver/dongle/dongleDriver')
+      const { VendorSessionInfo } = await import('@main/services/projection/messages/readable')
 
       const d = new DongleDriver() as any
-      const emitSpy = jest.spyOn(d, 'emit')
+      const emitSpy = vi.spyOn(d, 'emit')
 
       const msg = Object.create(VendorSessionInfo.prototype)
       msg.raw = Buffer.from('abcd')
@@ -1346,9 +1345,9 @@ describe('DongleDriver core behavior', () => {
     })
 
     logSpy.mockRestore()
-    jest.resetModules()
-    jest.dontMock('@main/constants')
-    jest.dontMock('@main/helpers/vendorSessionInfo')
+    vi.resetModules()
+    vi.doUnmock('@main/constants')
+    vi.doUnmock('@main/helpers/vendorSessionInfo')
   })
 
   test('reconcileModes does nothing when no plugged type and no pending boxinfo hint exist', async () => {
@@ -1358,10 +1357,10 @@ describe('DongleDriver core behavior', () => {
     d._phoneWorkModeRuntime = PhoneWorkMode.CarPlay
     d._androidWorkModeRuntime = AndroidWorkMode.AndroidAuto
 
-    d.applyPhoneWorkMode = jest.fn(async () => undefined)
-    d.applyAndroidWorkMode = jest.fn(async () => undefined)
-    d.logPhoneWorkModeChange = jest.fn()
-    d.logAndroidWorkModeChange = jest.fn()
+    d.applyPhoneWorkMode = vi.fn(async () => undefined)
+    d.applyAndroidWorkMode = vi.fn(async () => undefined)
+    d.logPhoneWorkModeChange = vi.fn()
+    d.logAndroidWorkModeChange = vi.fn()
 
     await d.reconcileModes('boxinfo')
 
@@ -1377,7 +1376,7 @@ describe('DongleDriver core behavior', () => {
 
     const msg = Object.create(DongleReady.prototype)
 
-    d.readOneMessage = jest
+    d.readOneMessage = vi
       .fn()
       .mockResolvedValueOnce(msg)
       .mockImplementationOnce(async () => {
@@ -1385,7 +1384,7 @@ describe('DongleDriver core behavior', () => {
         return null
       })
 
-    d.handleMessage = jest.fn(async () => undefined)
+    d.handleMessage = vi.fn(async () => undefined)
 
     await d.readLoop()
 
@@ -1396,8 +1395,8 @@ describe('DongleDriver core behavior', () => {
   test('start defaults phone work mode to CarPlay when lastPhoneWorkMode is not Android', async () => {
     const d = new DongleDriver() as any
     d._device = { opened: true }
-    d.send = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
+    d.send = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
 
     const cfg = {
       width: 800,
@@ -1424,7 +1423,7 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('close releases the interface then closes the device (no reset) on darwin', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const originalPlatform = process.platform
 
     Object.defineProperty(process, 'platform', {
@@ -1435,16 +1434,16 @@ describe('DongleDriver core behavior', () => {
     const d = new DongleDriver() as any
     const dev = {
       opened: true,
-      reset: jest.fn(async () => undefined),
-      releaseInterface: jest.fn(async () => undefined),
-      close: jest.fn(async () => undefined)
+      reset: vi.fn(async () => undefined),
+      releaseInterface: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined)
     }
 
     d._device = dev
     d._ifaceNumber = 1
     d._readerActive = true
     d._started = true
-    d.waitForReaderStop = jest.fn(async () => undefined)
+    d.waitForReaderStop = vi.fn(async () => undefined)
 
     await d.close()
 
@@ -1462,14 +1461,14 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('close handles non-Error close failure message on first close attempt', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const d = new DongleDriver() as any
 
     const dev = {
       opened: true,
-      reset: jest.fn(async () => undefined),
-      releaseInterface: jest.fn(async () => undefined),
-      close: jest.fn(async () => {
+      reset: vi.fn(async () => undefined),
+      releaseInterface: vi.fn(async () => undefined),
+      close: vi.fn(async () => {
         throw 'plain string close error'
       })
     }
@@ -1478,7 +1477,7 @@ describe('DongleDriver core behavior', () => {
     d._ifaceNumber = 1
     d._readerActive = true
     d._started = true
-    d.waitForReaderStop = jest.fn(async () => undefined)
+    d.waitForReaderStop = vi.fn(async () => undefined)
 
     await d.close()
 
@@ -1491,14 +1490,14 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('close handles non-Error second close failure after pending request', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const d = new DongleDriver() as any
 
     const dev = {
       opened: true,
-      reset: jest.fn(async () => undefined),
-      releaseInterface: jest.fn(async () => undefined),
-      close: jest
+      reset: vi.fn(async () => undefined),
+      releaseInterface: vi.fn(async () => undefined),
+      close: vi
         .fn()
         .mockRejectedValueOnce(new Error('pending request'))
         .mockRejectedValueOnce('second plain string error')
@@ -1508,9 +1507,9 @@ describe('DongleDriver core behavior', () => {
     d._ifaceNumber = 1
     d._readerActive = true
     d._started = true
-    d.tryResetUnderlyingUsbDevice = jest.fn(async () => false)
-    d.waitForReaderStop = jest.fn(async () => undefined)
-    d.sleep = jest.fn(async () => undefined)
+    d.tryResetUnderlyingUsbDevice = vi.fn(async () => false)
+    d.waitForReaderStop = vi.fn(async () => undefined)
+    d.sleep = vi.fn(async () => undefined)
 
     await d.close()
 
@@ -1523,24 +1522,24 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('handleMessage logs decrypted VendorSessionInfo when DEBUG is true', async () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(function () {})
 
-    jest.resetModules()
+    vi.resetModules()
 
-    await jest.isolateModulesAsync(async () => {
-      jest.doMock('@main/constants', () => ({
+    await vi.isolateModulesAsync(async () => {
+      vi.doMock('@main/constants', () => ({
         DEBUG: true
       }))
 
-      jest.doMock('@main/helpers/vendorSessionInfo', () => ({
-        decryptVendorSessionText: jest.fn(async () => 'decrypted-session')
+      vi.doMock('@main/helpers/vendorSessionInfo', () => ({
+        decryptVendorSessionText: vi.fn(async () => 'decrypted-session')
       }))
 
-      const { DongleDriver } = require('@main/services/projection/driver/dongle/dongleDriver')
-      const { VendorSessionInfo } = require('@main/services/projection/messages/readable')
+      const { DongleDriver } = await import('@main/services/projection/driver/dongle/dongleDriver')
+      const { VendorSessionInfo } = await import('@main/services/projection/messages/readable')
 
       const d = new DongleDriver() as any
-      const emitSpy = jest.spyOn(d, 'emit')
+      const emitSpy = vi.spyOn(d, 'emit')
 
       const msg = Object.create(VendorSessionInfo.prototype)
       msg.raw = Buffer.from('abcd')
@@ -1552,9 +1551,9 @@ describe('DongleDriver core behavior', () => {
     })
 
     logSpy.mockRestore()
-    jest.resetModules()
-    jest.dontMock('@main/constants')
-    jest.dontMock('@main/helpers/vendorSessionInfo')
+    vi.resetModules()
+    vi.doUnmock('@main/constants')
+    vi.doUnmock('@main/helpers/vendorSessionInfo')
   })
 
   test('sendPostOpenConfig falls back to carName and uses DongleMic route command', async () => {
@@ -1579,9 +1578,9 @@ describe('DongleDriver core behavior', () => {
     d._device = { opened: true }
     d._closing = false
     d._androidWorkModeRuntime = AndroidWorkMode.AndroidAuto
-    d.send = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
-    d.scheduleWifiConnect = jest.fn()
+    d.send = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
+    d.scheduleWifiConnect = vi.fn()
 
     await d.sendPostOpenConfig()
 
@@ -1619,9 +1618,9 @@ describe('DongleDriver core behavior', () => {
     d._device = { opened: true }
     d._closing = false
     d._androidWorkModeRuntime = AndroidWorkMode.AndroidAuto
-    d.send = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
-    d.scheduleWifiConnect = jest.fn()
+    d.send = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
+    d.scheduleWifiConnect = vi.fn()
 
     await d.sendPostOpenConfig()
 
@@ -1632,7 +1631,7 @@ describe('DongleDriver core behavior', () => {
     ).toBe(true)
   })
 
-  test('onUnplugged keeps heartbeat null when no heartbeat interval exists', () => {
+  test('onUnplugged keeps heartbeat null when no heartbeat interval exists', async () => {
     const d = new DongleDriver() as any
     d._lastPluggedPhoneType = PhoneType.CarPlay
     d._pendingModeHintFromBoxInfo = PhoneWorkMode.Android
@@ -1647,8 +1646,8 @@ describe('DongleDriver core behavior', () => {
 
   test('onPlugged does not emit config-changed when lastPhoneWorkMode is already correct', async () => {
     const d = new DongleDriver() as any
-    const emitSpy = jest.spyOn(d, 'emit')
-    d.reconcileModes = jest.fn(async () => undefined)
+    const emitSpy = vi.spyOn(d, 'emit')
+    d.reconcileModes = vi.fn(async () => undefined)
     d._cfg = { lastPhoneWorkMode: PhoneWorkMode.Android }
 
     await d.onPlugged({ phoneType: PhoneType.AndroidAuto })
@@ -1661,9 +1660,9 @@ describe('DongleDriver core behavior', () => {
     const d = new DongleDriver() as any
     d._cfg = null
     d._phoneWorkModeRuntime = PhoneWorkMode.Android
-    d.applyPhoneWorkMode = jest.fn(async () => undefined)
-    d.logPhoneWorkModeChange = jest.fn()
-    d.emitDongleInfoIfChanged = jest.fn()
+    d.applyPhoneWorkMode = vi.fn(async () => undefined)
+    d.logPhoneWorkModeChange = vi.fn()
+    d.emitDongleInfoIfChanged = vi.fn()
 
     const msg = Object.create(BoxInfo.prototype)
     msg.settings = { MDLinkType: 'RiddleLinktype_UNKNOWN?' }
@@ -1677,23 +1676,23 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('close warns and continues to device.close when releaseInterface fails', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
 
     const d = new DongleDriver() as any
     const dev = {
       opened: true,
-      reset: jest.fn(async () => undefined),
-      releaseInterface: jest.fn(async () => {
+      reset: vi.fn(async () => undefined),
+      releaseInterface: vi.fn(async () => {
         throw new Error('release exploded')
       }),
-      close: jest.fn(async () => undefined)
+      close: vi.fn(async () => undefined)
     }
 
     d._device = dev
     d._ifaceNumber = 1
     d._readerActive = true
     d._started = true
-    d.waitForReaderStop = jest.fn(async () => undefined)
+    d.waitForReaderStop = vi.fn(async () => undefined)
 
     await d.close()
 
@@ -1714,7 +1713,7 @@ describe('DongleDriver core behavior', () => {
     const header = MessageHeader.asBuffer(MessageType.SoftwareVersion, payloadLength)
 
     d._device = {
-      transferIn: jest
+      transferIn: vi
         .fn()
         .mockResolvedValueOnce({
           data: new DataView(
@@ -1730,24 +1729,24 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('handleMessage logs decrypted VendorSessionInfo when DEBUG is true', async () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(function () {})
 
-    jest.resetModules()
+    vi.resetModules()
 
-    await jest.isolateModulesAsync(async () => {
-      jest.doMock('@main/constants', () => ({
+    await vi.isolateModulesAsync(async () => {
+      vi.doMock('@main/constants', () => ({
         DEBUG: true
       }))
 
-      jest.doMock('@main/helpers/vendorSessionInfo', () => ({
-        decryptVendorSessionText: jest.fn(async () => 'decrypted-session')
+      vi.doMock('@main/helpers/vendorSessionInfo', () => ({
+        decryptVendorSessionText: vi.fn(async () => 'decrypted-session')
       }))
 
-      const { DongleDriver } = require('@main/services/projection/driver/dongle/dongleDriver')
-      const { VendorSessionInfo } = require('@main/services/projection/messages/readable')
+      const { DongleDriver } = await import('@main/services/projection/driver/dongle/dongleDriver')
+      const { VendorSessionInfo } = await import('@main/services/projection/messages/readable')
 
       const d = new DongleDriver() as any
-      const emitSpy = jest.spyOn(d, 'emit')
+      const emitSpy = vi.spyOn(d, 'emit')
 
       const msg = Object.create(VendorSessionInfo.prototype)
       msg.raw = Buffer.from('abcd')
@@ -1759,9 +1758,9 @@ describe('DongleDriver core behavior', () => {
     })
 
     logSpy.mockRestore()
-    jest.resetModules()
-    jest.dontMock('@main/constants')
-    jest.dontMock('@main/helpers/vendorSessionInfo')
+    vi.resetModules()
+    vi.doUnmock('@main/constants')
+    vi.doUnmock('@main/helpers/vendorSessionInfo')
   })
 
   test('sendPostOpenConfig falls back to carName when oemName is undefined and uses PhoneMic route', async () => {
@@ -1786,9 +1785,9 @@ describe('DongleDriver core behavior', () => {
     d._device = { opened: true }
     d._closing = false
     d._androidWorkModeRuntime = AndroidWorkMode.AndroidAuto
-    d.send = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
-    d.scheduleWifiConnect = jest.fn()
+    d.send = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
+    d.scheduleWifiConnect = vi.fn()
 
     await d.sendPostOpenConfig()
 
@@ -1802,8 +1801,8 @@ describe('DongleDriver core behavior', () => {
 
   test('onPlugged skips config-changed update when config is missing', async () => {
     const d = new DongleDriver() as any
-    const emitSpy = jest.spyOn(d, 'emit')
-    d.reconcileModes = jest.fn(async () => undefined)
+    const emitSpy = vi.spyOn(d, 'emit')
+    d.reconcileModes = vi.fn(async () => undefined)
     d._cfg = null
 
     await d.onPlugged({ phoneType: PhoneType.AndroidAuto })
@@ -1817,9 +1816,9 @@ describe('DongleDriver core behavior', () => {
     const d = new DongleDriver() as any
     d._cfg = { width: 800, height: 480, fps: 60 }
     d._phoneWorkModeRuntime = PhoneWorkMode.Android
-    d.applyPhoneWorkMode = jest.fn(async () => undefined)
-    d.logPhoneWorkModeChange = jest.fn()
-    d.emitDongleInfoIfChanged = jest.fn()
+    d.applyPhoneWorkMode = vi.fn(async () => undefined)
+    d.logPhoneWorkModeChange = vi.fn()
+    d.emitDongleInfoIfChanged = vi.fn()
 
     const msg = Object.create(BoxInfo.prototype)
     msg.settings = {}
@@ -1833,7 +1832,7 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('close does not call device.reset on non-darwin platforms', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const originalPlatform = process.platform
 
     Object.defineProperty(process, 'platform', {
@@ -1844,16 +1843,16 @@ describe('DongleDriver core behavior', () => {
     const d = new DongleDriver() as any
     const dev = {
       opened: true,
-      reset: jest.fn(async () => undefined),
-      releaseInterface: jest.fn(async () => undefined),
-      close: jest.fn(async () => undefined)
+      reset: vi.fn(async () => undefined),
+      releaseInterface: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined)
     }
 
     d._device = dev
     d._ifaceNumber = 1
     d._readerActive = true
     d._started = true
-    d.waitForReaderStop = jest.fn(async () => undefined)
+    d.waitForReaderStop = vi.fn(async () => undefined)
 
     await d.close()
 
@@ -1866,16 +1865,16 @@ describe('DongleDriver core behavior', () => {
     warnSpy.mockRestore()
   })
 
-  test('isBenignUsbShutdownError also handles non-Error values', () => {
+  test('isBenignUsbShutdownError also handles non-Error values', async () => {
     const d = new DongleDriver() as any
 
     expect(d.isBenignUsbShutdownError('No such device')).toBe(true)
     expect(d.isBenignUsbShutdownError('plain unrelated error')).toBe(false)
   })
 
-  test('emitDongleInfoIfChanged works when box info is undefined', () => {
+  test('emitDongleInfoIfChanged works when box info is undefined', async () => {
     const d = new DongleDriver() as any
-    const emitSpy = jest.spyOn(d, 'emit')
+    const emitSpy = vi.spyOn(d, 'emit')
 
     d._dongleFwVersion = '1.2.3'
     d._boxInfo = undefined
@@ -1892,14 +1891,14 @@ describe('DongleDriver core behavior', () => {
   test('initialise does not start readLoop again when reader is already active', async () => {
     const d = new DongleDriver() as any
     d._readerActive = true
-    d.readLoop = jest.fn(async () => undefined)
+    d.readLoop = vi.fn(async () => undefined)
 
     const inEp = { direction: 'in', endpointNumber: 1 }
     const outEp = { direction: 'out', endpointNumber: 2 }
 
     const device = {
       opened: true,
-      selectConfiguration: jest.fn(async () => undefined),
+      selectConfiguration: vi.fn(async () => undefined),
       configuration: {
         interfaces: [
           {
@@ -1908,7 +1907,7 @@ describe('DongleDriver core behavior', () => {
           }
         ]
       },
-      claimInterface: jest.fn(async () => undefined)
+      claimInterface: vi.fn(async () => undefined)
     }
 
     await d.initialise(device as any)
@@ -1923,7 +1922,7 @@ describe('DongleDriver core behavior', () => {
     const header = MessageHeader.asBuffer(MessageType.Open, 0)
 
     d._device = {
-      transferIn: jest.fn(async () => {
+      transferIn: vi.fn(async () => {
         d._closing = true
         return {
           data: new DataView(
@@ -1944,7 +1943,7 @@ describe('DongleDriver core behavior', () => {
     const header = MessageHeader.asBuffer(MessageType.SoftwareVersion, payload.length)
 
     d._device = {
-      transferIn: jest
+      transferIn: vi
         .fn()
         .mockResolvedValueOnce({
           data: new DataView(
@@ -1965,24 +1964,24 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('handleMessage logs decrypted VendorSessionInfo when DEBUG is true', async () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(function () {})
 
-    jest.resetModules()
+    vi.resetModules()
 
-    await jest.isolateModulesAsync(async () => {
-      jest.doMock('@main/constants', () => ({
+    await vi.isolateModulesAsync(async () => {
+      vi.doMock('@main/constants', () => ({
         DEBUG: true
       }))
 
-      jest.doMock('@main/helpers/vendorSessionInfo', () => ({
-        decryptVendorSessionText: jest.fn(async () => 'decrypted-session')
+      vi.doMock('@main/helpers/vendorSessionInfo', () => ({
+        decryptVendorSessionText: vi.fn(async () => 'decrypted-session')
       }))
 
-      const { DongleDriver } = require('@main/services/projection/driver/dongle/dongleDriver')
-      const { VendorSessionInfo } = require('@main/services/projection/messages/readable')
+      const { DongleDriver } = await import('@main/services/projection/driver/dongle/dongleDriver')
+      const { VendorSessionInfo } = await import('@main/services/projection/messages/readable')
 
       const d = new DongleDriver() as any
-      const emitSpy = jest.spyOn(d, 'emit')
+      const emitSpy = vi.spyOn(d, 'emit')
 
       const msg = Object.create(VendorSessionInfo.prototype)
       msg.raw = Buffer.from('abcd')
@@ -1994,24 +1993,24 @@ describe('DongleDriver core behavior', () => {
     })
 
     logSpy.mockRestore()
-    jest.resetModules()
-    jest.dontMock('@main/constants')
-    jest.dontMock('@main/helpers/vendorSessionInfo')
+    vi.resetModules()
+    vi.doUnmock('@main/constants')
+    vi.doUnmock('@main/helpers/vendorSessionInfo')
   })
 
   test('close drains the reader before releasing the interface', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
 
     const order: string[] = []
 
     const d = new DongleDriver() as any
     const dev = {
       opened: true,
-      reset: jest.fn(async () => undefined),
-      releaseInterface: jest.fn(async () => {
+      reset: vi.fn(async () => undefined),
+      releaseInterface: vi.fn(async () => {
         order.push('release')
       }),
-      close: jest.fn(async () => {
+      close: vi.fn(async () => {
         order.push('close')
       })
     }
@@ -2020,7 +2019,7 @@ describe('DongleDriver core behavior', () => {
     d._ifaceNumber = 1
     d._readerActive = true
     d._started = true
-    d.waitForReaderStop = jest.fn(async () => {
+    d.waitForReaderStop = vi.fn(async () => {
       order.push('waitForReaderStop')
     })
 
@@ -2038,8 +2037,8 @@ describe('DongleDriver core behavior', () => {
     await expect(d.tryResetUnderlyingUsbDevice({ device: 'not-an-object' })).resolves.toBe(false)
   })
 
-  test('logPhoneWorkModeChange and logAndroidWorkModeChange omit extra separator when no extra is provided', () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+  test('logPhoneWorkModeChange and logAndroidWorkModeChange omit extra separator when no extra is provided', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(function () {})
     const d = new DongleDriver() as any
 
     d.logPhoneWorkModeChange('reason-x', PhoneWorkMode.CarPlay, PhoneWorkMode.Android)
@@ -2061,8 +2060,8 @@ describe('DongleDriver core behavior', () => {
     d._lastModeSwitchAt = 0
     d._cfg = null
     d._device = { opened: true }
-    d.send = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
+    d.send = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
 
     await d.applyPhoneWorkMode(PhoneWorkMode.Android)
 
@@ -2077,8 +2076,8 @@ describe('DongleDriver core behavior', () => {
     d._cfg = { width: 800, height: 480, fps: 60 }
     d._device = { opened: false }
     d._closing = false
-    d.send = jest.fn(async () => true)
-    d.sleep = jest.fn(async () => undefined)
+    d.send = vi.fn(async () => true)
+    d.sleep = vi.fn(async () => undefined)
 
     await d.applyPhoneWorkMode(PhoneWorkMode.Android)
     expect(d.send).not.toHaveBeenCalled()
@@ -2092,7 +2091,7 @@ describe('DongleDriver core behavior', () => {
     expect(d.send).not.toHaveBeenCalled()
   })
 
-  test('setPendingStartupConnectTarget clears target when btMac is nullish', () => {
+  test('setPendingStartupConnectTarget clears target when btMac is nullish', async () => {
     const d = new DongleDriver() as any
     d._pendingStartupConnectTarget = {
       btMac: 'AA:BB:CC:DD:EE:FF',
@@ -2110,16 +2109,16 @@ describe('DongleDriver core behavior', () => {
   test('waitForReaderStop returns immediately when reader is already inactive', async () => {
     const d = new DongleDriver() as any
     d._readerActive = false
-    d.sleep = jest.fn(async () => undefined)
+    d.sleep = vi.fn(async () => undefined)
 
     await d.waitForReaderStop(50)
 
     expect(d.sleep).not.toHaveBeenCalled()
   })
 
-  test('emitDongleInfoIfChanged also works when firmware version is undefined', () => {
+  test('emitDongleInfoIfChanged also works when firmware version is undefined', async () => {
     const d = new DongleDriver() as any
-    const emitSpy = jest.spyOn(d, 'emit')
+    const emitSpy = vi.spyOn(d, 'emit')
 
     d._dongleFwVersion = undefined
     d._boxInfo = { productType: 'A15W' }
@@ -2134,12 +2133,12 @@ describe('DongleDriver core behavior', () => {
   })
 
   test('handleMessage emits VendorSessionInfo without debug log when DEBUG is false', async () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const { decryptVendorSessionText } = jest.requireMock('@main/helpers/vendorSessionInfo')
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(function () {})
+    const { decryptVendorSessionText } = await vi.importMock('@main/helpers/vendorSessionInfo')
     decryptVendorSessionText.mockResolvedValueOnce('decrypted-session')
 
     const d = new DongleDriver() as any
-    const emitSpy = jest.spyOn(d, 'emit')
+    const emitSpy = vi.spyOn(d, 'emit')
 
     const msg = Object.create(VendorSessionInfo.prototype)
     msg.raw = Buffer.from('abcd')
@@ -2162,7 +2161,7 @@ describe('DongleDriver core behavior', () => {
   test('waitForReaderStop uses default timeout when called without argument', async () => {
     const d = new DongleDriver() as any
     d._readerActive = false
-    d.sleep = jest.fn(async () => undefined)
+    d.sleep = vi.fn(async () => undefined)
 
     await expect(d.waitForReaderStop()).resolves.toBeUndefined()
     expect(d.sleep).not.toHaveBeenCalled()

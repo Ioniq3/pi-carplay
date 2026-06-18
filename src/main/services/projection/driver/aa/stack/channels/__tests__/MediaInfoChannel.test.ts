@@ -8,7 +8,7 @@ const MEDIA_PLAYBACK_METADATA = 0x8003
 describe('MediaInfoChannel — metadata', () => {
   test('decodes song/artist/album/playlist + duration + rating', () => {
     const ch = new MediaInfoChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('metadata', cb)
 
     const payload = Buffer.concat([
@@ -33,7 +33,7 @@ describe('MediaInfoChannel — metadata', () => {
 
   test('decodes album_art as a Buffer', () => {
     const ch = new MediaInfoChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('metadata', cb)
 
     const art = Buffer.from([0xff, 0xd8, 0xff, 0xe0])
@@ -46,7 +46,7 @@ describe('MediaInfoChannel — metadata', () => {
 
   test('empty metadata payload emits an empty object', () => {
     const ch = new MediaInfoChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('metadata', cb)
     ch.handleMessage(MEDIA_PLAYBACK_METADATA, Buffer.alloc(0))
     expect(cb).toHaveBeenCalledWith({})
@@ -61,7 +61,7 @@ describe('MediaInfoChannel — status', () => {
     [99, 'unknown']
   ])('state %s → %s', (raw, expected) => {
     const ch = new MediaInfoChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('status', cb)
     ch.handleMessage(MEDIA_PLAYBACK_STATUS, fieldVarint(1, raw))
     expect(cb.mock.calls[0][0].state).toBe(expected)
@@ -69,7 +69,7 @@ describe('MediaInfoChannel — status', () => {
 
   test('decodes mediaSource + playbackSeconds + shuffle/repeat flags', () => {
     const ch = new MediaInfoChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('status', cb)
 
     const payload = Buffer.concat([
@@ -94,7 +94,7 @@ describe('MediaInfoChannel — status', () => {
 
   test('defaults state to "unknown" when no field 1', () => {
     const ch = new MediaInfoChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('status', cb)
     ch.handleMessage(MEDIA_PLAYBACK_STATUS, fieldLenDelim(2, Buffer.from('Radio')))
     expect(cb.mock.calls[0][0]).toEqual({ state: 'unknown', mediaSource: 'Radio' })
@@ -104,7 +104,7 @@ describe('MediaInfoChannel — status', () => {
 describe('MediaInfoChannel — passthrough behaviour', () => {
   test('MEDIA_PLAYBACK_INPUT is silently ignored', () => {
     const ch = new MediaInfoChannel()
-    const cb = jest.fn()
+    const cb = vi.fn()
     ch.on('metadata', cb)
     ch.on('status', cb)
     ch.handleMessage(MEDIA_PLAYBACK_INPUT, Buffer.alloc(0))

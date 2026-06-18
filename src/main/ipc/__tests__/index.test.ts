@@ -3,21 +3,21 @@ import { registerAppIpc } from '@main/ipc/app'
 import { registerSettingsIpc } from '@main/ipc/settings'
 import { registerUpdateIpc } from '@main/ipc/update'
 
-jest.mock('@main/ipc/app', () => ({
-  registerAppIpc: jest.fn()
+vi.mock('@main/ipc/app', () => ({
+  registerAppIpc: vi.fn()
 }))
 
-jest.mock('@main/ipc/settings', () => ({
-  registerSettingsIpc: jest.fn()
+vi.mock('@main/ipc/settings', () => ({
+  registerSettingsIpc: vi.fn()
 }))
 
-jest.mock('@main/ipc/update', () => ({
-  registerUpdateIpc: jest.fn()
+vi.mock('@main/ipc/update', () => ({
+  registerUpdateIpc: vi.fn()
 }))
 
 describe('registerIpc', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   test('registers all IPC groups', () => {

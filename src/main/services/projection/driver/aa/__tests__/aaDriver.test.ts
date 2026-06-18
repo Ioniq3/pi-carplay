@@ -1,29 +1,30 @@
 import { EventEmitter } from 'node:events'
+import type { Mock } from 'vitest'
 
 class MockAAStack extends EventEmitter {
   cfg: unknown
-  start = jest.fn()
-  stop = jest.fn()
-  attachSocket = jest.fn()
-  requestVideoFocus = jest.fn()
-  requestClusterKeyframe = jest.fn()
-  requestShutdown = jest.fn(async () => undefined)
-  sendTouch = jest.fn()
-  sendButton = jest.fn()
-  sendRotary = jest.fn()
-  sendMicPcm = jest.fn()
-  sendFuelData = jest.fn()
-  sendSpeedData = jest.fn()
-  sendRpmData = jest.fn()
-  sendGearData = jest.fn()
-  sendNightModeData = jest.fn()
-  sendParkingBrakeData = jest.fn()
-  sendLightData = jest.fn()
-  sendEnvironmentData = jest.fn()
-  sendOdometerData = jest.fn()
-  sendDrivingStatusData = jest.fn()
-  sendGpsLocationData = jest.fn()
-  sendVehicleEnergyModel = jest.fn()
+  start = vi.fn()
+  stop = vi.fn()
+  attachSocket = vi.fn()
+  requestVideoFocus = vi.fn()
+  requestClusterKeyframe = vi.fn()
+  requestShutdown = vi.fn(async () => undefined)
+  sendTouch = vi.fn()
+  sendButton = vi.fn()
+  sendRotary = vi.fn()
+  sendMicPcm = vi.fn()
+  sendFuelData = vi.fn()
+  sendSpeedData = vi.fn()
+  sendRpmData = vi.fn()
+  sendGearData = vi.fn()
+  sendNightModeData = vi.fn()
+  sendParkingBrakeData = vi.fn()
+  sendLightData = vi.fn()
+  sendEnvironmentData = vi.fn()
+  sendOdometerData = vi.fn()
+  sendDrivingStatusData = vi.fn()
+  sendGpsLocationData = vi.fn()
+  sendVehicleEnergyModel = vi.fn()
   constructor(cfg: unknown) {
     super()
     this.cfg = cfg
@@ -31,32 +32,32 @@ class MockAAStack extends EventEmitter {
 }
 
 class MockUsbAoapBridge extends EventEmitter {
-  start = jest.fn(async () => undefined)
-  stop = jest.fn(async () => undefined)
-  drain = jest.fn(async () => undefined)
-  forceReenum = jest.fn(async () => undefined)
+  start = vi.fn(async () => undefined)
+  stop = vi.fn(async () => undefined)
+  drain = vi.fn(async () => undefined)
+  forceReenum = vi.fn(async () => undefined)
   constructor() {
     super()
   }
 }
 
 class MockMicrophone extends EventEmitter {
-  start = jest.fn()
-  stop = jest.fn()
+  start = vi.fn()
+  stop = vi.fn()
 }
 
 class MockSocket extends EventEmitter {
-  destroy = jest.fn()
+  destroy = vi.fn()
 }
 
 const lastAaStack: { instance: MockAAStack | null } = { instance: null }
 const lastBridge: { instance: MockUsbAoapBridge | null } = { instance: null }
 
-jest.mock('../stack/index', () => {
-  const real = jest.requireActual('../stack/index')
+vi.mock('../stack/index', async () => {
+  const real = await vi.importActual('../stack/index')
   return {
     ...real,
-    AAStack: jest.fn().mockImplementation((cfg: unknown) => {
+    AAStack: vi.fn().mockImplementation(function (cfg: unknown) {
       const aa = new MockAAStack(cfg)
       lastAaStack.instance = aa
       return aa
@@ -64,20 +65,24 @@ jest.mock('../stack/index', () => {
   }
 })
 
-jest.mock('../stack/transport/UsbAoapBridge', () => ({
-  UsbAoapBridge: jest.fn().mockImplementation(() => {
+vi.mock('../stack/transport/UsbAoapBridge', () => ({
+  UsbAoapBridge: vi.fn().mockImplementation(function () {
     const b = new MockUsbAoapBridge()
     lastBridge.instance = b
     return b
   })
 }))
 
-jest.mock('@main/services/audio', () => ({
-  Microphone: jest.fn().mockImplementation(() => new MockMicrophone())
+vi.mock('@main/services/audio', () => ({
+  Microphone: vi.fn().mockImplementation(function () {
+    return new MockMicrophone()
+  })
 }))
 
-jest.mock('node:net', () => ({
-  createConnection: jest.fn(() => new MockSocket())
+vi.mock('node:net', () => ({
+  createConnection: vi.fn(function () {
+    return new MockSocket()
+  })
 }))
 
 import * as net from 'node:net'
@@ -128,16 +133,16 @@ const fakeUsbDevice = () =>
     deviceDescriptor: { idVendor: 0x18d1, idProduct: 0x4ee1 }
   }) as unknown as import('usb').Device
 
-beforeEach(() => {
+beforeEach(async () => {
   lastAaStack.instance = null
   lastBridge.instance = null
-  jest.clearAllMocks()
-  jest.spyOn(console, 'log').mockImplementation(() => {})
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
-  jest.spyOn(console, 'error').mockImplementation(() => {})
+  vi.clearAllMocks()
+  vi.spyOn(console, 'log').mockImplementation(function () {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
+  vi.spyOn(console, 'error').mockImplementation(function () {})
 })
-afterEach(() => {
-  jest.restoreAllMocks()
+afterEach(async () => {
+  vi.restoreAllMocks()
 })
 
 describe('AaDriver.start — wireless', () => {
@@ -213,7 +218,7 @@ describe('AaDriver.start — wired', () => {
     expect(lastBridge.instance!.start).toHaveBeenCalled()
   })
 
-  test('isWiredMode reflects the setter', () => {
+  test('isWiredMode reflects the setter', async () => {
     const d = new AaDriver()
     expect(d.isWiredMode()).toBe(false)
     d.setWiredDevice(fakeUsbDevice())
@@ -229,21 +234,21 @@ describe('AaDriver.start — wired', () => {
 
     const bridge = lastBridge.instance!
     bridge.emit('ready', { host: '127.0.0.1', port: 5278 })
-    expect(net.createConnection as jest.Mock).toHaveBeenCalled()
+    expect(net.createConnection as Mock).toHaveBeenCalled()
 
-    const sock = (net.createConnection as jest.Mock).mock.results[0].value as MockSocket
+    const sock = (net.createConnection as Mock).mock.results[0].value as MockSocket
     sock.emit('connect')
     expect(lastAaStack.instance!.attachSocket).toHaveBeenCalledWith(sock)
   })
 
   test('bridge.start rejection → start() returns false', async () => {
     // Make the next UsbAoapBridge.start reject
-    const { UsbAoapBridge } = jest.requireMock('../stack/transport/UsbAoapBridge') as {
-      UsbAoapBridge: jest.Mock
+    const { UsbAoapBridge } = (await vi.importMock('../stack/transport/UsbAoapBridge')) as {
+      UsbAoapBridge: Mock
     }
-    UsbAoapBridge.mockImplementationOnce(() => {
+    UsbAoapBridge.mockImplementationOnce(function () {
       const b = new MockUsbAoapBridge()
-      b.start = jest.fn(async () => {
+      b.start = vi.fn(async () => {
         throw new Error('init failed')
       })
       lastBridge.instance = b
@@ -392,7 +397,7 @@ describe('AaDriver.send — SendCommand', () => {
     )
     if (unmapped !== undefined) {
       const cmd = new SendCommand('home') // placeholder; we'll inject the raw cmd
-      jest.spyOn(cmd, 'getPayload').mockReturnValue(
+      vi.spyOn(cmd, 'getPayload').mockReturnValue(
         (() => {
           const b = Buffer.alloc(4)
           b.writeUInt32LE(unmapped, 0)
@@ -482,7 +487,7 @@ describe('AaDriver — vehicle-data passthrough', () => {
     aa = lastAaStack.instance!
   })
 
-  test('all push methods forward to AAStack when started', () => {
+  test('all push methods forward to AAStack when started', async () => {
     d.sendFuelData(50)
     d.sendSpeedData(13_000)
     d.sendRpmData(2_500_000)
@@ -510,7 +515,7 @@ describe('AaDriver — vehicle-data passthrough', () => {
     expect(aa.sendVehicleEnergyModel).toHaveBeenCalled()
   })
 
-  test('push methods are no-ops when AAStack is not active', () => {
+  test('push methods are no-ops when AAStack is not active', async () => {
     const d2 = new AaDriver()
     expect(() => {
       d2.sendFuelData(0)
@@ -536,7 +541,7 @@ describe('AaDriver — microphone lifecycle', () => {
     expect(micA!.start).toHaveBeenCalledTimes(1)
   })
 
-  test('mic-stop when never started is a no-op', () => {
+  test('mic-stop when never started is a no-op', async () => {
     const d = new AaDriver()
     expect(() =>
       (d as unknown as { _stopMicCapture: (r: string) => void })._stopMicCapture('x')
@@ -582,7 +587,7 @@ describe('AaDriver — close error swallowing', () => {
       _mic: MockMicrophone | null
     }
     internal._startMicCapture('x')
-    internal._mic!.stop.mockImplementation(() => {
+    internal._mic!.stop.mockImplementation(function () {
       throw new Error('alsa eof')
     })
     await expect(d.close()).resolves.toBeUndefined()
@@ -620,7 +625,7 @@ describe('AaDriver — bridge dep callbacks', () => {
     const d = new AaDriver()
     await d.start(baseCfg())
     const aa = lastAaStack.instance!
-    const cb = jest.fn()
+    const cb = vi.fn()
     d.on('message', cb)
     aa.emit('connected') // triggers Bridge → deps.emitMessage(DongleReady)
     expect(cb).toHaveBeenCalled()
@@ -630,7 +635,7 @@ describe('AaDriver — bridge dep callbacks', () => {
     const d = new AaDriver()
     await d.start(baseCfg())
     const aa = lastAaStack.instance!
-    const cb = jest.fn()
+    const cb = vi.fn()
     d.on('video-codec', cb)
     aa.emit('video-codec', 'h265')
     expect(cb).toHaveBeenCalledWith('h265')
@@ -650,7 +655,7 @@ describe('AaDriver — bridge dep callbacks', () => {
   test('isClosed dep flips to true after close()', async () => {
     const d = new AaDriver()
     await d.start(baseCfg())
-    const internal = d as unknown as { _bridge: { wire: jest.Mock } }
+    const internal = d as unknown as { _bridge: { wire: Mock } }
     // Bridge was constructed; trigger close()
     await d.close()
     expect((d as unknown as { _closed: boolean })._closed).toBe(true)

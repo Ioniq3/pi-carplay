@@ -1,13 +1,13 @@
 import { EventEmitter } from 'node:events'
 
 class MockSocket extends EventEmitter {
-  write = jest.fn()
-  destroy = jest.fn()
+  write = vi.fn()
+  destroy = vi.fn()
 }
 
-const createConnection = jest.fn()
+const createConnection = vi.fn()
 
-jest.mock('net', () => ({
+vi.mock('net', () => ({
   __esModule: true,
   createConnection: (...args: unknown[]) => createConnection(...args)
 }))
@@ -17,7 +17,7 @@ import { AaBtSockClient, AaBtSockError } from '../AaBtSockClient'
 function makeClient(): { client: AaBtSockClient; nextSocket: () => MockSocket } {
   const sockets: MockSocket[] = []
   createConnection.mockReset()
-  createConnection.mockImplementation(() => {
+  createConnection.mockImplementation(function () {
     const s = new MockSocket()
     sockets.push(s)
     return s
@@ -123,13 +123,13 @@ describe('AaBtSockClient — failure paths', () => {
   })
 
   test('rejects after timeout', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     const { client, nextSocket } = makeClient()
     const p = client.listPaired(50)
     nextSocket() // hold the socket but never respond
-    jest.advanceTimersByTime(200)
+    vi.advanceTimersByTime(200)
     await expect(p).rejects.toThrow(/timeout/)
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 })
 
@@ -169,18 +169,18 @@ describe('AaBtSockClient.subscribe', () => {
     expect(events).toHaveLength(0)
   })
 
-  test('fires onClose on socket close', () => {
+  test('fires onClose on socket close', async () => {
     const { client, nextSocket } = makeClient()
-    const onClose = jest.fn()
+    const onClose = vi.fn()
     client.subscribe(() => {}, onClose)
     const sock = nextSocket()
     sock.emit('close')
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  test('fires onClose only once even on close + error', () => {
+  test('fires onClose only once even on close + error', async () => {
     const { client, nextSocket } = makeClient()
-    const onClose = jest.fn()
+    const onClose = vi.fn()
     client.subscribe(() => {}, onClose)
     const sock = nextSocket()
     sock.emit('error', new Error('x'))
@@ -188,7 +188,7 @@ describe('AaBtSockClient.subscribe', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  test('returned close() destroys the socket', () => {
+  test('returned close() destroys the socket', async () => {
     const { client, nextSocket } = makeClient()
     const handle = client.subscribe(() => {})
     const sock = nextSocket()
@@ -251,7 +251,7 @@ describe('AaBtSockClient — request internals', () => {
     const { client, nextSocket } = makeClient()
     const p = client.listPaired(1000)
     const sock = nextSocket()
-    sock.destroy = jest.fn(() => {
+    sock.destroy = vi.fn(function () {
       throw new Error('already gone')
     })
     sock.emit('connect')

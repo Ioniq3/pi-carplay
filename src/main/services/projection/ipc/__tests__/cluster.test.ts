@@ -1,11 +1,13 @@
+import type { Mock } from 'vitest'
+
 type IpcHandler = (evt: unknown, ...args: unknown[]) => unknown
 const handlers = new Map<string, IpcHandler>()
 
-jest.mock('@main/ipc/register', () => ({
+vi.mock('@main/ipc/register', () => ({
   registerIpcHandle: (channel: string, handler: IpcHandler) => {
     handlers.set(channel, handler)
   },
-  registerIpcOn: jest.fn()
+  registerIpcOn: vi.fn()
 }))
 
 import { SendCommand } from '../../messages/sendable'
@@ -13,20 +15,22 @@ import { registerClusterIpc } from '../cluster'
 
 function freshHost() {
   return {
-    getConfig: jest.fn(() => ({
-      dashboards: { dash3: { main: true, dash: false, aux: false } }
-    })) as jest.Mock,
-    setClusterRequested: jest.fn(),
-    setClusterVisible: jest.fn(),
-    resetLastClusterVideoSize: jest.fn(),
-    getLastClusterCodec: jest.fn(() => 'h264' as 'h264' | null),
-    getLastClusterVideoSize: jest.fn(() => null as { width: number; height: number } | null),
-    getClusterTargetWebContents: jest.fn(() => []),
-    send: jest.fn(async () => true)
+    getConfig: vi.fn(function () {
+      return {
+        dashboards: { dash3: { main: true, dash: false, aux: false } }
+      }
+    }) as Mock,
+    setClusterRequested: vi.fn(),
+    setClusterVisible: vi.fn(),
+    resetLastClusterVideoSize: vi.fn(),
+    getLastClusterCodec: vi.fn(() => 'h264' as 'h264' | null),
+    getLastClusterVideoSize: vi.fn(() => null as { width: number; height: number } | null),
+    getClusterTargetWebContents: vi.fn(() => []),
+    send: vi.fn(async () => true)
   }
 }
 
-beforeEach(() => handlers.clear())
+beforeEach(async () => handlers.clear())
 
 describe('cluster ipc — cluster:request', () => {
   test('enabled=false sets cluster off and resets size', async () => {
@@ -50,7 +54,7 @@ describe('cluster ipc — cluster:request', () => {
   })
 
   test('enabled=true with cluster on emits codec to each target + send focus', async () => {
-    const wc = { send: jest.fn() }
+    const wc = { send: vi.fn() }
     const host = freshHost()
     host.getClusterTargetWebContents.mockReturnValue([wc as never])
     registerClusterIpc(host)
@@ -66,7 +70,7 @@ describe('cluster ipc — cluster:request', () => {
   test('skips codec re-emit when no cached codec', async () => {
     const host = freshHost()
     host.getLastClusterCodec.mockReturnValue(null)
-    const wc = { send: jest.fn() }
+    const wc = { send: vi.fn() }
     host.getClusterTargetWebContents.mockReturnValue([wc as never])
     registerClusterIpc(host)
     await handlers.get('cluster:request')!(null, true)
@@ -76,7 +80,7 @@ describe('cluster ipc — cluster:request', () => {
   test('thrown wc.send is swallowed', async () => {
     const host = freshHost()
     const wc = {
-      send: jest.fn(() => {
+      send: vi.fn(function () {
         throw new Error('detached')
       })
     }
@@ -90,7 +94,7 @@ describe('cluster ipc — cluster:request', () => {
 
   test('thrown host.send is swallowed', async () => {
     const host = freshHost()
-    host.send.mockImplementation(() => {
+    host.send.mockImplementation(function () {
       throw new Error('not started')
     })
     registerClusterIpc(host)

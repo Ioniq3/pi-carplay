@@ -1,34 +1,36 @@
-jest.mock('electron', () => ({
+vi.mock('electron', () => ({
   protocol: {
-    registerSchemesAsPrivileged: jest.fn(),
-    handle: jest.fn()
+    registerSchemesAsPrivileged: vi.fn(),
+    handle: vi.fn()
   },
   net: {
-    fetch: jest.fn()
+    fetch: vi.fn()
   }
 }))
 
 describe('appProtocol', () => {
-  beforeEach(() => {
-    jest.resetModules()
-    jest.clearAllMocks()
+  beforeEach(async () => {
+    vi.resetModules()
+    vi.clearAllMocks()
   })
 
-  function loadModule() {
-    const existsSync = jest.fn()
+  async function loadModule() {
+    const existsSync = vi.fn()
 
-    jest.doMock('fs', () => ({
+    vi.doMock('fs', () => ({
       existsSync
     }))
 
-    jest.doMock('url', () => ({
-      pathToFileURL: jest.fn((file: string) => ({
-        toString: () => `file://${file}`
-      }))
+    vi.doMock('url', () => ({
+      pathToFileURL: vi.fn(function (file: string) {
+        return {
+          toString: () => `file://${file}`
+        }
+      })
     }))
 
-    const mod = require('@main/protocol/appProtocol') as typeof import('@main/protocol/appProtocol')
-    const { protocol, net } = require('electron')
+    const mod = await import('@main/protocol/appProtocol')
+    const { protocol, net } = await import('electron')
 
     return {
       registerAppProtocol: mod.registerAppProtocol,
@@ -38,8 +40,8 @@ describe('appProtocol', () => {
     }
   }
 
-  test('registers privileged app scheme at module load', () => {
-    const { protocol } = loadModule()
+  test('registers privileged app scheme at module load', async () => {
+    const { protocol } = await loadModule()
 
     expect(protocol.registerSchemesAsPrivileged).toHaveBeenCalledWith([
       {
@@ -55,8 +57,8 @@ describe('appProtocol', () => {
     ])
   })
 
-  test('registerAppProtocol registers app handler', () => {
-    const { registerAppProtocol, protocol } = loadModule()
+  test('registerAppProtocol registers app handler', async () => {
+    const { registerAppProtocol, protocol } = await loadModule()
 
     registerAppProtocol()
 
@@ -64,7 +66,7 @@ describe('appProtocol', () => {
   })
 
   test('registerAppProtocol responds 200 with fetched file body and security headers', async () => {
-    const { registerAppProtocol, protocol, net, existsSync } = loadModule()
+    const { registerAppProtocol, protocol, net, existsSync } = await loadModule()
 
     existsSync.mockReturnValue(true)
     net.fetch.mockResolvedValue(
@@ -93,7 +95,7 @@ describe('appProtocol', () => {
   })
 
   test('registerAppProtocol responds 404 when file is missing', async () => {
-    const { registerAppProtocol, protocol, net, existsSync } = loadModule()
+    const { registerAppProtocol, protocol, net, existsSync } = await loadModule()
 
     existsSync.mockReturnValue(false)
 
@@ -109,14 +111,14 @@ describe('appProtocol', () => {
   })
 
   test('registerAppProtocol responds 500 on invalid URL parse error', async () => {
-    const { registerAppProtocol, protocol } = loadModule()
+    const { registerAppProtocol, protocol } = await loadModule()
 
     registerAppProtocol()
 
     const handler = protocol.handle.mock.calls.find(([scheme]: [string]) => scheme === 'app')?.[1]
     expect(handler).toBeDefined()
 
-    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     const response = await handler({ url: '::invalid-url::' })
 

@@ -9,37 +9,40 @@ import {
   persistKioskAndBroadcast
 } from '@main/window/utils'
 import { screen, session, shell } from 'electron'
+import type { Mock } from 'vitest'
 
 const browserWindowInstances: any[] = []
 
-jest.mock('electron', () => {
-  const BrowserWindow = jest.fn((opts) => {
+vi.mock('electron', async () => {
+  const BrowserWindow = vi.fn(function (opts) {
     const instance = {
       __opts: opts,
       webContents: {
         session: {
-          setPermissionCheckHandler: jest.fn(),
-          setPermissionRequestHandler: jest.fn(),
-          setDevicePermissionHandler: jest.fn(),
-          setUSBProtectedClassesHandler: jest.fn()
+          setPermissionCheckHandler: vi.fn(),
+          setPermissionRequestHandler: vi.fn(),
+          setDevicePermissionHandler: vi.fn(),
+          setUSBProtectedClassesHandler: vi.fn()
         },
-        setWindowOpenHandler: jest.fn(),
-        setZoomFactor: jest.fn(),
-        openDevTools: jest.fn(),
-        on: jest.fn()
+        setWindowOpenHandler: vi.fn(),
+        setZoomFactor: vi.fn(),
+        openDevTools: vi.fn(),
+        on: vi.fn()
       },
-      once: jest.fn(),
-      on: jest.fn(),
-      loadURL: jest.fn(),
-      setKiosk: jest.fn(),
-      setContentSize: jest.fn(),
-      getContentSize: jest.fn(() => [800, 480]),
-      show: jest.fn(),
-      hide: jest.fn(),
-      getBounds: jest.fn(() => ({ x: 0, y: 0, width: 800, height: 480 })),
-      isDestroyed: jest.fn(() => false),
-      isFullScreen: jest.fn(() => false),
-      setFullScreen: jest.fn()
+      once: vi.fn(),
+      on: vi.fn(),
+      loadURL: vi.fn(),
+      setKiosk: vi.fn(),
+      setContentSize: vi.fn(),
+      getContentSize: vi.fn(() => [800, 480]),
+      show: vi.fn(),
+      hide: vi.fn(),
+      getBounds: vi.fn(function () {
+        return { x: 0, y: 0, width: 800, height: 480 }
+      }),
+      isDestroyed: vi.fn(() => false),
+      isFullScreen: vi.fn(() => false),
+      setFullScreen: vi.fn()
     }
     browserWindowInstances.push(instance)
     return instance
@@ -47,65 +50,67 @@ jest.mock('electron', () => {
 
   return {
     app: {
-      quit: jest.fn(),
-      getPath: jest.fn(() => '/tmp')
+      quit: vi.fn(),
+      getPath: vi.fn(() => '/tmp')
     },
     BrowserWindow: Object.assign(BrowserWindow, {
-      getAllWindows: jest.fn(() => [])
+      getAllWindows: vi.fn(() => [])
     }),
     session: {
-      defaultSession: { webRequest: { onHeadersReceived: jest.fn() } }
+      defaultSession: { webRequest: { onHeadersReceived: vi.fn() } }
     },
     shell: {
-      openExternal: jest.fn()
+      openExternal: vi.fn()
     },
     screen: {
-      getDisplayMatching: jest.fn(() => ({
-        size: { width: 1920, height: 1080 },
-        workAreaSize: { width: 1920, height: 1080 }
-      }))
+      getDisplayMatching: vi.fn(function () {
+        return {
+          size: { width: 1920, height: 1080 },
+          workAreaSize: { width: 1920, height: 1080 }
+        }
+      })
     }
   }
 })
 
-jest.mock('@electron-toolkit/utils', () => ({
+vi.mock('@electron-toolkit/utils', () => ({
   is: { dev: false }
 }))
 
-jest.mock('@main/utils', () => ({
-  isMacPlatform: jest.fn(() => false),
-  pushSettingsToRenderer: jest.fn()
+vi.mock('@main/utils', () => ({
+  isMacPlatform: vi.fn(() => false),
+  pushSettingsToRenderer: vi.fn()
 }))
 
-jest.mock('@main/window/utils', () => ({
-  applyAspectRatioFullscreen: jest.fn(),
-  applyAspectRatioWindowed: jest.fn(),
-  applyWindowedContentSize: jest.fn(),
-  attachKioskStateSync: jest.fn(),
-  attachResizeReflow: jest.fn(),
-  currentKiosk: jest.fn(() => false),
-  persistKioskAndBroadcast: jest.fn(),
-  sanitizeBounds: jest.fn((b) => b)
+vi.mock('@main/window/utils', () => ({
+  applyAspectRatioFullscreen: vi.fn(),
+  applyAspectRatioWindowed: vi.fn(),
+  applyWindowedContentSize: vi.fn(),
+  attachKioskStateSync: vi.fn(),
+  attachResizeReflow: vi.fn(),
+  currentKiosk: vi.fn(() => false),
+  persistKioskAndBroadcast: vi.fn(),
+  sanitizeBounds: vi.fn((b) => b)
 }))
 
-jest.mock('@main/ipc/utils', () => ({
-  saveSettings: jest.fn()
+vi.mock('@main/ipc/utils', () => ({
+  saveSettings: vi.fn()
 }))
 
 describe('createMainWindow', () => {
   const originalRendererUrl = process.env.ELECTRON_RENDERER_URL
 
-  beforeEach(() => {
+  beforeEach(async () => {
     browserWindowInstances.length = 0
-    jest.clearAllMocks()
+    vi.clearAllMocks()
     process.env.ELECTRON_RENDERER_URL = originalRendererUrl
   })
 
-  afterAll(() => {
+  afterAll(async () => {
     process.env.ELECTRON_RENDERER_URL = originalRendererUrl
   })
 
-  test('creates main BrowserWindow and loads app protocol url in production mode', () => {
+  test('creates main BrowserWindow and loads app protocol url in production mode', async () => {
     const runtimeState = {
       config: {
         mainScreenWidth: 800,
@@ -115,7 +120,7 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -125,7 +130,7 @@ describe('createMainWindow', () => {
     expect(getMainWindow()).toBe(win)
   })
 
-  test('attaches kiosk state sync on creation', () => {
+  test('attaches kiosk state sync on creation', async () => {
     const runtimeState = {
       config: {
         mainScreenWidth: 800,
@@ -135,14 +140,14 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
     expect(attachKioskStateSync).toHaveBeenCalledWith(runtimeState)
   })
 
-  test('configures permission and usb handlers', () => {
+  test('configures permission and usb handlers', async () => {
     const runtimeState = {
       config: {
         mainScreenWidth: 800,
@@ -152,7 +157,7 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -163,7 +168,7 @@ describe('createMainWindow', () => {
     expect(session.defaultSession.webRequest.onHeadersReceived).toHaveBeenCalled()
   })
 
-  test('ready-to-show applies size, shows window, sets zoom and attaches renderer', () => {
+  test('ready-to-show applies size, shows window, sets zoom and attaches renderer', async () => {
     const runtimeState = {
       config: {
         mainScreenWidth: 900,
@@ -173,7 +178,7 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -194,7 +199,7 @@ describe('createMainWindow', () => {
     expect(services.projectionService.attachRenderer).toHaveBeenCalledWith(win.webContents)
   })
 
-  test('ready-to-show opens devtools in dev mode', () => {
+  test('ready-to-show opens devtools in dev mode', async () => {
     ;(is as any).dev = true
 
     const runtimeState = {
@@ -206,7 +211,7 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -220,7 +225,7 @@ describe('createMainWindow', () => {
     ;(is as any).dev = false
   })
 
-  test('uses ELECTRON_RENDERER_URL in dev mode', () => {
+  test('uses ELECTRON_RENDERER_URL in dev mode', async () => {
     ;(is as any).dev = true
     process.env.ELECTRON_RENDERER_URL = 'http://localhost:5173'
 
@@ -233,7 +238,7 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -242,7 +247,7 @@ describe('createMainWindow', () => {
     ;(is as any).dev = false
   })
 
-  test('creates extra dev windows in dev mode', () => {
+  test('creates extra dev windows in dev mode', async () => {
     ;(is as any).dev = true
     process.env.ELECTRON_RENDERER_URL = 'http://localhost:5173'
 
@@ -255,7 +260,7 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -265,7 +270,7 @@ describe('createMainWindow', () => {
     ;(is as any).dev = false
   })
 
-  test('setWindowOpenHandler opens external urls and denies window creation', () => {
+  test('setWindowOpenHandler opens external urls and denies window creation', async () => {
     const runtimeState = {
       config: {
         mainScreenWidth: 800,
@@ -275,7 +280,7 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -288,8 +293,8 @@ describe('createMainWindow', () => {
     expect(result).toEqual({ action: 'deny' })
   })
 
-  test('mac fullscreen handlers sync aspect ratio and kiosk state', () => {
-    ;(isMacPlatform as jest.Mock).mockReturnValue(true)
+  test('mac fullscreen handlers sync aspect ratio and kiosk state', async () => {
+    ;(isMacPlatform as Mock).mockReturnValue(true)
 
     const runtimeState = {
       config: {
@@ -301,7 +306,7 @@ describe('createMainWindow', () => {
       isQuitting: false,
       suppressNextFsSync: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -320,11 +325,11 @@ describe('createMainWindow', () => {
     leaveHandler()
     expect(applyAspectRatioWindowed).toHaveBeenCalledWith(win, 1000, 600)
     expect(persistKioskAndBroadcast).toHaveBeenCalledWith(false, runtimeState)
-    ;(isMacPlatform as jest.Mock).mockReturnValue(false)
+    ;(isMacPlatform as Mock).mockReturnValue(false)
   })
 
-  test('mac leave-full-screen handler clears suppressNextFsSync without syncing', () => {
-    ;(isMacPlatform as jest.Mock).mockReturnValue(true)
+  test('mac leave-full-screen handler clears suppressNextFsSync without syncing', async () => {
+    ;(isMacPlatform as Mock).mockReturnValue(true)
 
     const runtimeState = {
       config: {
@@ -336,7 +341,7 @@ describe('createMainWindow', () => {
       isQuitting: false,
       suppressNextFsSync: true
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -350,11 +355,11 @@ describe('createMainWindow', () => {
     expect(runtimeState.suppressNextFsSync).toBe(false)
     expect(applyAspectRatioWindowed).not.toHaveBeenCalled()
     expect(persistKioskAndBroadcast).not.toHaveBeenCalled()
-    ;(isMacPlatform as jest.Mock).mockReturnValue(false)
+    ;(isMacPlatform as Mock).mockReturnValue(false)
   })
 
-  test('close hides mac window instead of quitting when not quitting', () => {
-    ;(isMacPlatform as jest.Mock).mockReturnValue(true)
+  test('close hides mac window instead of quitting when not quitting', async () => {
+    ;(isMacPlatform as Mock).mockReturnValue(true)
 
     const runtimeState = {
       config: {
@@ -366,23 +371,23 @@ describe('createMainWindow', () => {
       isQuitting: false,
       suppressNextFsSync: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
     const win = browserWindowInstances[0]
     const closeHandler = win.on.mock.calls.find(([event]: any[]) => event === 'close')?.[1]
-    const preventDefault = jest.fn()
+    const preventDefault = vi.fn()
 
     closeHandler({ preventDefault })
 
     expect(preventDefault).toHaveBeenCalled()
     expect(win.hide).toHaveBeenCalled()
-    ;(isMacPlatform as jest.Mock).mockReturnValue(false)
+    ;(isMacPlatform as Mock).mockReturnValue(false)
   })
 
-  test('close exits fullscreen first on mac before hiding', () => {
-    ;(isMacPlatform as jest.Mock).mockReturnValue(true)
+  test('close exits fullscreen first on mac before hiding', async () => {
+    ;(isMacPlatform as Mock).mockReturnValue(true)
 
     const runtimeState = {
       config: {
@@ -394,7 +399,7 @@ describe('createMainWindow', () => {
       isQuitting: false,
       suppressNextFsSync: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -402,7 +407,7 @@ describe('createMainWindow', () => {
     win.isFullScreen.mockReturnValue(true)
 
     const closeHandler = win.on.mock.calls.find(([event]: any[]) => event === 'close')?.[1]
-    const preventDefault = jest.fn()
+    const preventDefault = vi.fn()
 
     closeHandler({ preventDefault })
 
@@ -410,15 +415,14 @@ describe('createMainWindow', () => {
     expect(runtimeState.suppressNextFsSync).toBe(true)
     expect(win.once).toHaveBeenCalledWith('leave-full-screen', expect.any(Function))
     expect(win.setFullScreen).toHaveBeenCalledWith(false)
-    ;(isMacPlatform as jest.Mock).mockReturnValue(false)
+    ;(isMacPlatform as Mock).mockReturnValue(false)
   })
 
-  test('ready-to-show enters kiosk on linux when configured', () => {
-    const setImmediateSpy = jest.spyOn(global, 'setImmediate').mockImplementation(((fn: any) => {
+  test('ready-to-show enters kiosk on linux when configured', async () => {
+    const setImmediateSpy = vi.spyOn(global, 'setImmediate').mockImplementation(function (fn: any) {
       fn()
       return 0 as any
-    }) as any)
-
+    } as any)
     const runtimeState = {
       config: {
         mainScreenWidth: 800,
@@ -428,7 +432,7 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -445,7 +449,7 @@ describe('createMainWindow', () => {
     setImmediateSpy.mockRestore()
   })
 
-  test('permission request handler allows supported permission', () => {
+  test('permission request handler allows supported permission', async () => {
     const runtimeState = {
       config: {
         mainScreenWidth: 800,
@@ -455,20 +459,20 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
     const win = browserWindowInstances[0]
     const handler = win.webContents.session.setPermissionRequestHandler.mock.calls[0][0]
-    const cb = jest.fn()
+    const cb = vi.fn()
 
     handler({}, 'usb', cb)
 
     expect(cb).toHaveBeenCalledWith(true)
   })
 
-  test('permission request handler rejects unsupported permission', () => {
+  test('permission request handler rejects unsupported permission', async () => {
     const runtimeState = {
       config: {
         mainScreenWidth: 800,
@@ -478,20 +482,20 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
     const win = browserWindowInstances[0]
     const handler = win.webContents.session.setPermissionRequestHandler.mock.calls[0][0]
-    const cb = jest.fn()
+    const cb = vi.fn()
 
     handler({}, 'notifications', cb)
 
     expect(cb).toHaveBeenCalledWith(false)
   })
 
-  test('usb protected classes handler keeps only allowed classes', () => {
+  test('usb protected classes handler keeps only allowed classes', async () => {
     const runtimeState = {
       config: {
         mainScreenWidth: 800,
@@ -501,7 +505,7 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -515,7 +519,7 @@ describe('createMainWindow', () => {
     expect(result).toEqual(['audio', 'video', 'vendor-specific'])
   })
 
-  test('headers received handler injects COOP COEP and CORP headers', () => {
+  test('headers received handler injects COOP COEP and CORP headers', async () => {
     const runtimeState = {
       config: {
         mainScreenWidth: 800,
@@ -525,13 +529,12 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
-    const handler = (session.defaultSession.webRequest.onHeadersReceived as jest.Mock).mock
-      .calls[0][1]
-    const cb = jest.fn()
+    const handler = (session.defaultSession.webRequest.onHeadersReceived as Mock).mock.calls[0][1]
+    const cb = vi.fn()
 
     handler(
       {
@@ -552,7 +555,7 @@ describe('createMainWindow', () => {
     })
   })
 
-  test('savedBounds: ready-to-show re-applies position+size', () => {
+  test('savedBounds: ready-to-show re-applies position+size', async () => {
     const runtimeState = {
       config: {
         mainScreenWidth: 800,
@@ -561,18 +564,18 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
     createMainWindow(runtimeState, services)
     const win = browserWindowInstances[browserWindowInstances.length - 1]
     expect(win.__opts.x).toBe(50)
     expect(win.__opts.width).toBe(1024)
-    win.setBounds = jest.fn()
+    win.setBounds = vi.fn()
     const restoreCb = win.once.mock.calls.find(([e]: any[]) => e === 'ready-to-show')?.[1]
     restoreCb()
     expect(win.setBounds).toHaveBeenCalledWith({ x: 50, y: 60, width: 1024, height: 768 })
   })
 
-  test('savedBounds: destroyed window skips the restore', () => {
+  test('savedBounds: destroyed window skips the restore', async () => {
     const runtimeState = {
       config: {
         mainScreenWidth: 800,
@@ -582,32 +585,32 @@ describe('createMainWindow', () => {
       isQuitting: false
     } as any
     createMainWindow(runtimeState, {
-      projectionService: { attachRenderer: jest.fn() }
+      projectionService: { attachRenderer: vi.fn() }
     } as any)
     const win = browserWindowInstances[browserWindowInstances.length - 1]
-    win.isDestroyed = jest.fn(() => true)
-    win.setBounds = jest.fn()
+    win.isDestroyed = vi.fn(() => true)
+    win.setBounds = vi.fn()
     const restoreCb = win.once.mock.calls.find(([e]: any[]) => e === 'ready-to-show')?.[1]
     restoreCb()
     expect(win.setBounds).not.toHaveBeenCalled()
   })
 
-  test('invalid mainScreenBounds shape in config is ignored', () => {
+  test('invalid mainScreenBounds shape in config is ignored', async () => {
     const runtimeState = {
       config: { mainScreenWidth: 800, mainScreenHeight: 480, mainScreenBounds: { x: 1 } },
       isQuitting: false
     } as any
     createMainWindow(runtimeState, {
-      projectionService: { attachRenderer: jest.fn() }
+      projectionService: { attachRenderer: vi.fn() }
     } as any)
     const win = browserWindowInstances[browserWindowInstances.length - 1]
     expect(win.__opts.width).toBe(800)
   })
 
-  test('move event saves geometry after debounce', () => {
-    jest.useFakeTimers()
-    const { saveSettings } = jest.requireMock('@main/ipc/utils') as {
-      saveSettings: jest.Mock
+  test('move event saves geometry after debounce', async () => {
+    vi.useFakeTimers()
+    const { saveSettings } = (await vi.importMock('@main/ipc/utils')) as {
+      saveSettings: Mock
     }
     saveSettings.mockClear()
     const runtimeState = {
@@ -615,27 +618,27 @@ describe('createMainWindow', () => {
       isQuitting: false
     } as any
     createMainWindow(runtimeState, {
-      projectionService: { attachRenderer: jest.fn() }
+      projectionService: { attachRenderer: vi.fn() }
     } as any)
     const win = browserWindowInstances[browserWindowInstances.length - 1]
-    win.getPosition = jest.fn(() => [10, 20])
-    win.getContentSize = jest.fn(() => [800, 480])
+    win.getPosition = vi.fn(() => [10, 20])
+    win.getContentSize = vi.fn(() => [800, 480])
     const moveCb = win.on.mock.calls.find(([e]: any[]) => e === 'move')?.[1]
     moveCb()
-    jest.advanceTimersByTime(500)
+    vi.advanceTimersByTime(500)
     expect(saveSettings).toHaveBeenCalledWith(
       runtimeState,
       expect.objectContaining({
         mainScreenBounds: { x: 10, y: 20, width: 800, height: 480 }
       })
     )
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
-  test('move event with unchanged bounds skips save', () => {
-    jest.useFakeTimers()
-    const { saveSettings } = jest.requireMock('@main/ipc/utils') as {
-      saveSettings: jest.Mock
+  test('move event with unchanged bounds skips save', async () => {
+    vi.useFakeTimers()
+    const { saveSettings } = (await vi.importMock('@main/ipc/utils')) as {
+      saveSettings: Mock
     }
     const runtimeState = {
       config: {
@@ -646,95 +649,94 @@ describe('createMainWindow', () => {
       isQuitting: false
     } as any
     createMainWindow(runtimeState, {
-      projectionService: { attachRenderer: jest.fn() }
+      projectionService: { attachRenderer: vi.fn() }
     } as any)
     const win = browserWindowInstances[browserWindowInstances.length - 1]
-    win.getPosition = jest.fn(() => [10, 20])
-    win.getContentSize = jest.fn(() => [800, 480])
+    win.getPosition = vi.fn(() => [10, 20])
+    win.getContentSize = vi.fn(() => [800, 480])
     saveSettings.mockClear()
     const moveCb = win.on.mock.calls.find(([e]: any[]) => e === 'move')?.[1]
     moveCb()
-    jest.advanceTimersByTime(500)
+    vi.advanceTimersByTime(500)
     expect(saveSettings).not.toHaveBeenCalled()
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
-  test('move event skips save when window is in full-screen', () => {
-    jest.useFakeTimers()
-    const { saveSettings } = jest.requireMock('@main/ipc/utils') as {
-      saveSettings: jest.Mock
+  test('move event skips save when window is in full-screen', async () => {
+    vi.useFakeTimers()
+    const { saveSettings } = (await vi.importMock('@main/ipc/utils')) as {
+      saveSettings: Mock
     }
     const runtimeState = {
       config: { mainScreenWidth: 800, mainScreenHeight: 480 },
       isQuitting: false
     } as any
     createMainWindow(runtimeState, {
-      projectionService: { attachRenderer: jest.fn() }
+      projectionService: { attachRenderer: vi.fn() }
     } as any)
     const win = browserWindowInstances[browserWindowInstances.length - 1]
-    win.isFullScreen = jest.fn(() => true)
+    win.isFullScreen = vi.fn(() => true)
     saveSettings.mockClear()
     const moveCb = win.on.mock.calls.find(([e]: any[]) => e === 'move')?.[1]
     moveCb()
-    jest.advanceTimersByTime(500)
+    vi.advanceTimersByTime(500)
     expect(saveSettings).not.toHaveBeenCalled()
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
-  test('close calls app.quit when isQuitting=false on linux', () => {
-    const { app } = jest.requireMock('electron') as { app: { quit: jest.Mock } }
+  test('close calls app.quit when isQuitting=false on linux', async () => {
+    const { app } = (await vi.importMock('electron')) as { app: { quit: Mock } }
     app.quit.mockClear()
     const runtimeState = {
       config: { mainScreenWidth: 800, mainScreenHeight: 480 },
       isQuitting: false
     } as any
     createMainWindow(runtimeState, {
-      projectionService: { attachRenderer: jest.fn() }
+      projectionService: { attachRenderer: vi.fn() }
     } as any)
     const win = browserWindowInstances[browserWindowInstances.length - 1]
     const closeCb = win.on.mock.calls.find(([e]: any[]) => e === 'close')?.[1]
-    const evt = { preventDefault: jest.fn() }
+    const evt = { preventDefault: vi.fn() }
     closeCb(evt)
     expect(evt.preventDefault).toHaveBeenCalled()
     expect(app.quit).toHaveBeenCalled()
   })
 
-  test('close lets the window die when isQuitting=true', () => {
-    const { app } = jest.requireMock('electron') as { app: { quit: jest.Mock } }
+  test('close lets the window die when isQuitting=true', async () => {
+    const { app } = (await vi.importMock('electron')) as { app: { quit: Mock } }
     app.quit.mockClear()
     const runtimeState = {
       config: { mainScreenWidth: 800, mainScreenHeight: 480 },
       isQuitting: true
     } as any
     createMainWindow(runtimeState, {
-      projectionService: { attachRenderer: jest.fn() }
+      projectionService: { attachRenderer: vi.fn() }
     } as any)
     const win = browserWindowInstances[browserWindowInstances.length - 1]
     const closeCb = win.on.mock.calls.find(([e]: any[]) => e === 'close')?.[1]
-    const evt = { preventDefault: jest.fn() }
+    const evt = { preventDefault: vi.fn() }
     closeCb(evt)
     expect(evt.preventDefault).not.toHaveBeenCalled()
     expect(app.quit).not.toHaveBeenCalled()
   })
 
-  test('getMainWindow returns the most recently created window', () => {
+  test('getMainWindow returns the most recently created window', async () => {
     const runtimeState = {
       config: { mainScreenWidth: 800, mainScreenHeight: 480 },
       isQuitting: false
     } as any
     createMainWindow(runtimeState, {
-      projectionService: { attachRenderer: jest.fn() }
+      projectionService: { attachRenderer: vi.fn() }
     } as any)
     expect(getMainWindow()).toBe(browserWindowInstances[browserWindowInstances.length - 1])
   })
 
-  test('ready-to-show enters fullscreen on mac when kiosk is configured', () => {
-    const setImmediateSpy = jest.spyOn(global, 'setImmediate').mockImplementation(((fn: any) => {
+  test('ready-to-show enters fullscreen on mac when kiosk is configured', async () => {
+    const setImmediateSpy = vi.spyOn(global, 'setImmediate').mockImplementation(function (fn: any) {
       fn()
       return 0 as any
-    }) as any)
-
-    ;(isMacPlatform as jest.Mock).mockReturnValue(true)
+    } as any)
+    ;(isMacPlatform as Mock).mockReturnValue(true)
 
     const runtimeState = {
       config: {
@@ -745,7 +747,7 @@ describe('createMainWindow', () => {
       },
       isQuitting: false
     } as any
-    const services = { projectionService: { attachRenderer: jest.fn() } } as any
+    const services = { projectionService: { attachRenderer: vi.fn() } } as any
 
     createMainWindow(runtimeState, services)
 
@@ -758,7 +760,7 @@ describe('createMainWindow', () => {
 
     expect(win.setFullScreen).toHaveBeenCalledWith(true)
     expect(win.setKiosk).not.toHaveBeenCalled()
-    ;(isMacPlatform as jest.Mock).mockReturnValue(false)
+    ;(isMacPlatform as Mock).mockReturnValue(false)
     setImmediateSpy.mockRestore()
   })
 })

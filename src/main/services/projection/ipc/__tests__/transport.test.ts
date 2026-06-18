@@ -1,22 +1,22 @@
 type IpcHandler = (evt: unknown, ...args: unknown[]) => unknown
 const handlers = new Map<string, IpcHandler>()
 
-jest.mock('@main/ipc/register', () => ({
+vi.mock('@main/ipc/register', () => ({
   registerIpcHandle: (channel: string, handler: IpcHandler) => {
     handlers.set(channel, handler)
   },
-  registerIpcOn: jest.fn()
+  registerIpcOn: vi.fn()
 }))
 
 import { registerTransportIpc } from '../transport'
 
 describe('transport ipc', () => {
-  beforeEach(() => handlers.clear())
+  beforeEach(async () => handlers.clear())
 
   test('transport:switch delegates to host.switchTransport', async () => {
     const host = {
-      switchTransport: jest.fn(async () => ({ ok: true, active: 'aa' as const })),
-      getTransportState: jest.fn()
+      switchTransport: vi.fn(async () => ({ ok: true, active: 'aa' as const })),
+      getTransportState: vi.fn()
     }
     registerTransportIpc(host)
     const r = await handlers.get('transport:switch')!(null)
@@ -32,8 +32,8 @@ describe('transport ipc', () => {
       preference: 'auto' as const
     }
     const host = {
-      switchTransport: jest.fn(),
-      getTransportState: jest.fn(() => state)
+      switchTransport: vi.fn(),
+      getTransportState: vi.fn(() => state)
     }
     registerTransportIpc(host)
     const r = await handlers.get('transport:state')!(null)

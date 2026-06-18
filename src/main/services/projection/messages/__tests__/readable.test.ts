@@ -351,7 +351,7 @@ describe('readable messages', () => {
   })
 
   test('MetaData keeps unknown payloads as unknown inner kind', () => {
-    const infoSpy = jest.spyOn(console, 'info').mockImplementation(() => {})
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(function () {})
     const innerType = Buffer.alloc(4)
     innerType.writeUInt32LE(999, 0)
     const body = Buffer.from('mystery\0', 'utf8')

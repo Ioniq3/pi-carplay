@@ -1,68 +1,99 @@
 import { AudioCommand } from '@shared/types/ProjectionEnums'
-import EventEmitter from 'events'
 
-const requestDevice = jest.fn()
+const {
+  requestDevice,
+  micInstances,
+  MockMicrophone,
+  MockDongleDriver,
+  Plugged,
+  Unplugged,
+  VideoData,
+  MediaData,
+  Command,
+  AudioData,
+  SendAudio,
+  SendCommand,
+  SendTouch
+} = vi.hoisted(() => {
+  const EventEmitter = require('events')
+  const requestDevice = vi.fn()
+  const micInstances: any[] = []
 
-const micInstances: any[] = []
-class MockMicrophone extends EventEmitter {
-  start = jest.fn()
-  stop = jest.fn()
-  constructor() {
-    super()
-    micInstances.push(this)
+  class MockMicrophone extends EventEmitter {
+    start = vi.fn()
+    stop = vi.fn()
+    constructor() {
+      super()
+      micInstances.push(this)
+    }
   }
-}
 
-class MockDongleDriver extends EventEmitter {
-  static knownDevices = [{ vendorId: 0x1314, productId: 0x1520 }]
+  class MockDongleDriver extends EventEmitter {
+    static knownDevices = [{ vendorId: 0x1314, productId: 0x1520 }]
+    send = vi.fn(async () => true)
+    initialise = vi.fn(async () => undefined)
+    start = vi.fn(async () => undefined)
+    close = vi.fn(async () => undefined)
+  }
 
-  send = jest.fn(async () => true)
-  initialise = jest.fn(async () => undefined)
-  start = jest.fn(async () => undefined)
-  close = jest.fn(async () => undefined)
-}
+  class Plugged {
+    constructor(public phoneType: number) {}
+  }
+  class Unplugged {}
+  class VideoData {}
+  class MediaData {}
+  class Command {}
+  class AudioData {
+    constructor(
+      public command?: number,
+      public decodeType?: number
+    ) {}
+  }
+  class SendAudio {
+    constructor(
+      public data: Int16Array,
+      public decodeType: number
+    ) {}
+  }
+  class SendCommand {
+    constructor(public value: string) {}
+  }
+  class SendTouch {
+    constructor(
+      public x: number,
+      public y: number,
+      public action: number
+    ) {}
+  }
 
-class Plugged {
-  constructor(public phoneType: number) {}
-}
-class Unplugged {}
-class VideoData {}
-class MediaData {}
-class Command {}
-class AudioData {
-  constructor(
-    public command?: number,
-    public decodeType?: number
-  ) {}
-}
-class SendAudio {
-  constructor(
-    public data: Int16Array,
-    public decodeType: number
-  ) {}
-}
-class SendCommand {
-  constructor(public value: string) {}
-}
-class SendTouch {
-  constructor(
-    public x: number,
-    public y: number,
-    public action: number
-  ) {}
-}
+  return {
+    requestDevice,
+    micInstances,
+    MockMicrophone,
+    MockDongleDriver,
+    Plugged,
+    Unplugged,
+    VideoData,
+    MediaData,
+    Command,
+    AudioData,
+    SendAudio,
+    SendCommand,
+    SendTouch
+  }
+})
 
-jest.mock('usb', () => ({
+vi.mock('usb', () => ({
   webusb: {
     requestDevice
   }
 }))
 
-jest.mock('@main/services/audio', () => ({
+vi.mock('@main/services/audio', () => ({
   Microphone: MockMicrophone
 }))
 
-jest.mock('@main/services/projection/messages', () => ({
+vi.mock('@main/services/projection/messages', () => ({
   Plugged,
   Unplugged,
   VideoData,
@@ -74,7 +105,7 @@ jest.mock('@main/services/projection/messages', () => ({
   SendTouch
 }))
 
-jest.mock('@main/services/projection/driver/dongle/dongleDriver', () => ({
+vi.mock('@main/services/projection/driver/dongle/dongleDriver', () => ({
   DongleDriver: MockDongleDriver,
   DEFAULT_CONFIG: { phoneConfig: {} }
 }))
@@ -82,15 +113,15 @@ jest.mock('@main/services/projection/driver/dongle/dongleDriver', () => ({
 import Projection from '@main/services/projection/node/Projection'
 
 describe('Projection node wrapper', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
     micInstances.length = 0
     requestDevice.mockReset()
-    jest.useFakeTimers()
+    vi.useFakeTimers()
   })
 
-  afterEach(() => {
-    jest.useRealTimers()
+  afterEach(async () => {
+    vi.useRealTimers()
   })
 
   test('microphone PCM data is forwarded to dongle driver as SendAudio', async () => {
@@ -108,16 +139,16 @@ describe('Projection node wrapper', () => {
     expect(p.dongleDriver.send.mock.calls[0][0].decodeType).toBe(3)
   })
 
-  test('handles Plugged event and emits onmessage plugged', () => {
+  test('handles Plugged event and emits onmessage plugged', async () => {
     const p = new Projection({}) as any
-    p.onmessage = jest.fn()
+    p.onmessage = vi.fn()
 
     p.dongleDriver.emit('message', new Plugged(3))
 
     expect(p.onmessage).toHaveBeenCalledWith({ type: 'plugged' })
   })
 
-  test('audio command start/stop controls microphone', () => {
+  test('audio command start/stop controls microphone', async () => {
     const p = new Projection({}) as any
     const mic = micInstances[0]
 
@@ -136,9 +167,9 @@ describe('Projection node wrapper', () => {
 
   test('resetDongle opens, resets and closes usb device', async () => {
     const dev = {
-      open: jest.fn(async () => undefined),
-      reset: jest.fn(async () => undefined),
-      close: jest.fn(async () => undefined)
+      open: vi.fn(async () => undefined),
+      reset: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined)
     }
     requestDevice.mockResolvedValue(dev)
 
@@ -153,9 +184,9 @@ describe('Projection node wrapper', () => {
 
   test('initialiseAfterReconnect initialises driver and schedules wifiPair', async () => {
     const dev = {
-      open: jest.fn(async () => undefined),
-      reset: jest.fn(async () => undefined),
-      close: jest.fn(async () => undefined)
+      open: vi.fn(async () => undefined),
+      reset: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined)
     }
     requestDevice.mockResolvedValue(dev)
 
@@ -166,12 +197,12 @@ describe('Projection node wrapper', () => {
     expect(p.dongleDriver.initialise).toHaveBeenCalledWith(dev)
     expect(p.dongleDriver.start).toHaveBeenCalledTimes(1)
 
-    jest.advanceTimersByTime(15000)
+    vi.advanceTimersByTime(15000)
     await Promise.resolve()
     expect(p.dongleDriver.send).toHaveBeenCalled()
   })
 
-  test('sendKey and sendTouch proxy to dongle driver.send', () => {
+  test('sendKey and sendTouch proxy to dongle driver.send', async () => {
     const p = new Projection({}) as any
 
     p.sendKey('frame')
@@ -193,38 +224,38 @@ describe('Projection node wrapper', () => {
     expect(p._frameInterval).toBeNull()
   })
 
-  test('handles Plugged event with frameInterval config and sends frame commands on interval', () => {
+  test('handles Plugged event with frameInterval config and sends frame commands on interval', async () => {
     const p = new Projection({
       phoneConfig: {
         3: { frameInterval: 1000 }
       }
     } as any) as any
 
-    p.onmessage = jest.fn()
+    p.onmessage = vi.fn()
 
     p.dongleDriver.emit('message', new Plugged(3))
 
     expect(p.onmessage).toHaveBeenCalledWith({ type: 'plugged' })
 
-    jest.advanceTimersByTime(1000)
+    vi.advanceTimersByTime(1000)
 
     expect(p.dongleDriver.send).toHaveBeenCalledTimes(1)
     expect(p.dongleDriver.send.mock.calls[0][0]).toBeInstanceOf(SendCommand)
     expect(p.dongleDriver.send.mock.calls[0][0].value).toBe('frame')
   })
 
-  test('handles Unplugged event and emits onmessage unplugged', () => {
+  test('handles Unplugged event and emits onmessage unplugged', async () => {
     const p = new Projection({}) as any
-    p.onmessage = jest.fn()
+    p.onmessage = vi.fn()
 
     p.dongleDriver.emit('message', new Unplugged())
 
     expect(p.onmessage).toHaveBeenCalledWith({ type: 'unplugged' })
   })
 
-  test('handles VideoData event and emits onmessage video', () => {
+  test('handles VideoData event and emits onmessage video', async () => {
     const p = new Projection({}) as any
-    p.onmessage = jest.fn()
+    p.onmessage = vi.fn()
 
     const message = new VideoData()
     p.dongleDriver.emit('message', message)
@@ -232,9 +263,9 @@ describe('Projection node wrapper', () => {
     expect(p.onmessage).toHaveBeenCalledWith({ type: 'video', message })
   })
 
-  test('handles MediaData event and emits onmessage media', () => {
+  test('handles MediaData event and emits onmessage media', async () => {
     const p = new Projection({}) as any
-    p.onmessage = jest.fn()
+    p.onmessage = vi.fn()
 
     const message = new MediaData()
     p.dongleDriver.emit('message', message)
@@ -242,9 +273,9 @@ describe('Projection node wrapper', () => {
     expect(p.onmessage).toHaveBeenCalledWith({ type: 'media', message })
   })
 
-  test('handles Command event and emits onmessage command', () => {
+  test('handles Command event and emits onmessage command', async () => {
     const p = new Projection({}) as any
-    p.onmessage = jest.fn()
+    p.onmessage = vi.fn()
 
     const message = new Command()
     p.dongleDriver.emit('message', message)
@@ -252,18 +283,18 @@ describe('Projection node wrapper', () => {
     expect(p.onmessage).toHaveBeenCalledWith({ type: 'command', message })
   })
 
-  test('handles failure event and emits onmessage failure', () => {
+  test('handles failure event and emits onmessage failure', async () => {
     const p = new Projection({}) as any
-    p.onmessage = jest.fn()
+    p.onmessage = vi.fn()
 
     p.dongleDriver.emit('failure')
 
     expect(p.onmessage).toHaveBeenCalledWith({ type: 'failure' })
   })
 
-  test('handles dongle-info event and emits onmessage dongleInfo', () => {
+  test('handles dongle-info event and emits onmessage dongleInfo', async () => {
     const p = new Projection({}) as any
-    p.onmessage = jest.fn()
+    p.onmessage = vi.fn()
 
     const info = { dongleFwVersion: '1.2.3', boxInfo: { foo: 'bar' } }
     p.dongleDriver.emit('dongle-info', info)
@@ -296,7 +327,7 @@ describe('Projection node wrapper', () => {
   })
 
   test('stop catches close errors and logs them', async () => {
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(function () {})
     const p = new Projection({}) as any
     const err = new Error('close failed')
 
@@ -309,7 +340,7 @@ describe('Projection node wrapper', () => {
     errorSpy.mockRestore()
   })
 
-  test('ignores microphone data until an AudioInputConfig decode type was received', () => {
+  test('ignores microphone data until an AudioInputConfig decode type was received', async () => {
     const p = new Projection({}) as any
     const mic = micInstances[0]
 
@@ -319,9 +350,9 @@ describe('Projection node wrapper', () => {
     expect(p.dongleDriver.send).not.toHaveBeenCalled()
   })
 
-  test('ignores unknown driver message types', () => {
+  test('ignores unknown driver message types', async () => {
     const p = new Projection({}) as any
-    p.onmessage = jest.fn()
+    p.onmessage = vi.fn()
 
     class UnknownMessage {}
     p.dongleDriver.emit('message', new UnknownMessage())
@@ -329,7 +360,7 @@ describe('Projection node wrapper', () => {
     expect(p.onmessage).not.toHaveBeenCalled()
   })
 
-  test('does not start microphone on audio start command when decode type is still unknown', () => {
+  test('does not start microphone on audio start command when decode type is still unknown', async () => {
     const p = new Projection({}) as any
     const mic = micInstances[0]
 

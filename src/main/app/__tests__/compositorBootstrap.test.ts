@@ -1,12 +1,16 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import type { Mock } from 'vitest'
 import { bootstrapCompositor } from '../compositorBootstrap'
 
-jest.mock('node:child_process', () => ({ spawn: jest.fn() }))
-jest.mock('node:fs', () => ({ existsSync: jest.fn() }))
+vi.mock('node:child_process', () => ({ spawn: vi.fn() }))
+vi.mock('node:fs', () => {
+  const __m = { existsSync: vi.fn() }
+  return { ...__m, default: __m }
+})
 
-const mockedSpawn = spawn as jest.Mock
-const mockedExistsSync = existsSync as jest.Mock
+const mockedSpawn = spawn as Mock
+const mockedExistsSync = existsSync as Mock
 
 describe('bootstrapCompositor', () => {
   const originalPlatform = process.platform
@@ -18,8 +22,8 @@ describe('bootstrapCompositor', () => {
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
-    mockedSpawn.mockReturnValue({ unref: jest.fn() })
+    vi.clearAllMocks()
+    mockedSpawn.mockReturnValue({ unref: vi.fn() })
     mockedExistsSync.mockReturnValue(true)
     process.env = { ...originalEnv }
     delete process.env.LIVI_COMPOSITOR

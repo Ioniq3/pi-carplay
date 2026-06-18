@@ -1,49 +1,55 @@
 import { EventEmitter } from 'node:events'
 import type { Readable } from 'node:stream'
+import type { Mock } from 'vitest'
 
 class MockChild extends EventEmitter {
-  stdout: EventEmitter & { setEncoding: jest.Mock } = Object.assign(new EventEmitter(), {
-    setEncoding: jest.fn()
+  stdout: EventEmitter & { setEncoding: Mock } = Object.assign(new EventEmitter(), {
+    setEncoding: vi.fn()
   })
-  stderr: EventEmitter & { setEncoding: jest.Mock } = Object.assign(new EventEmitter(), {
-    setEncoding: jest.fn()
+  stderr: EventEmitter & { setEncoding: Mock } = Object.assign(new EventEmitter(), {
+    setEncoding: vi.fn()
   })
-  kill = jest.fn()
+  kill = vi.fn()
   killed = false
   exitCode: number | null = null
 }
 
 const lastChild: { instance: MockChild | null } = { instance: null }
-const spawnMock = jest.fn()
-const existsSyncMock = jest.fn()
-const readdirSyncMock = jest.fn(() => [] as string[])
-const statSyncMock = jest.fn(() => ({
-  isDirectory: () => false,
-  isFile: () => true,
-  size: 0,
-  mtimeMs: 0
-}))
-const readFileSyncMock = jest.fn()
-const cpSyncMock = jest.fn()
-const mkdirSyncMock = jest.fn()
-const writeFileSyncMock = jest.fn()
+const spawnMock = vi.fn()
+const existsSyncMock = vi.fn()
+const readdirSyncMock = vi.fn(() => [] as string[])
+const statSyncMock = vi.fn(function () {
+  return {
+    isDirectory: () => false,
+    isFile: () => true,
+    size: 0,
+    mtimeMs: 0
+  }
+})
+const readFileSyncMock = vi.fn()
+const cpSyncMock = vi.fn()
+const mkdirSyncMock = vi.fn()
+const writeFileSyncMock = vi.fn()
 
-jest.mock('node:child_process', () => ({
+vi.mock('node:child_process', () => ({
   spawn: (...args: unknown[]) => spawnMock(...args)
 }))
 
-jest.mock('node:fs', () => ({
-  existsSync: (...a: unknown[]) => existsSyncMock(...a),
-  readdirSync: (...a: unknown[]) => readdirSyncMock(...a),
-  statSync: (...a: unknown[]) => statSyncMock(...a),
-  readFileSync: (...a: unknown[]) => readFileSyncMock(...a),
-  cpSync: (...a: unknown[]) => cpSyncMock(...a),
-  mkdirSync: (...a: unknown[]) => mkdirSyncMock(...a),
-  writeFileSync: (...a: unknown[]) => writeFileSyncMock(...a)
-}))
+vi.mock('node:fs', () => {
+  const __m = {
+    existsSync: (...a: unknown[]) => existsSyncMock(...a),
+    readdirSync: (...a: unknown[]) => readdirSyncMock(...a),
+    statSync: (...a: unknown[]) => statSyncMock(...a),
+    readFileSync: (...a: unknown[]) => readFileSyncMock(...a),
+    cpSync: (...a: unknown[]) => cpSyncMock(...a),
+    mkdirSync: (...a: unknown[]) => mkdirSyncMock(...a),
+    writeFileSync: (...a: unknown[]) => writeFileSyncMock(...a)
+  }
+  return { ...__m, default: __m }
+})
 
-jest.mock('electron', () => ({
-  app: { getPath: jest.fn(() => '/tmp/livi-test') }
+vi.mock('electron', () => ({
+  app: { getPath: vi.fn(() => '/tmp/livi-test') }
 }))
 
 import type { Config } from '@shared/types'
@@ -60,7 +66,7 @@ const baseCfg = (over: Partial<Config> = {}): Config =>
     ...over
   }) as unknown as Config
 
-beforeEach(() => {
+beforeEach(async () => {
   spawnMock.mockReset()
   existsSyncMock.mockReset()
   readFileSyncMock.mockReset()
@@ -68,20 +74,20 @@ beforeEach(() => {
   mkdirSyncMock.mockReset()
   writeFileSyncMock.mockReset()
   lastChild.instance = null
-  spawnMock.mockImplementation(() => {
+  spawnMock.mockImplementation(function () {
     const child = new MockChild()
     lastChild.instance = child
     return child
   })
   // Default: script exists on disk
   existsSyncMock.mockReturnValue(true)
-  jest.spyOn(console, 'log').mockImplementation(() => {})
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.spyOn(console, 'log').mockImplementation(function () {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 describe('AaBluetoothSupervisor.start', () => {
-  test('spawns python3 with the script path and config-derived env', () => {
+  test('spawns python3 with the script path and config-derived env', async () => {
     const sup = new AaBluetoothSupervisor({ python: 'python3' })
     sup.start(baseCfg())
     expect(spawnMock).toHaveBeenCalledTimes(1)
@@ -94,7 +100,7 @@ describe('AaBluetoothSupervisor.start', () => {
     expect(env.LIVI_BT_ADAPTER).toBe('hci0')
   })
 
-  test('falls back to LIVI when carName is whitespace', () => {
+  test('falls back to LIVI when carName is whitespace', async () => {
     const sup = new AaBluetoothSupervisor()
     sup.start(baseCfg({ carName: '   ' }))
     const env = (spawnMock.mock.calls[0][2] as { env: Record<string, string> }).env
@@ -108,14 +114,14 @@ describe('AaBluetoothSupervisor.start', () => {
     expect(env.LIVI_PASSPHRASE).toBe('12345678')
   })
 
-  test('5ghz defaults to channel 36 when wifiChannel is missing', () => {
+  test('5ghz defaults to channel 36 when wifiChannel is missing', async () => {
     const sup = new AaBluetoothSupervisor()
     sup.start(baseCfg({ wifiChannel: 0, wifiType: '5ghz' }))
     const env = (spawnMock.mock.calls[0][2] as { env: Record<string, string> }).env
     expect(env.LIVI_CHANNEL).toBe('36')
   })
 
-  test('2.4ghz defaults to channel 6 when wifiChannel is missing', () => {
+  test('2.4ghz defaults to channel 6 when wifiChannel is missing', async () => {
     const sup = new AaBluetoothSupervisor()
     sup.start(baseCfg({ wifiChannel: 0, wifiType: '2.4ghz' } as Partial<Config>))
     const env = (spawnMock.mock.calls[0][2] as { env: Record<string, string> }).env
@@ -125,13 +131,13 @@ describe('AaBluetoothSupervisor.start', () => {
   test('emits "error" when the script is not on disk', () => {
     existsSyncMock.mockReturnValue(false)
     const sup = new AaBluetoothSupervisor()
-    const err = jest.fn()
+    const err = vi.fn()
     sup.on('error', err)
     sup.start(baseCfg())
     expect(err).toHaveBeenCalled()
   })
 
-  test('falls through to process.resourcesPath when dev tree is missing', () => {
+  test('falls through to process.resourcesPath when dev tree is missing', async () => {
     Object.defineProperty(process, 'resourcesPath', {
       value: '/opt/livi/resources',
       configurable: true
@@ -147,7 +153,7 @@ describe('AaBluetoothSupervisor.start', () => {
     expect(spawnMock).toHaveBeenCalled()
   })
 
-  test('AppImage mount path triggers stageBtDir (signature cache hit)', () => {
+  test('AppImage mount path triggers stageBtDir (signature cache hit)', async () => {
     process.env.APPIMAGE = '/tmp/livi.AppImage'
     process.env.APPDIR = '/tmp/.mount_livixyz'
     Object.defineProperty(process, 'resourcesPath', {
@@ -173,7 +179,7 @@ describe('AaBluetoothSupervisor.start', () => {
     delete process.env.APPDIR
   })
 
-  test('AppImage mount path triggers stageBtDir (signature mismatch → cpSync)', () => {
+  test('AppImage mount path triggers stageBtDir (signature mismatch → cpSync)', async () => {
     process.env.APPIMAGE = '/tmp/livi.AppImage'
     process.env.APPDIR = '/tmp/.mount_livixyz'
     Object.defineProperty(process, 'resourcesPath', {
@@ -197,7 +203,7 @@ describe('AaBluetoothSupervisor.start', () => {
     delete process.env.APPDIR
   })
 
-  test('signTree walks nested directories recursively', () => {
+  test('signTree walks nested directories recursively', async () => {
     process.env.APPIMAGE = '/tmp/livi.AppImage'
     process.env.APPDIR = '/tmp/.mount_livixyz'
     Object.defineProperty(process, 'resourcesPath', {
@@ -228,7 +234,7 @@ describe('AaBluetoothSupervisor.start', () => {
     delete process.env.APPDIR
   })
 
-  test('stage failure falls back to using the mount path directly', () => {
+  test('stage failure falls back to using the mount path directly', async () => {
     process.env.APPIMAGE = '/tmp/livi.AppImage'
     process.env.APPDIR = '/tmp/.mount_livixyz'
     Object.defineProperty(process, 'resourcesPath', {
@@ -256,7 +262,7 @@ describe('AaBluetoothSupervisor.start', () => {
 })
 
 describe('AaBluetoothSupervisor — stdout / stderr line buffering', () => {
-  test('emits each non-empty line on stdout', () => {
+  test('emits each non-empty line on stdout', async () => {
     const sup = new AaBluetoothSupervisor()
     const lines: string[] = []
     sup.on('stdout', (l) => lines.push(l))
@@ -266,7 +272,7 @@ describe('AaBluetoothSupervisor — stdout / stderr line buffering', () => {
     expect(lines).toEqual(['hello', 'world'])
   })
 
-  test('handles \\r\\n line endings', () => {
+  test('handles \\r\\n line endings', async () => {
     const sup = new AaBluetoothSupervisor()
     const lines: string[] = []
     sup.on('stdout', (l) => lines.push(l))
@@ -275,7 +281,7 @@ describe('AaBluetoothSupervisor — stdout / stderr line buffering', () => {
     expect(lines).toEqual(['win'])
   })
 
-  test('buffers partial lines across chunks', () => {
+  test('buffers partial lines across chunks', async () => {
     const sup = new AaBluetoothSupervisor()
     const lines: string[] = []
     sup.on('stdout', (l) => lines.push(l))
@@ -297,48 +303,48 @@ describe('AaBluetoothSupervisor — stdout / stderr line buffering', () => {
 })
 
 describe('AaBluetoothSupervisor — child lifecycle', () => {
-  test('forwards child error events', () => {
+  test('forwards child error events', async () => {
     const sup = new AaBluetoothSupervisor()
-    const err = jest.fn()
+    const err = vi.fn()
     sup.on('error', err)
     sup.start(baseCfg())
     lastChild.instance!.emit('error', new Error('spawn EACCES'))
     expect(err).toHaveBeenCalled()
   })
 
-  test('emits exit when the child exits', () => {
+  test('emits exit when the child exits', async () => {
     const sup = new AaBluetoothSupervisor()
-    const exit = jest.fn()
+    const exit = vi.fn()
     sup.on('exit', exit)
     sup.start(baseCfg())
     lastChild.instance!.emit('exit', 1, null)
     expect(exit).toHaveBeenCalledWith(1, null)
   })
 
-  test('respawns after the configured delay', () => {
-    jest.useFakeTimers()
+  test('respawns after the configured delay', async () => {
+    vi.useFakeTimers()
     const sup = new AaBluetoothSupervisor({ restartDelayMs: 100 })
     sup.start(baseCfg())
     lastChild.instance!.emit('exit', 1, null)
     spawnMock.mockClear()
-    jest.advanceTimersByTime(100)
+    vi.advanceTimersByTime(100)
     expect(spawnMock).toHaveBeenCalledTimes(1)
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
-  test('stops respawning after maxRestarts is exceeded', () => {
-    jest.useFakeTimers()
+  test('stops respawning after maxRestarts is exceeded', async () => {
+    vi.useFakeTimers()
     const sup = new AaBluetoothSupervisor({ restartDelayMs: 0, maxRestarts: 1 })
-    const err = jest.fn()
+    const err = vi.fn()
     sup.on('error', err)
     sup.start(baseCfg())
     // 1st exit → respawn allowed
     lastChild.instance!.emit('exit', 1, null)
-    jest.advanceTimersByTime(0)
+    vi.advanceTimersByTime(0)
     // 2nd exit → exceeds budget
     lastChild.instance!.emit('exit', 1, null)
     expect(err).toHaveBeenCalled()
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   test('"running" reflects the child state', () => {
@@ -368,19 +374,19 @@ describe('AaBluetoothSupervisor.stop', () => {
   })
 
   test('SIGKILL grace period escalates when child does not exit on SIGTERM', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     const sup = new AaBluetoothSupervisor()
     sup.start(baseCfg())
     const child = lastChild.instance!
     const stopPromise = sup.stop()
     expect(child.kill).toHaveBeenCalledWith('SIGTERM')
     // Don't exit — let the 3s grace period run
-    jest.advanceTimersByTime(3_001)
+    vi.advanceTimersByTime(3_001)
     expect(child.kill).toHaveBeenCalledWith('SIGKILL')
     // Now resolve the stop by emitting exit
     child.emit('exit', 0, 'SIGKILL')
     await stopPromise
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   test('stop after child has already exited returns immediately', async () => {
@@ -391,16 +397,16 @@ describe('AaBluetoothSupervisor.stop', () => {
     await expect(sup.stop()).resolves.toBeUndefined()
   })
 
-  test('prevents further respawns', () => {
-    jest.useFakeTimers()
+  test('prevents further respawns', async () => {
+    vi.useFakeTimers()
     const sup = new AaBluetoothSupervisor({ restartDelayMs: 100 })
     sup.start(baseCfg())
     const stopP = sup.stop()
     lastChild.instance!.emit('exit', 0, 'SIGTERM')
     void stopP
     spawnMock.mockClear()
-    jest.advanceTimersByTime(500)
+    vi.advanceTimersByTime(500)
     expect(spawnMock).not.toHaveBeenCalled()
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 })

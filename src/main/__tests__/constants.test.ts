@@ -1,17 +1,17 @@
 describe('main constants', () => {
   const originalDebug = process.env.DEBUG
 
-  beforeEach(() => {
-    jest.resetModules()
+  beforeEach(async () => {
+    vi.resetModules()
     process.env.DEBUG = originalDebug
   })
 
-  afterAll(() => {
+  afterAll(async () => {
     process.env.DEBUG = originalDebug
   })
 
-  test('exports expected window size constants', () => {
-    const constants = require('../constants')
+  test('exports expected window size constants', async () => {
+    const constants = await import('../constants')
 
     expect(constants.MIN_WIDTH).toBe(300)
     expect(constants.MIN_HEIGHT).toBe(200)
@@ -19,8 +19,8 @@ describe('main constants', () => {
     expect(constants.DEFAULT_HEIGHT).toBe(480)
   })
 
-  test('NULL_DELETES contains expected resettable config keys', () => {
-    const { NULL_DELETES } = require('../constants')
+  test('NULL_DELETES contains expected resettable config keys', async () => {
+    const { NULL_DELETES } = await import('../constants')
 
     expect(NULL_DELETES).toEqual([
       'primaryColorDark',
@@ -30,26 +30,26 @@ describe('main constants', () => {
     ])
   })
 
-  test('DEBUG is true when DEBUG=1', () => {
+  test('DEBUG is true when DEBUG=1', async () => {
     process.env.DEBUG = '1'
-    jest.resetModules()
+    vi.resetModules()
 
-    const { DEBUG } = require('../constants')
+    const { DEBUG } = await import('../constants')
 
     expect(DEBUG).toBe(true)
   })
 
-  test('DEBUG is false when DEBUG is not 1', () => {
+  test('DEBUG is false when DEBUG is not 1', async () => {
     process.env.DEBUG = '0'
-    jest.resetModules()
+    vi.resetModules()
 
-    const { DEBUG } = require('../constants')
+    const { DEBUG } = await import('../constants')
 
     expect(DEBUG).toBe(false)
   })
 
-  test('mimeTypeFromExt returns known mime types case-insensitively', () => {
-    const { mimeTypeFromExt } = require('../constants')
+  test('mimeTypeFromExt returns known mime types case-insensitively', async () => {
+    const { mimeTypeFromExt } = await import('../constants')
 
     expect(mimeTypeFromExt('.html')).toBe('text/html')
     expect(mimeTypeFromExt('.JS')).toBe('text/javascript')
@@ -58,8 +58,8 @@ describe('main constants', () => {
     expect(mimeTypeFromExt('.wasm')).toBe('application/wasm')
   })
 
-  test('mimeTypeFromExt falls back to application/octet-stream for unknown extensions', () => {
-    const { mimeTypeFromExt } = require('../constants')
+  test('mimeTypeFromExt falls back to application/octet-stream for unknown extensions', async () => {
+    const { mimeTypeFromExt } = await import('../constants')
 
     expect(mimeTypeFromExt('.bin')).toBe('application/octet-stream')
     expect(mimeTypeFromExt('.unknown')).toBe('application/octet-stream')

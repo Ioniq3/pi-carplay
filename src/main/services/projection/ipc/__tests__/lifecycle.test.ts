@@ -1,30 +1,30 @@
 type IpcHandler = (evt: unknown, ...args: unknown[]) => unknown
 const handlers = new Map<string, IpcHandler>()
 
-jest.mock('@main/ipc/register', () => ({
+vi.mock('@main/ipc/register', () => ({
   registerIpcHandle: (channel: string, handler: IpcHandler) => {
     handlers.set(channel, handler)
   },
-  registerIpcOn: jest.fn()
+  registerIpcOn: vi.fn()
 }))
 
 import { registerLifecycleIpc } from '../lifecycle'
 
 function freshHost() {
   return {
-    start: jest.fn(async () => undefined),
-    stop: jest.fn(async () => undefined),
-    restartSession: jest.fn(async () => undefined),
-    pickPreferredTransport: jest.fn(() => 'dongle' as 'dongle' | 'aa' | null),
-    applyCodecCapabilities: jest.fn()
+    start: vi.fn(async () => undefined),
+    stop: vi.fn(async () => undefined),
+    restartSession: vi.fn(async () => undefined),
+    pickPreferredTransport: vi.fn(() => 'dongle' as 'dongle' | 'aa' | null),
+    applyCodecCapabilities: vi.fn()
   }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   handlers.clear()
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 describe('lifecycle ipc', () => {
   test('projection-start delegates to host.start', async () => {

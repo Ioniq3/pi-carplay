@@ -9,14 +9,14 @@ type ExposedBridge = {
 const ipcOnHandlers = new Map<string, IpcHandler[]>()
 
 const ipcRendererMock = {
-  on: jest.fn((channel: string, handler: IpcHandler) => {
+  on: vi.fn(function (channel: string, handler: IpcHandler) {
     const arr = ipcOnHandlers.get(channel) ?? []
     arr.push(handler)
     ipcOnHandlers.set(channel, arr)
   }),
-  invoke: jest.fn(),
-  send: jest.fn(),
-  removeListener: jest.fn((channel: string, handler: IpcHandler) => {
+  invoke: vi.fn(),
+  send: vi.fn(),
+  removeListener: vi.fn(function (channel: string, handler: IpcHandler) {
     const arr = ipcOnHandlers.get(channel) ?? []
     ipcOnHandlers.set(
       channel,
@@ -25,9 +25,9 @@ const ipcRendererMock = {
   })
 }
 
-jest.mock('electron', () => ({
+vi.mock('electron', () => ({
   contextBridge: {
-    exposeInMainWorld: jest.fn((key: keyof ExposedBridge, value: unknown) => {
+    exposeInMainWorld: vi.fn(function (key: keyof ExposedBridge, value: unknown) {
       exposed[key] = value
     })
   },
@@ -35,15 +35,15 @@ jest.mock('electron', () => ({
 }))
 
 describe('preload api bridge', () => {
-  beforeEach(() => {
-    jest.resetModules()
-    jest.clearAllMocks()
+  beforeEach(async () => {
+    vi.resetModules()
+    vi.clearAllMocks()
     for (const key of Object.keys(exposed)) delete exposed[key]
     ipcOnHandlers.clear()
   })
 
-  function loadPreload() {
-    require('../index')
+  async function loadPreload() {
+    await import('../index')
     return {
       projection: exposed.projection,
       app: exposed.app
@@ -57,15 +57,15 @@ describe('preload api bridge', () => {
     }
   }
 
-  test('exposes projection and app apis in main world', () => {
-    const { projection, app } = loadPreload()
+  test('exposes projection and app apis in main world', async () => {
+    const { projection, app } = await loadPreload()
 
     expect(projection).toBeDefined()
     expect(app).toBeDefined()
   })
 
   test('projection quit forwards to ipcRenderer.invoke', async () => {
-    const { projection } = loadPreload()
+    const { projection } = await loadPreload()
     ipcRendererMock.invoke.mockResolvedValue(undefined)
 
     await projection.quit()
@@ -73,8 +73,8 @@ describe('preload api bridge', () => {
     expect(ipcRendererMock.invoke).toHaveBeenCalledWith('quit')
   })
 
-  test('projection ipc sendRawMessage converts Uint8Array to number array', () => {
-    const { projection } = loadPreload()
+  test('projection ipc sendRawMessage converts Uint8Array to number array', async () => {
+    const { projection } = await loadPreload()
 
     projection.ipc.sendRawMessage(7, new Uint8Array([1, 2, 255]))
 
@@ -84,8 +84,8 @@ describe('preload api bridge', () => {
     })
   })
 
-  test('projection ipc sendTouch forwards payload', () => {
-    const { projection } = loadPreload()
+  test('projection ipc sendTouch forwards payload', async () => {
+    const { projection } = await loadPreload()
 
     projection.ipc.sendTouch(0.1, 0.2, 3)
 
@@ -96,9 +96,9 @@ describe('preload api bridge', () => {
     })
   })
 
-  test('usb listenForEvents flushes queued usb events', () => {
-    const { projection } = loadPreload()
-    const cb = jest.fn()
+  test('usb listenForEvents flushes queued usb events', async () => {
+    const { projection } = await loadPreload()
+    const cb = vi.fn()
 
     emit('usb-event', 'plugged', { vendorId: 1 })
 
@@ -108,9 +108,9 @@ describe('preload api bridge', () => {
     expect(cb).toHaveBeenCalledWith(expect.anything(), 'plugged', { vendorId: 1 })
   })
 
-  test('usb listenForEvents returns an unsubscribe closure that removes the handler', () => {
-    const { projection } = loadPreload()
-    const cb = jest.fn()
+  test('usb listenForEvents returns an unsubscribe closure that removes the handler', async () => {
+    const { projection } = await loadPreload()
+    const cb = vi.fn()
 
     const unsubscribe = projection.usb.listenForEvents(cb)
     expect(typeof unsubscribe).toBe('function')
@@ -121,9 +121,9 @@ describe('preload api bridge', () => {
     expect(cb).not.toHaveBeenCalled()
   })
 
-  test('onUSBResetStatus subscribes to both channels and cleanup removes both listeners', () => {
-    const { projection } = loadPreload()
-    const cb = jest.fn()
+  test('onUSBResetStatus subscribes to both channels and cleanup removes both listeners', async () => {
+    const { projection } = await loadPreload()
+    const cb = vi.fn()
 
     const cleanup = projection.onUSBResetStatus(cb)
 
@@ -136,9 +136,9 @@ describe('preload api bridge', () => {
     expect(ipcRendererMock.removeListener).toHaveBeenCalledWith('usb-reset-done', cb)
   })
 
-  test('settings onUpdate subscribes and cleanup removes listener', () => {
-    const { projection } = loadPreload()
-    const cb = jest.fn()
+  test('settings onUpdate subscribes and cleanup removes listener', async () => {
+    const { projection } = await loadPreload()
+    const cb = vi.fn()
 
     const cleanup = projection.settings.onUpdate(cb)
     emit('settings', { language: 'de' })
@@ -150,9 +150,9 @@ describe('preload api bridge', () => {
     expect(ipcRendererMock.removeListener).toHaveBeenCalledWith('settings', cb)
   })
 
-  test('ipc onEvent returns an unsubscribe closure that stops the projection-event fan-out', () => {
-    const { projection } = loadPreload()
-    const cb = jest.fn()
+  test('ipc onEvent returns an unsubscribe closure that stops the projection-event fan-out', async () => {
+    const { projection } = await loadPreload()
+    const cb = vi.fn()
 
     const unsubscribe = projection.ipc.onEvent(cb)
     emit('projection-event', { type: 'plugged' })
@@ -168,9 +168,9 @@ describe('preload api bridge', () => {
     expect(ipcRendererMock.removeListener).not.toHaveBeenCalledWith('projection-event', cb)
   })
 
-  test('ipc onAudioChunk flushes queued chunks and offAudioChunk clears active handler', () => {
-    const { projection } = loadPreload()
-    const handler = jest.fn()
+  test('ipc onAudioChunk flushes queued chunks and offAudioChunk clears active handler', async () => {
+    const { projection } = await loadPreload()
+    const handler = vi.fn()
 
     emit('projection-audio-chunk', { id: 'x' })
 
@@ -183,9 +183,9 @@ describe('preload api bridge', () => {
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
-  test('ipc cluster handlers flush queued cluster payloads', () => {
-    const { projection } = loadPreload()
-    const resolutionHandler = jest.fn()
+  test('ipc cluster handlers flush queued cluster payloads', async () => {
+    const { projection } = await loadPreload()
+    const resolutionHandler = vi.fn()
 
     emit('cluster-video-resolution', { width: 800, height: 480 })
 
@@ -194,9 +194,9 @@ describe('preload api bridge', () => {
     expect(resolutionHandler).toHaveBeenCalledWith({ width: 800, height: 480 })
   })
 
-  test('ipc telemetry queues before subscription and offTelemetry removes handler', () => {
-    const { projection } = loadPreload()
-    const handler = jest.fn()
+  test('ipc telemetry queues before subscription and offTelemetry removes handler', async () => {
+    const { projection } = await loadPreload()
+    const handler = vi.fn()
 
     emit('telemetry:update', { speed: 42 })
 
@@ -209,10 +209,10 @@ describe('preload api bridge', () => {
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
-  test('app onUpdateEvent and onUpdateProgress subscribe and clean up wrapper listeners', () => {
-    const { app } = loadPreload()
-    const eventCb = jest.fn()
-    const progressCb = jest.fn()
+  test('app onUpdateEvent and onUpdateProgress subscribe and clean up wrapper listeners', async () => {
+    const { app } = await loadPreload()
+    const eventCb = vi.fn()
+    const progressCb = vi.fn()
 
     const offEvent = app.onUpdateEvent(eventCb)
     const offProgress = app.onUpdateProgress(progressCb)
@@ -237,7 +237,7 @@ describe('preload api bridge', () => {
   })
 
   test('app wrappers forward invoke and send calls', async () => {
-    const { app } = loadPreload()
+    const { app } = await loadPreload()
     ipcRendererMock.invoke.mockResolvedValue({ ok: true })
 
     await app.getVersion()
@@ -267,7 +267,7 @@ describe('preload api bridge', () => {
   })
 
   test('projection wrappers forward invoke calls', async () => {
-    const { projection } = loadPreload()
+    const { projection } = await loadPreload()
     ipcRendererMock.invoke.mockResolvedValue({ ok: true })
 
     await projection.usb.forceReset()
@@ -317,8 +317,8 @@ describe('preload api bridge', () => {
     expect(ipcRendererMock.invoke).toHaveBeenCalledWith('cluster:request', true)
   })
 
-  test('projection volume and visualizer wrappers send ipc events', () => {
-    const { projection } = loadPreload()
+  test('projection volume and visualizer wrappers send ipc events', async () => {
+    const { projection } = await loadPreload()
 
     projection.ipc.setVolume('nav', 0.4)
     projection.ipc.setVisualizerEnabled(1 as any)
@@ -336,9 +336,9 @@ describe('preload api bridge', () => {
     ])
   })
 
-  test('usb listenForEvents forwards usb events directly when handler is already registered', () => {
-    const { projection } = loadPreload()
-    const cb = jest.fn()
+  test('usb listenForEvents forwards usb events directly when handler is already registered', async () => {
+    const { projection } = await loadPreload()
+    const cb = vi.fn()
 
     projection.usb.listenForEvents(cb)
     emit('usb-event', 'plugged', { vendorId: 1 })
@@ -347,9 +347,9 @@ describe('preload api bridge', () => {
     expect(cb).toHaveBeenCalledWith(expect.anything(), 'plugged', { vendorId: 1 })
   })
 
-  test('ipc onTelemetry forwards telemetry updates directly when handler is already registered', () => {
-    const { projection } = loadPreload()
-    const handler = jest.fn()
+  test('ipc onTelemetry forwards telemetry updates directly when handler is already registered', async () => {
+    const { projection } = await loadPreload()
+    const handler = vi.fn()
 
     projection.ipc.onTelemetry(handler)
     emit('telemetry:update', { speed: 77 })
@@ -358,9 +358,9 @@ describe('preload api bridge', () => {
     expect(handler).toHaveBeenCalledWith({ speed: 77 })
   })
 
-  test('ipc onAudioChunk forwards chunks directly when handler is already registered', () => {
-    const { projection } = loadPreload()
-    const handler = jest.fn()
+  test('ipc onAudioChunk forwards chunks directly when handler is already registered', async () => {
+    const { projection } = await loadPreload()
+    const handler = vi.fn()
 
     projection.ipc.onAudioChunk(handler)
     emit('projection-audio-chunk', { id: 'live-audio' })
@@ -369,9 +369,9 @@ describe('preload api bridge', () => {
     expect(handler).toHaveBeenCalledWith({ id: 'live-audio' })
   })
 
-  test('ipc cluster handlers forward payloads directly when handlers are already registered', () => {
-    const { projection } = loadPreload()
-    const resolutionHandler = jest.fn()
+  test('ipc cluster handlers forward payloads directly when handlers are already registered', async () => {
+    const { projection } = await loadPreload()
+    const resolutionHandler = vi.fn()
 
     projection.ipc.onClusterResolution(resolutionHandler)
 
@@ -381,10 +381,10 @@ describe('preload api bridge', () => {
     expect(resolutionHandler).toHaveBeenCalledWith({ width: 1280, height: 720 })
   })
 
-  test('ipc offAudioChunk ignores different handler and removes matching handler', () => {
-    const { projection } = loadPreload()
-    const activeHandler = jest.fn()
-    const otherHandler = jest.fn()
+  test('ipc offAudioChunk ignores different handler and removes matching handler', async () => {
+    const { projection } = await loadPreload()
+    const activeHandler = vi.fn()
+    const otherHandler = vi.fn()
 
     projection.ipc.onAudioChunk(activeHandler)
     projection.ipc.offAudioChunk(otherHandler)
@@ -399,9 +399,9 @@ describe('preload api bridge', () => {
   })
 
   describe('media-key bridge', () => {
-    test('app:media-key ignores non-string payloads', () => {
-      const { app } = loadPreload()
-      const handler = jest.fn()
+    test('app:media-key ignores non-string payloads', async () => {
+      const { app } = await loadPreload()
+      const handler = vi.fn()
       app.onMediaKey(handler)
       emit('app:media-key', 123)
       emit('app:media-key', '')
@@ -409,43 +409,43 @@ describe('preload api bridge', () => {
       expect(handler).not.toHaveBeenCalled()
     })
 
-    test('app:media-key dispatches to registered handlers', () => {
-      const { app } = loadPreload()
-      const handler = jest.fn()
+    test('app:media-key dispatches to registered handlers', async () => {
+      const { app } = await loadPreload()
+      const handler = vi.fn()
       app.onMediaKey(handler)
       emit('app:media-key', 'playPause')
       expect(handler).toHaveBeenCalledWith('playPause')
     })
 
-    test('app:media-key queues commands until a handler subscribes, then flushes', () => {
-      const { app } = loadPreload()
+    test('app:media-key queues commands until a handler subscribes, then flushes', async () => {
+      const { app } = await loadPreload()
       // Fire before any handler is registered → queued
       emit('app:media-key', 'next')
       emit('app:media-key', 'prev')
 
-      const handler = jest.fn()
+      const handler = vi.fn()
       app.onMediaKey(handler)
       expect(handler).toHaveBeenCalledWith('next')
       expect(handler).toHaveBeenCalledWith('prev')
     })
 
-    test('onMediaKey return value detaches the handler', () => {
-      const { app } = loadPreload()
-      const handler = jest.fn()
+    test('onMediaKey return value detaches the handler', async () => {
+      const { app } = await loadPreload()
+      const handler = vi.fn()
       const off = app.onMediaKey(handler)
       off()
       emit('app:media-key', 'playPause')
       expect(handler).not.toHaveBeenCalled()
     })
 
-    test('broadcastMediaKey forwards the command via ipcRenderer.send', () => {
-      const { app } = loadPreload()
+    test('broadcastMediaKey forwards the command via ipcRenderer.send', async () => {
+      const { app } = await loadPreload()
       app.broadcastMediaKey('next')
       expect(ipcRendererMock.send).toHaveBeenCalledWith('app:media-key', 'next')
     })
 
-    test('notifyUserActivity sends app:user-activity', () => {
-      const { app } = loadPreload()
+    test('notifyUserActivity sends app:user-activity', async () => {
+      const { app } = await loadPreload()
       app.notifyUserActivity()
       expect(ipcRendererMock.send).toHaveBeenCalledWith('app:user-activity')
     })
@@ -453,7 +453,7 @@ describe('preload api bridge', () => {
 
   describe('projection ipc wrappers — additional', () => {
     test('restart, switchTransport, getTransportState, getTelemetrySnapshot forward to invoke', async () => {
-      const { projection } = loadPreload()
+      const { projection } = await loadPreload()
       ipcRendererMock.invoke.mockResolvedValue(undefined)
 
       await projection.ipc.restart()
@@ -467,8 +467,8 @@ describe('preload api bridge', () => {
       expect(ipcRendererMock.invoke).toHaveBeenCalledWith('telemetry:snapshot')
     })
 
-    test('sendMultiTouch and sendCommand forward through send', () => {
-      const { projection } = loadPreload()
+    test('sendMultiTouch and sendCommand forward through send', async () => {
+      const { projection } = await loadPreload()
       projection.ipc.sendMultiTouch([{ id: 0, x: 0.5, y: 0.5, action: 0 }])
       projection.ipc.sendCommand('play')
       expect(ipcRendererMock.send).toHaveBeenCalledWith('projection-multi-touch', [
@@ -480,7 +480,7 @@ describe('preload api bridge', () => {
 
   describe('app ipc wrappers — additional', () => {
     test('all simple invoke wrappers forward correctly', async () => {
-      const { app } = loadPreload()
+      const { app } = await loadPreload()
       ipcRendererMock.invoke.mockResolvedValue(undefined)
 
       await app.getVersion()

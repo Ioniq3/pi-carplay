@@ -1,4 +1,4 @@
-jest.mock('../AudioOutput', () => {
+vi.mock('../AudioOutput', async () => {
   const instances: Array<{
     started: boolean
     stopped: boolean
@@ -63,18 +63,18 @@ describe('renderRelayClick', () => {
 describe('SystemSound', () => {
   beforeEach(() => {
     instances.length = 0
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     // Anchor the fake clock to an exact 500ms boundary → first edge at +500ms. Modern fake
     // timers drive Date.now(), so advancing timers advances the wall clock the generator reads.
-    jest.setSystemTime(100_000)
+    vi.setSystemTime(100_000)
   })
 
   afterEach(() => {
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   const advance = (ms: number): void => {
-    jest.advanceTimersByTime(ms)
+    vi.advanceTimersByTime(ms)
   }
 
   test('starts an output on activation and emits a click after the first 500ms edge', () => {

@@ -8,7 +8,7 @@ describe('TelemetryStore', () => {
 
   test('merge stores fields + emits change with patch and snapshot', () => {
     const s = new TelemetryStore()
-    const cb = jest.fn()
+    const cb = vi.fn()
     s.on('change', cb)
     s.merge({ speedKph: 50 })
     expect(cb).toHaveBeenCalledTimes(1)
@@ -29,7 +29,7 @@ describe('TelemetryStore', () => {
 
   test('merge with null / empty / non-object is a no-op', () => {
     const s = new TelemetryStore()
-    const cb = jest.fn()
+    const cb = vi.fn()
     s.on('change', cb)
     s.merge(null)
     s.merge(undefined)
@@ -62,7 +62,7 @@ describe('TelemetryStore', () => {
   test('merged patch event re-emits nested keys as their merged form', () => {
     const s = new TelemetryStore()
     s.merge({ gps: { lat: 52 } })
-    const cb = jest.fn()
+    const cb = vi.fn()
     s.on('change', cb)
     s.merge({ gps: { lon: 13 } })
     const [patch] = cb.mock.calls[0]
@@ -71,7 +71,7 @@ describe('TelemetryStore', () => {
 
   test('ts is filled in when missing', () => {
     const s = new TelemetryStore()
-    const cb = jest.fn()
+    const cb = vi.fn()
     s.on('change', cb)
     s.merge({ speedKph: 10 })
     expect(typeof cb.mock.calls[0][0].ts).toBe('number')
@@ -92,7 +92,7 @@ describe('TelemetryStore', () => {
 
   test('off removes a listener', () => {
     const s = new TelemetryStore()
-    const cb = jest.fn()
+    const cb = vi.fn()
     s.on('change', cb)
     s.off('change', cb)
     s.merge({ speedKph: 1 })

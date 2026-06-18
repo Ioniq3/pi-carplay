@@ -1,4 +1,4 @@
-/** @jest-environment node */
+// @vitest-environment node
 
 describe('store in node environment', () => {
   test('module init handles missing window', async () => {

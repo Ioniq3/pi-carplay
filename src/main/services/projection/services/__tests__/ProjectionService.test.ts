@@ -1,6 +1,6 @@
 import { PhoneWorkMode } from '@shared/types'
-import EventEmitter from 'events'
 import fs from 'fs'
+import type { Mock } from 'vitest'
 import {
   AudioData,
   BluetoothPairedList,
@@ -16,16 +16,17 @@ import {
   Unplugged
 } from '../../messages'
 
-jest.mock('../../messages', () => {
+vi.mock('../../messages', async () => {
+  const EventEmitter = require('events')
   class MockDongleDriver extends EventEmitter {
-    send = jest.fn(async () => true)
-    initialise = jest.fn(async () => undefined)
-    start = jest.fn(async () => undefined)
-    stop = jest.fn(async () => undefined)
-    close = jest.fn(async () => undefined)
-    sendBluetoothPairedList = jest.fn(async () => true)
-    setPendingStartupConnectTarget = jest.fn()
-    clearPendingStartupConnectTarget = jest.fn()
+    send = vi.fn(async () => true)
+    initialise = vi.fn(async () => undefined)
+    start = vi.fn(async () => undefined)
+    stop = vi.fn(async () => undefined)
+    close = vi.fn(async () => undefined)
+    sendBluetoothPairedList = vi.fn(async () => true)
+    setPendingStartupConnectTarget = vi.fn()
+    clearPendingStartupConnectTarget = vi.fn()
   }
   class StubMsg {
     constructor(
@@ -88,72 +89,86 @@ jest.mock('../../messages', () => {
   }
 })
 
-jest.mock('@main/ipc/register', () => ({
-  registerIpcHandle: jest.fn(),
-  registerIpcOn: jest.fn()
+vi.mock('@main/ipc/register', () => ({
+  registerIpcHandle: vi.fn(),
+  registerIpcOn: vi.fn()
 }))
 
-jest.mock('../ProjectionAudio', () => ({
-  ProjectionAudio: jest.fn().mockImplementation(() => ({
-    setInitialVolumes: jest.fn(),
-    resetForSessionStart: jest.fn(),
-    resetForSessionStop: jest.fn(),
-    setStreamVolume: jest.fn(),
-    setVisualizerEnabled: jest.fn(),
-    handleAudioData: jest.fn()
-  }))
+vi.mock('../ProjectionAudio', () => ({
+  ProjectionAudio: vi.fn().mockImplementation(function () {
+    return {
+      setInitialVolumes: vi.fn(),
+      resetForSessionStart: vi.fn(),
+      resetForSessionStop: vi.fn(),
+      setStreamVolume: vi.fn(),
+      setVisualizerEnabled: vi.fn(),
+      handleAudioData: vi.fn()
+    }
+  })
 }))
 
-jest.mock('../FirmwareUpdateService', () => ({
-  FirmwareUpdateService: jest.fn().mockImplementation(() => ({
-    checkForUpdate: jest.fn(async () => ({ ok: true, hasUpdate: false, raw: {} })),
-    downloadFirmwareToHost: jest.fn(),
-    getLocalFirmwareStatus: jest.fn()
-  }))
+vi.mock('../FirmwareUpdateService', () => ({
+  FirmwareUpdateService: vi.fn().mockImplementation(function () {
+    return {
+      checkForUpdate: vi.fn(async () => ({ ok: true, hasUpdate: false, raw: {} })),
+      downloadFirmwareToHost: vi.fn(),
+      getLocalFirmwareStatus: vi.fn()
+    }
+  })
 }))
 
-jest.mock('@main/ipc/utils', () => ({
+vi.mock('@main/ipc/utils', () => ({
   configEvents: {
-    on: jest.fn(),
-    off: jest.fn(),
-    emit: jest.fn()
+    on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn()
   }
 }))
 
-jest.mock('electron', () => ({
+vi.mock('@shared/assets/carIcons', () => ({
+  ICON_120_B64: '',
+  ICON_180_B64: '',
+  ICON_256_B64: ''
+}))
+
+vi.mock('electron', () => ({
   app: {
-    getPath: jest.fn(() => '/tmp/appdata')
+    getPath: vi.fn(() => '/tmp/appdata')
   },
   WebContents: class {}
 }))
 
-jest.mock('usb', () => ({
+vi.mock('usb', () => ({
   usb: {
-    getDevices: jest.fn(async () => [])
+    getDevices: vi.fn(async () => [])
   }
 }))
 
-jest.mock('../utils/readMediaFile', () => ({
-  readMediaFile: jest.fn(() => ({
-    timestamp: 't',
-    payload: {
-      type: 1,
-      media: { MediaSongName: 'Song', MediaPlayStatus: 1 },
-      base64Image: 'img'
+vi.mock('../utils/readMediaFile', () => ({
+  readMediaFile: vi.fn(function () {
+    return {
+      timestamp: 't',
+      payload: {
+        type: 1,
+        media: { MediaSongName: 'Song', MediaPlayStatus: 1 },
+        base64Image: 'img'
+      }
     }
-  }))
+  })
 }))
 
-jest.mock('../utils/readNavigationFile', () => ({
-  readNavigationFile: jest.fn(() => ({
-    timestamp: 't',
-    payload: {
-      metaType: 200,
-      navi: null,
-      rawUtf8: '',
-      error: false
+vi.mock('../utils/readNavigationFile', () => ({
+  readNavigationFile: vi.fn(function () {
+    return {
+      timestamp: 't',
+      payload: {
+        metaType: 200,
+        navi: null,
+        rawUtf8: '',
+        error: false
+      }
     }
-  }))
+  })
 }))
 
 import { registerIpcHandle, registerIpcOn } from '@main/ipc/register'
@@ -164,24 +179,24 @@ import { readMediaFile } from '../utils/readMediaFile'
 import { readNavigationFile } from '../utils/readNavigationFile'
 
 describe('ProjectionService', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-    jest.restoreAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    vi.restoreAllMocks()
   })
 
   function getHandle<T = (...args: any[]) => any>(channel: string): T {
-    const row = (registerIpcHandle as jest.Mock).mock.calls.find(([ch]) => ch === channel)
+    const row = (registerIpcHandle as Mock).mock.calls.find(([ch]) => ch === channel)
     if (!row) throw new Error(`Missing ipc handle: ${channel}`)
     return row[1] as T
   }
 
   function getOn<T = (...args: any[]) => any>(channel: string): T {
-    const row = (registerIpcOn as jest.Mock).mock.calls.find(([ch]) => ch === channel)
+    const row = (registerIpcOn as Mock).mock.calls.find(([ch]) => ch === channel)
     if (!row) throw new Error(`Missing ipc on: ${channel}`)
     return row[1] as T
   }
 
-  test('registers IPC handlers and listeners in constructor', () => {
+  test('registers IPC handlers and listeners in constructor', async () => {
     new ProjectionService()
 
     expect(registerIpcHandle).toHaveBeenCalled()
@@ -189,16 +204,16 @@ describe('ProjectionService', () => {
     expect((configEvents as any).on).toHaveBeenCalledWith('changed', expect.any(Function))
   })
 
-  test('attachRenderer stores webContents reference', () => {
+  test('attachRenderer stores webContents reference', async () => {
     const svc = new ProjectionService() as any
-    const wc = { send: jest.fn() }
+    const wc = { send: vi.fn() }
 
     svc.attachRenderer(wc)
 
     expect(svc.webContents).toBe(wc)
   })
 
-  test('applyConfigPatch merges incoming patch into config', () => {
+  test('applyConfigPatch merges incoming patch into config', async () => {
     const svc = new ProjectionService() as any
     svc.config = { language: 'en', kiosk: true }
 
@@ -209,7 +224,7 @@ describe('ProjectionService', () => {
 
   test('autoStartIfNeeded calls start when dongle is connected', async () => {
     const svc = new ProjectionService() as any
-    svc.start = jest.fn(async () => undefined)
+    svc.start = vi.fn(async () => undefined)
 
     svc.markDongleConnected(true)
     await svc.autoStartIfNeeded()
@@ -219,7 +234,7 @@ describe('ProjectionService', () => {
 
   test('autoStartIfNeeded does nothing while shutting down', async () => {
     const svc = new ProjectionService() as any
-    svc.start = jest.fn(async () => undefined)
+    svc.start = vi.fn(async () => undefined)
     svc.shuttingDown = true
 
     svc.markDongleConnected(true)
@@ -230,7 +245,7 @@ describe('ProjectionService', () => {
 
   test('autoStartIfNeeded does nothing when already started', async () => {
     const svc = new ProjectionService() as any
-    svc.start = jest.fn(async () => undefined)
+    svc.start = vi.fn(async () => undefined)
     svc.started = true
 
     svc.markDongleConnected(true)
@@ -239,7 +254,7 @@ describe('ProjectionService', () => {
     expect(svc.start).not.toHaveBeenCalled()
   })
 
-  test('beginShutdown marks service shutting down and unsubscribes config events', () => {
+  test('beginShutdown marks service shutting down and unsubscribes config events', async () => {
     const svc = new ProjectionService() as any
 
     svc.beginShutdown()
@@ -248,9 +263,9 @@ describe('ProjectionService', () => {
     expect((configEvents as any).off).toHaveBeenCalledWith('changed', expect.any(Function))
   })
 
-  test('emitDongleInfoIfChanged emits only for new key', () => {
+  test('emitDongleInfoIfChanged emits only for new key', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.dongleFwVersion = '1.0.0'
     svc.boxInfo = { model: 'A15W' }
@@ -268,7 +283,7 @@ describe('ProjectionService', () => {
     })
   })
 
-  test('emitDongleInfoIfChanged does nothing without renderer', () => {
+  test('emitDongleInfoIfChanged does nothing without renderer', async () => {
     const svc = new ProjectionService() as any
     svc.webContents = null
     svc.dongleFwVersion = '1.0.0'
@@ -277,9 +292,9 @@ describe('ProjectionService', () => {
     expect(() => svc.emitDongleInfoIfChanged()).not.toThrow()
   })
 
-  test('emitDongleInfoIfChanged emits again when key changes', () => {
+  test('emitDongleInfoIfChanged emits again when key changes', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
 
     svc.dongleFwVersion = '1.0.0'
@@ -292,7 +307,7 @@ describe('ProjectionService', () => {
     expect(send).toHaveBeenCalledTimes(2)
   })
 
-  test('getDevToolsUrlCandidates returns strict host/path combinations', () => {
+  test('getDevToolsUrlCandidates returns strict host/path combinations', async () => {
     const svc = new ProjectionService() as any
 
     const urls = svc.getDevToolsUrlCandidates()
@@ -304,7 +319,7 @@ describe('ProjectionService', () => {
     ])
   })
 
-  test('sendChunked does nothing without renderer', () => {
+  test('sendChunked does nothing without renderer', async () => {
     const svc = new ProjectionService() as any
     svc.webContents = null
 
@@ -313,18 +328,18 @@ describe('ProjectionService', () => {
     ).not.toThrow()
   })
 
-  test('sendChunked does nothing when data is missing', () => {
+  test('sendChunked does nothing when data is missing', async () => {
     const svc = new ProjectionService() as any
-    svc.webContents = { send: jest.fn() }
+    svc.webContents = { send: vi.fn() }
 
     svc.sendChunked('projection-video-chunk', undefined, 2)
 
     expect(svc.webContents.send).not.toHaveBeenCalled()
   })
 
-  test('sendChunked splits payload into envelopes', () => {
+  test('sendChunked splits payload into envelopes', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
 
     svc.sendChunked('projection-video-chunk', new Uint8Array([1, 2, 3, 4, 5]).buffer, 2, {
@@ -351,10 +366,10 @@ describe('ProjectionService', () => {
     expect(third.isLast).toBe(true)
   })
 
-  test('clearTimeouts clears pair timeout and frame interval', () => {
+  test('clearTimeouts clears pair timeout and frame interval', async () => {
     const svc = new ProjectionService() as any
-    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout')
-    const clearIntervalSpy = jest.spyOn(global, 'clearInterval')
+    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout')
+    const clearIntervalSpy = vi.spyOn(global, 'clearInterval')
 
     svc.pairTimeout = setTimeout(() => {}, 1000)
     svc.frameInterval = setInterval(() => {}, 1000)
@@ -369,7 +384,7 @@ describe('ProjectionService', () => {
 
   test('reloadConfigFromDisk returns when file is missing', async () => {
     const svc = new ProjectionService() as any
-    const existsSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(false)
+    const existsSpy = vi.spyOn(fs, 'existsSync').mockReturnValue(false)
 
     svc.config = { language: 'en', apkVer: '1.0.0' }
 
@@ -381,10 +396,10 @@ describe('ProjectionService', () => {
 
   test('reloadConfigFromDisk merges config from disk', async () => {
     const svc = new ProjectionService() as any
-    jest.spyOn(fs, 'existsSync').mockReturnValue(true)
-    jest
-      .spyOn(fs, 'readFileSync')
-      .mockReturnValue(JSON.stringify({ language: 'de', audioVolume: 0.3 }) as any)
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true)
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(
+      JSON.stringify({ language: 'de', audioVolume: 0.3 }) as any
+    )
 
     svc.config = { language: 'en', apkVer: '1.0.0' }
 
@@ -399,8 +414,8 @@ describe('ProjectionService', () => {
 
   test('reloadConfigFromDisk swallows invalid json', async () => {
     const svc = new ProjectionService() as any
-    jest.spyOn(fs, 'existsSync').mockReturnValue(true)
-    jest.spyOn(fs, 'readFileSync').mockReturnValue('{bad json' as any)
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true)
+    vi.spyOn(fs, 'readFileSync').mockReturnValue('{bad json' as any)
 
     svc.config = { language: 'en', apkVer: '1.0.0' }
 
@@ -408,7 +423,7 @@ describe('ProjectionService', () => {
     expect(svc.config).toEqual({ language: 'en', apkVer: '1.0.0' })
   })
 
-  test('getApkVer returns current apk version from config', () => {
+  test('getApkVer returns current apk version from config', async () => {
     const svc = new ProjectionService() as any
     svc.config = { apkVer: '2.3.4' }
 
@@ -416,12 +431,12 @@ describe('ProjectionService', () => {
   })
 
   test('markDongleConnected updates shared dongle connection state', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     try {
       const svc = new ProjectionService() as any
-      svc.start = jest.fn(async () => undefined)
+      svc.start = vi.fn(async () => undefined)
       svc.markDongleConnected(false)
-      jest.runOnlyPendingTimers() // flush detach debounce
+      vi.runOnlyPendingTimers() // flush detach debounce
       await svc.autoStartIfNeeded()
       expect(svc.start).not.toHaveBeenCalled()
 
@@ -429,18 +444,18 @@ describe('ProjectionService', () => {
       await svc.autoStartIfNeeded()
       expect(svc.start).toHaveBeenCalledTimes(1)
     } finally {
-      jest.runOnlyPendingTimers()
-      jest.useRealTimers()
+      vi.runOnlyPendingTimers()
+      vi.useRealTimers()
     }
   })
 
   describe('transport arbiter', () => {
-    beforeEach(() => {
-      jest.useFakeTimers()
+    beforeEach(async () => {
+      vi.useFakeTimers()
     })
-    afterEach(() => {
-      jest.runOnlyPendingTimers()
-      jest.useRealTimers()
+    afterEach(async () => {
+      vi.runOnlyPendingTimers()
+      vi.useRealTimers()
     })
 
     function fakePhoneDevice(): any {
@@ -453,17 +468,17 @@ describe('ProjectionService', () => {
       const svc = new ProjectionService() as any
       svc.markPhoneConnected(false)
       svc.markDongleConnected(false)
-      jest.runOnlyPendingTimers() // flush detach debounces
+      vi.runOnlyPendingTimers() // flush detach debounces
       return svc
     }
 
-    test('pickPreferredTransport returns null when nothing is detected', () => {
+    test('pickPreferredTransport returns null when nothing is detected', async () => {
       const svc = freshSvc()
       svc.config = { aa: false, connectionPreference: 'auto' }
       expect(svc.pickPreferredTransport()).toBeNull()
     })
 
-    test('auto: dongle-only → dongle; phone-only → aa', () => {
+    test('auto: dongle-only → dongle; phone-only → aa', async () => {
       const svc = freshSvc()
       svc.config = { aa: false, connectionPreference: 'auto' }
 
@@ -471,15 +486,15 @@ describe('ProjectionService', () => {
       expect(svc.pickPreferredTransport()).toBe('dongle')
 
       svc.markDongleConnected(false)
-      jest.runOnlyPendingTimers() // flush detach debounce
+      vi.runOnlyPendingTimers() // flush detach debounce
       svc.markPhoneConnected(true, fakePhoneDevice())
       expect(svc.pickPreferredTransport()).toBe('aa')
     })
 
-    test('auto: when both present, wired AA wins tiebreaker on cold pick', () => {
+    test('auto: when both present, wired AA wins tiebreaker on cold pick', async () => {
       const svc = freshSvc()
       svc.config = { aa: false, connectionPreference: 'auto' }
-      svc.start = jest.fn(async () => undefined)
+      svc.start = vi.fn(async () => undefined)
 
       svc.markDongleConnected(true)
       svc.markPhoneConnected(true, fakePhoneDevice())
@@ -514,8 +529,8 @@ describe('ProjectionService', () => {
       const svc = freshSvc()
       svc.config = { aa: false, connectionPreference: 'auto' }
       svc.markDongleConnected(true)
-      svc.start = jest.fn(async () => undefined)
-      svc.stop = jest.fn(async () => undefined)
+      svc.start = vi.fn(async () => undefined)
+      svc.stop = vi.fn(async () => undefined)
 
       const res = await svc.switchTransport()
       expect(res.ok).toBe(false)
@@ -529,10 +544,10 @@ describe('ProjectionService', () => {
       svc.markPhoneConnected(true, fakePhoneDevice())
       svc.started = true
       // dongle is active by default — no AA driver was ever created
-      svc.stop = jest.fn(async () => {
+      svc.stop = vi.fn(async () => {
         svc.started = false
       })
-      svc.start = jest.fn(async () => undefined)
+      svc.start = vi.fn(async () => undefined)
 
       const res = await svc.switchTransport()
       expect(svc.stop).toHaveBeenCalledTimes(1)
@@ -548,23 +563,23 @@ describe('ProjectionService', () => {
       svc.markPhoneConnected(true, fakePhoneDevice())
       svc.started = true
       // dongle is active by default — no AA driver was ever created
-      svc.stop = jest.fn(async () => {
+      svc.stop = vi.fn(async () => {
         svc.started = false
       })
-      svc.start = jest.fn(async () => undefined)
+      svc.start = vi.fn(async () => undefined)
 
       await svc.switchTransport()
       expect(svc.pickPreferredTransport()).toBe('aa')
 
       svc.markPhoneConnected(false)
-      jest.runOnlyPendingTimers() // flush detach debounce
+      vi.runOnlyPendingTimers() // flush detach debounce
       expect(svc.pickPreferredTransport()).toBe('dongle')
     })
 
     test("preference 'native': defers dongle so the AOAP probe can win the race", async () => {
       const svc = freshSvc()
       svc.config = { aa: false, connectionPreference: 'native' }
-      svc.start = jest.fn(async () => undefined)
+      svc.start = vi.fn(async () => undefined)
 
       svc.markDongleConnected(true)
       await svc.autoStartIfNeeded()
@@ -582,13 +597,13 @@ describe('ProjectionService', () => {
     test("preference 'native': commits to dongle if the probe never surfaces", async () => {
       const svc = freshSvc()
       svc.config = { aa: false, connectionPreference: 'native' }
-      svc.start = jest.fn(async () => undefined)
+      svc.start = vi.fn(async () => undefined)
 
       svc.markDongleConnected(true)
       await svc.autoStartIfNeeded()
       expect(svc.start).not.toHaveBeenCalled() // deferred
 
-      jest.advanceTimersByTime(15_500)
+      vi.advanceTimersByTime(15_500)
       await Promise.resolve()
       await Promise.resolve()
       await Promise.resolve()
@@ -607,15 +622,14 @@ describe('ProjectionService', () => {
   test('disconnectPhone sends disconnect and close commands and waits on success', async () => {
     const svc = new ProjectionService() as any
     svc.started = true
-    svc.driver.send = jest.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false)
+    svc.driver.send = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false)
 
-    const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation(((
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout').mockImplementation(((
       fn: (...args: any[]) => void
     ) => {
       fn()
       return 0 as any
     }) as typeof setTimeout)
-
     await expect(svc.disconnectPhone()).resolves.toBe(true)
     expect(svc.driver.send).toHaveBeenCalledTimes(2)
     expect(setTimeoutSpy).toHaveBeenCalled()
@@ -624,18 +638,18 @@ describe('ProjectionService', () => {
   test('disconnectPhone swallows command errors and returns false when both fail', async () => {
     const svc = new ProjectionService() as any
     svc.started = true
-    svc.driver.send = jest.fn().mockRejectedValue(new Error('boom'))
+    svc.driver.send = vi.fn().mockRejectedValue(new Error('boom'))
 
     await expect(svc.disconnectPhone()).resolves.toBe(false)
     expect(svc.driver.send).toHaveBeenCalledTimes(2)
   })
 
-  test('patchAaMediaPlayStatus writes media snapshot and emits projection event', () => {
+  test('patchAaMediaPlayStatus writes media snapshot and emits projection event', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
 
-    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {})
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(function () {})
 
     svc.patchAaMediaPlayStatus(2)
 
@@ -654,20 +668,20 @@ describe('ProjectionService', () => {
     })
   })
 
-  test('patchAaMediaPlayStatus swallows write errors', () => {
+  test('patchAaMediaPlayStatus swallows write errors', async () => {
     const svc = new ProjectionService() as any
-    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(function () {
       throw new Error('disk fail')
     })
 
     expect(() => svc.patchAaMediaPlayStatus(1)).not.toThrow()
   })
 
-  test('resetMediaSnapshot writes default media payload and emits reset event', () => {
+  test('resetMediaSnapshot writes default media payload and emits reset event', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
-    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {})
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(function () {})
 
     svc.resetMediaSnapshot('test')
 
@@ -678,11 +692,11 @@ describe('ProjectionService', () => {
     })
   })
 
-  test('resetNavigationSnapshot writes default navigation payload and emits reset event', () => {
+  test('resetNavigationSnapshot writes default navigation payload and emits reset event', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
-    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {})
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(function () {})
 
     svc.resetNavigationSnapshot('test')
 
@@ -710,12 +724,12 @@ describe('ProjectionService', () => {
     const svc = new ProjectionService() as any
     svc.started = true
     svc.stopping = false
-    svc.disconnectPhone = jest.fn(async () => true)
-    svc.driver.close = jest.fn(async () => undefined)
-    svc.audio.resetForSessionStop = jest.fn()
-    svc.clearTimeouts = jest.fn()
-    svc.resetMediaSnapshot = jest.fn()
-    svc.resetNavigationSnapshot = jest.fn()
+    svc.disconnectPhone = vi.fn(async () => true)
+    svc.driver.close = vi.fn(async () => undefined)
+    svc.audio.resetForSessionStop = vi.fn()
+    svc.clearTimeouts = vi.fn()
+    svc.resetMediaSnapshot = vi.fn()
+    svc.resetNavigationSnapshot = vi.fn()
 
     await svc.stop()
 
@@ -732,12 +746,12 @@ describe('ProjectionService', () => {
     svc.started = true
     svc.stopping = false
     svc.boxInfo = { uuid: 'u1', MFD: 'm1', productType: 'A15W', btMacAddr: 'AA:BB:CC' }
-    svc.disconnectPhone = jest.fn(async () => false)
-    svc.driver.close = jest.fn(async () => undefined)
-    svc.audio.resetForSessionStop = jest.fn()
-    svc.clearTimeouts = jest.fn()
-    svc.resetMediaSnapshot = jest.fn()
-    svc.resetNavigationSnapshot = jest.fn()
+    svc.disconnectPhone = vi.fn(async () => false)
+    svc.driver.close = vi.fn(async () => undefined)
+    svc.audio.resetForSessionStop = vi.fn()
+    svc.clearTimeouts = vi.fn()
+    svc.resetMediaSnapshot = vi.fn()
+    svc.resetNavigationSnapshot = vi.fn()
 
     await svc.stop()
 
@@ -749,12 +763,12 @@ describe('ProjectionService', () => {
     svc.started = true
     svc.stopping = false
     svc.webUsbDevice = { vendorId: 0x1314, productId: 0x1520 }
-    svc.disconnectPhone = jest.fn(async () => false)
-    svc.driver.close = jest.fn(async () => undefined)
-    svc.audio.resetForSessionStop = jest.fn()
-    svc.clearTimeouts = jest.fn()
-    svc.resetMediaSnapshot = jest.fn()
-    svc.resetNavigationSnapshot = jest.fn()
+    svc.disconnectPhone = vi.fn(async () => false)
+    svc.driver.close = vi.fn(async () => undefined)
+    svc.audio.resetForSessionStop = vi.fn()
+    svc.clearTimeouts = vi.fn()
+    svc.resetMediaSnapshot = vi.fn()
+    svc.resetNavigationSnapshot = vi.fn()
 
     await svc.stop()
 
@@ -764,19 +778,19 @@ describe('ProjectionService', () => {
   })
 
   test('stop swallows driver.close errors', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
 
     const svc = new ProjectionService() as any
     svc.started = true
     svc.stopping = false
-    svc.disconnectPhone = jest.fn(async () => false)
-    svc.driver.close = jest.fn(async () => {
+    svc.disconnectPhone = vi.fn(async () => false)
+    svc.driver.close = vi.fn(async () => {
       throw new Error('close failed')
     })
-    svc.audio.resetForSessionStop = jest.fn()
-    svc.clearTimeouts = jest.fn()
-    svc.resetMediaSnapshot = jest.fn()
-    svc.resetNavigationSnapshot = jest.fn()
+    svc.audio.resetForSessionStop = vi.fn()
+    svc.clearTimeouts = vi.fn()
+    svc.resetMediaSnapshot = vi.fn()
+    svc.resetNavigationSnapshot = vi.fn()
 
     await expect(svc.stop()).resolves.toBeUndefined()
     expect(warnSpy).toHaveBeenCalledWith(
@@ -787,7 +801,7 @@ describe('ProjectionService', () => {
 
   test('projection-start handler delegates to start', async () => {
     const svc = new ProjectionService() as any
-    svc.start = jest.fn(async () => undefined)
+    svc.start = vi.fn(async () => undefined)
 
     const h = getHandle('projection-start').bind(svc)
     await h()
@@ -797,7 +811,7 @@ describe('ProjectionService', () => {
 
   test('projection-stop handler delegates to stop', async () => {
     const svc = new ProjectionService() as any
-    svc.stop = jest.fn(async () => undefined)
+    svc.stop = vi.fn(async () => undefined)
 
     const h = getHandle('projection-stop').bind(svc)
     await h()
@@ -825,7 +839,7 @@ describe('ProjectionService', () => {
   test('projection-bt-pairedlist-set forwards list when started', async () => {
     const svc = new ProjectionService() as any
     svc.started = true
-    svc.driver.sendBluetoothPairedList = jest.fn(async () => true)
+    svc.driver.sendBluetoothPairedList = vi.fn(async () => true)
     const h = getHandle('projection-bt-pairedlist-set')
 
     await expect(h.call(svc, null, 'abc')).resolves.toEqual({ ok: true })
@@ -847,7 +861,7 @@ describe('ProjectionService', () => {
     const svc = new ProjectionService() as any
     svc.started = true
     svc.webUsbDevice = {}
-    svc.uploadIcons = jest.fn()
+    svc.uploadIcons = vi.fn()
     const h = getHandle('projection-upload-icons')
 
     await h.call(svc)
@@ -870,7 +884,7 @@ describe('ProjectionService', () => {
     const svc = new ProjectionService() as any
     svc.started = true
     svc.webUsbDevice = {}
-    svc.driver.send = jest.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false)
+    svc.driver.send = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false)
 
     const h = getHandle('projection-upload-livi-scripts')
     const result = await h.call(svc)
@@ -922,7 +936,7 @@ describe('ProjectionService', () => {
     expect(svc.driver.send).not.toHaveBeenCalled()
   })
 
-  test('projection-touch forwards touch payload as message', () => {
+  test('projection-touch forwards touch payload as message', async () => {
     const svc = new ProjectionService() as any
     const on = getOn('projection-touch')
 
@@ -931,7 +945,7 @@ describe('ProjectionService', () => {
     expect(svc.driver.send).toHaveBeenCalledTimes(1)
   })
 
-  test('projection-multi-touch ignores empty arrays', () => {
+  test('projection-multi-touch ignores empty arrays', async () => {
     const svc = new ProjectionService() as any
     const on = getOn('projection-multi-touch')
 
@@ -940,7 +954,7 @@ describe('ProjectionService', () => {
     expect(svc.driver.send).not.toHaveBeenCalled()
   })
 
-  test('projection-multi-touch sanitizes points and sends message', () => {
+  test('projection-multi-touch sanitizes points and sends message', async () => {
     const svc = new ProjectionService() as any
     const on = getOn('projection-multi-touch')
 
@@ -949,7 +963,7 @@ describe('ProjectionService', () => {
     expect(svc.driver.send).toHaveBeenCalledTimes(1)
   })
 
-  test('projection-raw-message ignores payload when not started', () => {
+  test('projection-raw-message ignores payload when not started', async () => {
     const svc = new ProjectionService() as any
     svc.started = false
     const on = getOn('projection-raw-message')
@@ -959,7 +973,7 @@ describe('ProjectionService', () => {
     expect(svc.driver.send).not.toHaveBeenCalled()
   })
 
-  test('projection-raw-message sends raw message when started', () => {
+  test('projection-raw-message sends raw message when started', async () => {
     const svc = new ProjectionService() as any
     svc.started = true
     const on = getOn('projection-raw-message')
@@ -969,7 +983,7 @@ describe('ProjectionService', () => {
     expect(svc.driver.send).toHaveBeenCalledTimes(1)
   })
 
-  test('projection-command forwards command message', () => {
+  test('projection-command forwards command message', async () => {
     const svc = new ProjectionService() as any
     const on = getOn('projection-command')
 
@@ -978,7 +992,7 @@ describe('ProjectionService', () => {
     expect(svc.driver.send).toHaveBeenCalledTimes(1)
   })
 
-  test('projection-set-volume delegates to ProjectionAudio', () => {
+  test('projection-set-volume delegates to ProjectionAudio', async () => {
     const svc = new ProjectionService() as any
     const on = getOn('projection-set-volume')
 
@@ -987,7 +1001,7 @@ describe('ProjectionService', () => {
     expect(svc.audio.setStreamVolume).toHaveBeenCalledWith('music', 0.5)
   })
 
-  test('projection-set-visualizer-enabled delegates to ProjectionAudio', () => {
+  test('projection-set-visualizer-enabled delegates to ProjectionAudio', async () => {
     const svc = new ProjectionService() as any
     const on = getOn('projection-set-visualizer-enabled')
 
@@ -998,7 +1012,7 @@ describe('ProjectionService', () => {
 
   test('projection-media-read returns default response when file is missing', async () => {
     const svc = new ProjectionService() as any
-    jest.spyOn(fs, 'existsSync').mockReturnValue(false)
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false)
 
     const h = getHandle('projection-media-read')
     const out = await h.call(svc)
@@ -1009,7 +1023,7 @@ describe('ProjectionService', () => {
 
   test('projection-media-read reads file when it exists', async () => {
     const svc = new ProjectionService() as any
-    jest.spyOn(fs, 'existsSync').mockReturnValue(true)
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true)
 
     const h = getHandle('projection-media-read')
     const out = await h.call(svc)
@@ -1039,7 +1053,7 @@ describe('ProjectionService', () => {
   test('projection-navigation-read returns default response when file is missing', async () => {
     const svc = new ProjectionService() as any
     svc.started = true
-    jest.spyOn(fs, 'existsSync').mockReturnValue(false)
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false)
 
     const h = getHandle('projection-navigation-read')
     const out = await h.call(svc)
@@ -1051,7 +1065,7 @@ describe('ProjectionService', () => {
   test('projection-navigation-read reads file when started and file exists', async () => {
     const svc = new ProjectionService() as any
     svc.started = true
-    jest.spyOn(fs, 'existsSync').mockReturnValue(true)
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true)
 
     const h = getHandle('projection-navigation-read')
     const out = await h.call(svc)
@@ -1068,10 +1082,10 @@ describe('ProjectionService', () => {
     })
   })
 
-  test('uploadIcons reloads disk config and sends 3 icon files', () => {
+  test('uploadIcons reloads disk config and sends 3 icon files', async () => {
     const svc = new ProjectionService() as any
-    jest.spyOn(fs, 'existsSync').mockReturnValue(true)
-    jest.spyOn(fs, 'readFileSync').mockReturnValue(
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true)
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(
       JSON.stringify({
         dongleIcon120: Buffer.from('120').toString('base64'),
         dongleIcon180: Buffer.from('180').toString('base64'),
@@ -1084,10 +1098,10 @@ describe('ProjectionService', () => {
     expect(svc.driver.send).toHaveBeenCalledTimes(3)
   })
 
-  test('uploadIcons cancels when icon fields are missing', () => {
+  test('uploadIcons cancels when icon fields are missing', async () => {
     const svc = new ProjectionService() as any
-    jest.spyOn(fs, 'existsSync').mockReturnValue(true)
-    jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({ dongleIcon120: 'abc' }) as any)
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true)
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({ dongleIcon120: 'abc' }) as any)
 
     svc.uploadIcons()
 
@@ -1096,11 +1110,11 @@ describe('ProjectionService', () => {
 
   test('start returns early when no matching usb dongle exists', async () => {
     const svc = new ProjectionService() as any
-    ;(usb.getDevices as jest.Mock).mockResolvedValue([])
-    svc.audio.setInitialVolumes = jest.fn()
-    svc.audio.resetForSessionStart = jest.fn()
-    svc.resetMediaSnapshot = jest.fn()
-    svc.resetNavigationSnapshot = jest.fn()
+    ;(usb.getDevices as Mock).mockResolvedValue([])
+    svc.audio.setInitialVolumes = vi.fn()
+    svc.audio.resetForSessionStart = vi.fn()
+    svc.resetMediaSnapshot = vi.fn()
+    svc.resetNavigationSnapshot = vi.fn()
 
     await svc.start()
 
@@ -1113,10 +1127,8 @@ describe('ProjectionService', () => {
 
   test('start initialises webusb, driver and marks service started', async () => {
     const svc = new ProjectionService() as any
-    const open = jest.fn(async () => undefined)
-    ;(usb.getDevices as jest.Mock).mockResolvedValue([
-      { vendorId: 0x1314, productId: 0x1520, open }
-    ])
+    const open = vi.fn(async () => undefined)
+    ;(usb.getDevices as Mock).mockResolvedValue([{ vendorId: 0x1314, productId: 0x1520, open }])
 
     await svc.start()
 
@@ -1132,8 +1144,8 @@ describe('ProjectionService', () => {
 
   test('start sets pendingStartupConnectTarget on driver when configured', async () => {
     const svc = new ProjectionService() as any
-    ;(usb.getDevices as jest.Mock).mockResolvedValue([
-      { vendorId: 0x1314, productId: 0x1520, open: jest.fn(async () => undefined) }
+    ;(usb.getDevices as Mock).mockResolvedValue([
+      { vendorId: 0x1314, productId: 0x1520, open: vi.fn(async () => undefined) }
     ])
     svc.pendingStartupConnectTarget = 'my-target'
 
@@ -1147,12 +1159,12 @@ describe('ProjectionService', () => {
 
   test('start clears btMacAddr from boxInfo when boxInfo is a record', async () => {
     const svc = new ProjectionService() as any
-    ;(usb.getDevices as jest.Mock).mockResolvedValue([])
+    ;(usb.getDevices as Mock).mockResolvedValue([])
     svc.boxInfo = { uuid: 'u1', MFD: 'm1', productType: 'A15W', btMacAddr: 'AA:BB:CC' }
-    svc.audio.setInitialVolumes = jest.fn()
-    svc.audio.resetForSessionStart = jest.fn()
-    svc.resetMediaSnapshot = jest.fn()
-    svc.resetNavigationSnapshot = jest.fn()
+    svc.audio.setInitialVolumes = vi.fn()
+    svc.audio.resetForSessionStart = vi.fn()
+    svc.resetMediaSnapshot = vi.fn()
+    svc.resetNavigationSnapshot = vi.fn()
 
     await svc.start()
 
@@ -1160,32 +1172,32 @@ describe('ProjectionService', () => {
   })
 
   test('start pairTimeout callback sends wifiPair command after 15 seconds', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
 
     const svc = new ProjectionService() as any
-    ;(usb.getDevices as jest.Mock).mockResolvedValue([
-      { vendorId: 0x1314, productId: 0x1520, open: jest.fn(async () => undefined) }
+    ;(usb.getDevices as Mock).mockResolvedValue([
+      { vendorId: 0x1314, productId: 0x1520, open: vi.fn(async () => undefined) }
     ])
 
     await svc.start()
 
     expect(svc.started).toBe(true)
-    const sendCallsBefore = (svc.driver.send as jest.Mock).mock.calls.length
+    const sendCallsBefore = (svc.driver.send as Mock).mock.calls.length
 
-    jest.advanceTimersByTime(15000)
+    vi.advanceTimersByTime(15000)
 
-    expect((svc.driver.send as jest.Mock).mock.calls.length).toBeGreaterThan(sendCallsBefore)
+    expect((svc.driver.send as Mock).mock.calls.length).toBeGreaterThan(sendCallsBefore)
 
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   test('start closes webUsbDevice and leaves started=false when driver init fails', async () => {
     const svc = new ProjectionService() as any
-    const close = jest.fn(async () => undefined)
-    ;(usb.getDevices as jest.Mock).mockResolvedValue([
-      { vendorId: 0x1314, productId: 0x1520, open: jest.fn(async () => undefined), close }
+    const close = vi.fn(async () => undefined)
+    ;(usb.getDevices as Mock).mockResolvedValue([
+      { vendorId: 0x1314, productId: 0x1520, open: vi.fn(async () => undefined), close }
     ])
-    svc.driver.initialise = jest.fn(async () => {
+    svc.driver.initialise = vi.fn(async () => {
       throw new Error('init fail')
     })
 
@@ -1197,14 +1209,14 @@ describe('ProjectionService', () => {
   })
   test('dongle-fw check emits start/done events and returns shaped success result', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.config = { apkVer: '9.9.9' }
     svc.dongleFwVersion = '1.0.0'
     svc.boxInfo = { uuid: 'u1', MFD: 'm1', productType: 'A15W' }
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.checkForUpdate = jest.fn(async () => ({
+    svc.firmware.checkForUpdate = vi.fn(async () => ({
       ok: true,
       hasUpdate: true,
       latestVer: '2.0.0',
@@ -1281,12 +1293,12 @@ describe('ProjectionService', () => {
 
   test('dongle-fw check converts failed firmware check into renderer error shape', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.config = { apkVer: '9.9.9' }
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.checkForUpdate = jest.fn(async () => ({
+    svc.firmware.checkForUpdate = vi.fn(async () => ({
       ok: false,
       error: 'network down'
     }))
@@ -1322,10 +1334,10 @@ describe('ProjectionService', () => {
 
   test('dongle-fw check falls back to unknown error text when failed result has no message', async () => {
     const svc = new ProjectionService() as any
-    svc.webContents = { send: jest.fn() }
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.webContents = { send: vi.fn() }
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.checkForUpdate = jest.fn(async () => ({
+    svc.firmware.checkForUpdate = vi.fn(async () => ({
       ok: false
     }))
 
@@ -1343,14 +1355,14 @@ describe('ProjectionService', () => {
 
   test('dongle-fw download path downloads update and emits progress events', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.config = { apkVer: '9.9.9' }
     svc.dongleFwVersion = '1.0.0'
     svc.boxInfo = { uuid: 'u1', MFD: 'm1', productType: 'A15W' }
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.checkForUpdate = jest.fn(async () => ({
+    svc.firmware.checkForUpdate = vi.fn(async () => ({
       ok: true,
       hasUpdate: true,
       latestVer: '2.0.0',
@@ -1362,7 +1374,7 @@ describe('ProjectionService', () => {
       raw: { err: 0, ver: '2.0.0', size: 321, token: 'tok', id: 'id1', notes: 'note1' }
     }))
 
-    svc.firmware.downloadFirmwareToHost = jest.fn(async (_check: any, opts: any) => {
+    svc.firmware.downloadFirmwareToHost = vi.fn(async (_check: any, opts: any) => {
       opts.onProgress?.({ received: 50, total: 100, percent: 0.5 })
       opts.onProgress?.({ received: 100, total: 100, percent: 1 })
       return {
@@ -1438,14 +1450,14 @@ describe('ProjectionService', () => {
 
   test('dongle-fw download returns shaped check result when no update is available', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.config = { apkVer: '9.9.9' }
     svc.dongleFwVersion = '1.0.0'
     svc.boxInfo = { uuid: 'u1', MFD: 'm1', productType: 'A15W' }
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.checkForUpdate = jest.fn(async () => ({
+    svc.firmware.checkForUpdate = vi.fn(async () => ({
       ok: true,
       hasUpdate: false,
       latestVer: '1.0.0',
@@ -1464,7 +1476,7 @@ describe('ProjectionService', () => {
       }
     }))
 
-    svc.firmware.downloadFirmwareToHost = jest.fn()
+    svc.firmware.downloadFirmwareToHost = vi.fn()
 
     const h = getHandle('dongle-fw')
     const out = await h.call(svc, null, { action: 'download' })
@@ -1504,14 +1516,14 @@ describe('ProjectionService', () => {
   })
   test('dongle-fw download returns shaped check result when no update is available', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.config = { apkVer: '9.9.9' }
     svc.dongleFwVersion = '1.0.0'
     svc.boxInfo = { uuid: 'u1', MFD: 'm1', productType: 'A15W' }
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.checkForUpdate = jest.fn(async () => ({
+    svc.firmware.checkForUpdate = vi.fn(async () => ({
       ok: true,
       hasUpdate: false,
       latestVer: '1.0.0',
@@ -1530,7 +1542,7 @@ describe('ProjectionService', () => {
       }
     }))
 
-    svc.firmware.downloadFirmwareToHost = jest.fn()
+    svc.firmware.downloadFirmwareToHost = vi.fn()
 
     const h = getHandle('dongle-fw')
     const out = await h.call(svc, null, { action: 'download' })
@@ -1571,11 +1583,11 @@ describe('ProjectionService', () => {
 
   test('dongle-fw download returns error shape when check fails', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.checkForUpdate = jest.fn(async () => ({
+    svc.firmware.checkForUpdate = vi.fn(async () => ({
       ok: false,
       error: 'check failed'
     }))
@@ -1605,9 +1617,9 @@ describe('ProjectionService', () => {
 
   test('dongle-fw download returns error shape when host download fails', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
     const checkResult = {
       ok: true,
@@ -1621,8 +1633,8 @@ describe('ProjectionService', () => {
       raw: { err: 0, ver: '2.0.0', size: 222 }
     }
 
-    svc.firmware.checkForUpdate = jest.fn(async () => checkResult)
-    svc.firmware.downloadFirmwareToHost = jest.fn(async () => ({
+    svc.firmware.checkForUpdate = vi.fn(async () => checkResult)
+    svc.firmware.downloadFirmwareToHost = vi.fn(async () => ({
       ok: false,
       error: 'download broken'
     }))
@@ -1652,9 +1664,9 @@ describe('ProjectionService', () => {
 
   test('dongle-fw download emits progress and done when firmware download succeeds', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
     const checkResult = {
       ok: true,
@@ -1668,8 +1680,8 @@ describe('ProjectionService', () => {
       raw: { err: 0, ver: '2.0.0', size: 222 }
     }
 
-    svc.firmware.checkForUpdate = jest.fn(async () => checkResult)
-    svc.firmware.downloadFirmwareToHost = jest.fn(async (_check: unknown, opts?: any) => {
+    svc.firmware.checkForUpdate = vi.fn(async () => checkResult)
+    svc.firmware.downloadFirmwareToHost = vi.fn(async (_check: unknown, opts?: any) => {
       opts?.onProgress?.({ received: 50, total: 100, percent: 0.5 })
       return {
         ok: true,
@@ -1717,10 +1729,10 @@ describe('ProjectionService', () => {
 
   test('dongle-fw upload returns error when projection is not started', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.started = false
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
     const h = getHandle('dongle-fw')
     const out = await h.call(svc, null, { action: 'upload' })
@@ -1741,12 +1753,12 @@ describe('ProjectionService', () => {
 
   test('dongle-fw upload returns error when local firmware status has ok:false', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.started = true
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.firmware.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: false,
       error: 'status check failed'
     }))
@@ -1771,12 +1783,12 @@ describe('ProjectionService', () => {
 
   test('dongle-fw upload sends firmware file to dongle and returns success', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.started = true
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.firmware.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: true,
       ready: true,
       path: '/tmp/appdata/firmware/A15W_Update.img',
@@ -1785,8 +1797,8 @@ describe('ProjectionService', () => {
       latestVer: '2.0.0'
     }))
 
-    jest.spyOn(fs.promises, 'readFile').mockResolvedValue(Buffer.alloc(100) as any)
-    svc.driver.send = jest.fn(async () => true)
+    vi.spyOn(fs.promises, 'readFile').mockResolvedValue(Buffer.alloc(100) as any)
+    svc.driver.send = vi.fn(async () => true)
 
     const h = getHandle('dongle-fw')
     const out = await h.call(svc, null, { action: 'upload' })
@@ -1809,12 +1821,12 @@ describe('ProjectionService', () => {
 
   test('dongle-fw upload returns error when SendFile returns false', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.started = true
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.firmware.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: true,
       ready: true,
       path: '/tmp/appdata/firmware/A15W_Update.img',
@@ -1823,8 +1835,8 @@ describe('ProjectionService', () => {
       latestVer: '2.0.0'
     }))
 
-    jest.spyOn(fs.promises, 'readFile').mockResolvedValue(Buffer.alloc(100) as any)
-    svc.driver.send = jest.fn(async () => false)
+    vi.spyOn(fs.promises, 'readFile').mockResolvedValue(Buffer.alloc(100) as any)
+    svc.driver.send = vi.fn(async () => false)
 
     const h = getHandle('dongle-fw')
     const out = await h.call(svc, null, { action: 'upload' })
@@ -1845,12 +1857,12 @@ describe('ProjectionService', () => {
 
   test('dongle-fw upload catches thrown errors and emits upload:error', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.started = true
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.firmware.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: true,
       ready: true,
       path: '/tmp/appdata/firmware/A15W_Update.img',
@@ -1859,7 +1871,7 @@ describe('ProjectionService', () => {
       latestVer: '2.0.0'
     }))
 
-    jest.spyOn(fs.promises, 'readFile').mockRejectedValue(new Error('read error'))
+    vi.spyOn(fs.promises, 'readFile').mockRejectedValue(new Error('read error'))
 
     const h = getHandle('dongle-fw')
     const out = await h.call(svc, null, { action: 'upload' })
@@ -1875,11 +1887,11 @@ describe('ProjectionService', () => {
 
   test('dongle-fw download catches thrown exceptions and emits download:error', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.checkForUpdate = jest.fn(async () => ({
+    svc.firmware.checkForUpdate = vi.fn(async () => ({
       ok: true,
       hasUpdate: true,
       latestVer: '2.0.0',
@@ -1889,7 +1901,7 @@ describe('ProjectionService', () => {
       raw: { err: 0 }
     }))
 
-    svc.firmware.downloadFirmwareToHost = jest.fn(async () => {
+    svc.firmware.downloadFirmwareToHost = vi.fn(async () => {
       throw new Error('disk full')
     })
 
@@ -1907,9 +1919,9 @@ describe('ProjectionService', () => {
 
   test('dongle-fw status returns error shape when getLocalFirmwareStatus returns null', async () => {
     const svc = new ProjectionService() as any
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.getLocalFirmwareStatus = jest.fn(async () => null)
+    svc.firmware.getLocalFirmwareStatus = vi.fn(async () => null)
 
     const h = getHandle('dongle-fw')
     const out = await h.call(svc, null, { action: 'status' })
@@ -1921,9 +1933,9 @@ describe('ProjectionService', () => {
 
   test('dongle-fw status returns error shape when status ok is false', async () => {
     const svc = new ProjectionService() as any
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.firmware.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: false,
       error: 'status error'
     }))
@@ -1936,12 +1948,12 @@ describe('ProjectionService', () => {
 
   test('dongle-fw upload returns error when local firmware is not ready', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.started = true
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.firmware.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: true,
       ready: false,
       reason: 'No firmware ready to upload'
@@ -1972,9 +1984,9 @@ describe('ProjectionService', () => {
 
   test('dongle-fw status returns local:not-ready shape', async () => {
     const svc = new ProjectionService() as any
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.firmware.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: true,
       ready: false,
       reason: 'missing'
@@ -2004,9 +2016,9 @@ describe('ProjectionService', () => {
 
   test('dongle-fw status returns local:ready shape', async () => {
     const svc = new ProjectionService() as any
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
-    svc.firmware.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.firmware.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: true,
       ready: true,
       path: '/tmp/fw.img',
@@ -2044,7 +2056,7 @@ describe('ProjectionService', () => {
 
   test('dongle-fw returns unknown action error shape', async () => {
     const svc = new ProjectionService() as any
-    svc.reloadConfigFromDisk = jest.fn(async () => undefined)
+    svc.reloadConfigFromDisk = vi.fn(async () => undefined)
 
     const h = getHandle('dongle-fw')
     const out = await h.call(svc, null, { action: 'wat' })
@@ -2057,9 +2069,9 @@ describe('ProjectionService', () => {
       raw: { err: -1, msg: 'Unknown action: wat' }
     })
   })
-  test('driver failure event emits projection failure to renderer', () => {
+  test('driver failure event emits projection failure to renderer', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
 
     svc.driver.emit('failure')
@@ -2067,9 +2079,9 @@ describe('ProjectionService', () => {
     expect(send).toHaveBeenCalledWith('projection-event', { type: 'failure' })
   })
 
-  test('driver SoftwareVersion message updates fw version and emits dongle info', () => {
+  test('driver SoftwareVersion message updates fw version and emits dongle info', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
 
     svc.driver.emit('message', new SoftwareVersion('2025.03.19.1126'))
@@ -2084,9 +2096,9 @@ describe('ProjectionService', () => {
     })
   })
 
-  test('driver BoxInfo message merges with existing info and emits dongle info', () => {
+  test('driver BoxInfo message merges with existing info and emits dongle info', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.boxInfo = {
       uuid: 'u1',
@@ -2128,9 +2140,9 @@ describe('ProjectionService', () => {
     })
   })
 
-  test('driver GnssData message forwards gnss payload', () => {
+  test('driver GnssData message forwards gnss payload', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
 
     svc.driver.emit('message', new GnssData('$GPGGA,1'))
@@ -2141,9 +2153,9 @@ describe('ProjectionService', () => {
     })
   })
 
-  test('driver BluetoothPairedList message forwards paired list when renderer is attached', () => {
+  test('driver BluetoothPairedList message forwards paired list when renderer is attached', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
 
     const raw = 'AA:BB:CC:DD:EE:FFDevice A\n11:22:33:44:55:66Device B\n'
@@ -2156,14 +2168,14 @@ describe('ProjectionService', () => {
   })
 
   test('driver Plugged message emits requestSave, plugged event and starts projection', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
 
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.started = false
     svc.isStarting = false
-    svc.start = jest.fn(async () => undefined)
+    svc.start = vi.fn(async () => undefined)
     svc.config = {
       language: 'en',
       phoneConfig: {
@@ -2186,17 +2198,17 @@ describe('ProjectionService', () => {
     })
     expect(svc.start).toHaveBeenCalledTimes(1)
 
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   test('driver Unplugged message emits unplugged, resets navigation and stops service', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.shuttingDown = false
     svc.stopping = false
-    svc.stop = jest.fn(async () => undefined)
-    svc.resetNavigationSnapshot = jest.fn()
+    svc.stop = vi.fn(async () => undefined)
+    svc.resetNavigationSnapshot = vi.fn()
     svc.lastPluggedPhoneType = PhoneType.AndroidAuto
     svc.aaPlaybackInferred = 2
 
@@ -2209,9 +2221,9 @@ describe('ProjectionService', () => {
     expect(svc.stop).toHaveBeenCalledTimes(1)
   })
 
-  test('driver BoxUpdateProgress message emits fw upload progress', () => {
+  test('driver BoxUpdateProgress message emits fw upload progress', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
 
     svc.driver.emit('message', new BoxUpdateProgress(77))
@@ -2223,9 +2235,9 @@ describe('ProjectionService', () => {
     })
   })
 
-  test('driver BoxUpdateState terminal success emits state, done and requests frame refresh', () => {
+  test('driver BoxUpdateState terminal success emits state, done and requests frame refresh', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.lastDongleInfoEmitKey = 'old-key'
 
@@ -2260,9 +2272,9 @@ describe('ProjectionService', () => {
     expect(svc.driver.send).toHaveBeenCalledTimes(1)
   })
 
-  test('driver BoxUpdateState terminal failure emits upload:error', () => {
+  test('driver BoxUpdateState terminal failure emits upload:error', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
 
     const msg = new BoxUpdateState()
@@ -2293,9 +2305,9 @@ describe('ProjectionService', () => {
     })
   })
 
-  test('driver Command message emits command event and requests navi focus when value is 508', () => {
+  test('driver Command message emits command event and requests navi focus when value is 508', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.clusterRequested = true
 
@@ -2309,11 +2321,11 @@ describe('ProjectionService', () => {
     expect(svc.driver.send).toHaveBeenCalledTimes(1)
   })
 
-  test('uploadIcons logs warning when config.json reload throws', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+  test('uploadIcons logs warning when config.json reload throws', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const svc = new ProjectionService() as any
-    jest.spyOn(fs, 'existsSync').mockReturnValue(true)
-    jest.spyOn(fs, 'readFileSync').mockImplementation(() => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true)
+    vi.spyOn(fs, 'readFileSync').mockImplementation(function () {
       throw new Error('parse error')
     })
     svc.config = {
@@ -2331,18 +2343,18 @@ describe('ProjectionService', () => {
     expect(svc.driver.send).toHaveBeenCalledTimes(3)
   })
 
-  test('uploadIcons swallows errors in outer catch', () => {
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+  test('uploadIcons swallows errors in outer catch', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(function () {})
     const svc = new ProjectionService() as any
-    jest.spyOn(fs, 'existsSync').mockReturnValue(true)
-    jest.spyOn(fs, 'readFileSync').mockReturnValue(
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true)
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(
       JSON.stringify({
         dongleIcon120: Buffer.from('120').toString('base64'),
         dongleIcon180: Buffer.from('180').toString('base64'),
         dongleIcon256: Buffer.from('256').toString('base64')
       }) as any
     )
-    svc.driver.send = jest.fn(() => {
+    svc.driver.send = vi.fn(function () {
       throw new Error('send failed')
     })
 
@@ -2353,9 +2365,9 @@ describe('ProjectionService', () => {
     )
   })
 
-  test('emitDongleInfoIfChanged uses String(boxInfo) when JSON.stringify throws', () => {
+  test('emitDongleInfoIfChanged uses String(boxInfo) when JSON.stringify throws', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
 
     const circular: Record<string, unknown> = {}
@@ -2366,9 +2378,9 @@ describe('ProjectionService', () => {
     expect(send).toHaveBeenCalledTimes(1)
   })
 
-  test('driver AudioData emits audio and audioInfo once per unique decode format', () => {
+  test('driver AudioData emits audio and audioInfo once per unique decode format', async () => {
     const svc = new ProjectionService() as any
-    const send = jest.fn()
+    const send = vi.fn()
     svc.webContents = { send }
     svc.lastPluggedPhoneType = PhoneType.CarPlay
     ;(decodeTypeMap as any)[7] = {

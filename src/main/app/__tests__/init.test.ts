@@ -1,15 +1,15 @@
 import { electronApp } from '@electron-toolkit/utils'
 import { setupAppIdentity } from '@main/app/init'
 
-jest.mock('@electron-toolkit/utils', () => ({
+vi.mock('@electron-toolkit/utils', () => ({
   electronApp: {
-    setAppUserModelId: jest.fn()
+    setAppUserModelId: vi.fn()
   }
 }))
 
 describe('setupAppIdentity', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   test('sets expected app user model id', () => {

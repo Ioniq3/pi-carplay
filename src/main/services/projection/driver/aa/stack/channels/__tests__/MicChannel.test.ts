@@ -17,7 +17,7 @@ function dummyFrame(): RawFrame {
 
 function freshSend() {
   const calls: { channelId: number; flags: number; msgId: number; data: Buffer }[] = []
-  const send = jest.fn((channelId: number, flags: number, msgId: number, data: Buffer) => {
+  const send = vi.fn(function (channelId: number, flags: number, msgId: number, data: Buffer) {
     calls.push({ channelId, flags, msgId, data })
   })
   return { send, calls }
@@ -32,7 +32,7 @@ describe('MicChannel — open/close', () => {
   test('OPEN_REQUEST(open=true) emits mic-start, sends OPEN_RESPONSE + START_INDICATION', () => {
     const { send, calls } = freshSend()
     const ch = new MicChannel(MIC, send)
-    const start = jest.fn()
+    const start = vi.fn()
     ch.on('mic-start', start)
 
     openMic(ch)
@@ -46,7 +46,7 @@ describe('MicChannel — open/close', () => {
   test('OPEN_REQUEST(open=false) without an existing open is just an ack', () => {
     const { send, calls } = freshSend()
     const ch = new MicChannel(MIC, send)
-    const stop = jest.fn()
+    const stop = vi.fn()
     ch.on('mic-stop', stop)
 
     const closeReq = fieldVarint(1, 0)
@@ -61,7 +61,7 @@ describe('MicChannel — open/close', () => {
     const ch = new MicChannel(MIC, send)
     openMic(ch)
 
-    const stop = jest.fn()
+    const stop = vi.fn()
     ch.on('mic-stop', stop)
     ch.handleMessage(AV_MSG.AV_INPUT_OPEN_REQUEST, fieldVarint(1, 0), dummyFrame())
     expect(stop).toHaveBeenCalledWith(MIC)
@@ -72,7 +72,7 @@ describe('MicChannel — open/close', () => {
     const ch = new MicChannel(MIC, send)
     openMic(ch)
 
-    const stop = jest.fn()
+    const stop = vi.fn()
     ch.on('mic-stop', stop)
     ch.handleMessage(AV_MSG.STOP_INDICATION, Buffer.alloc(0), dummyFrame())
     expect(stop).toHaveBeenCalledWith(MIC)
@@ -81,7 +81,7 @@ describe('MicChannel — open/close', () => {
   test('STOP_INDICATION while not open is a no-op', () => {
     const { send } = freshSend()
     const ch = new MicChannel(MIC, send)
-    const stop = jest.fn()
+    const stop = vi.fn()
     ch.on('mic-stop', stop)
     ch.handleMessage(AV_MSG.STOP_INDICATION, Buffer.alloc(0), dummyFrame())
     expect(stop).not.toHaveBeenCalled()
@@ -159,7 +159,7 @@ describe('MicChannel response payloads', () => {
   })
 
   test('unhandled msgId is logged at debug', () => {
-    const debug = jest.spyOn(console, 'debug').mockImplementation(() => {})
+    const debug = vi.spyOn(console, 'debug').mockImplementation(function () {})
     const { send } = freshSend()
     const ch = new MicChannel(MIC, send)
     ch.handleMessage(0xbeef, Buffer.alloc(0), dummyFrame())

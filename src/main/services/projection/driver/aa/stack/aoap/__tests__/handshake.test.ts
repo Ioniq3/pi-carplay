@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest'
 import {
   ACCESSORY_PIDS,
   AOAP_DESCRIPTION,
@@ -27,14 +28,14 @@ type FakeDevice = {
   productId: number
   configuration: USBConfiguration | undefined
   configurations: USBConfiguration[]
-  open: jest.Mock
-  close: jest.Mock
-  reset: jest.Mock
-  selectConfiguration: jest.Mock
-  claimInterface: jest.Mock
-  releaseInterface: jest.Mock
-  controlTransferIn: jest.Mock
-  controlTransferOut: jest.Mock
+  open: Mock
+  close: Mock
+  reset: Mock
+  selectConfiguration: Mock
+  claimInterface: Mock
+  releaseInterface: Mock
+  controlTransferIn: Mock
+  controlTransferOut: Mock
   calls: CtrlCall[]
 }
 
@@ -71,7 +72,7 @@ function makeDevice(
   // Resolves never (used by the timeout test).
   const stuckPromise = <T>(): Promise<T> => new Promise<T>(() => {})
 
-  const controlTransferIn = jest.fn(async (setup: USBControlTransferParameters, length: number) => {
+  const controlTransferIn = vi.fn(async (setup: USBControlTransferParameters, length: number) => {
     calls.push({ request: setup.request, value: setup.value, index: setup.index, data: length })
     if (opts.stuck) return stuckPromise<USBInTransferResult>()
     if (ctrlError) throw ctrlError
@@ -86,7 +87,7 @@ function makeDevice(
     return { status: 'ok', data: new DataView(new ArrayBuffer(0)) } as USBInTransferResult
   })
 
-  const controlTransferOut = jest.fn(
+  const controlTransferOut = vi.fn(
     async (setup: USBControlTransferParameters, data?: BufferSource) => {
       const payload = data
         ? Buffer.from(
@@ -112,16 +113,16 @@ function makeDevice(
     productId: pid,
     configuration: config,
     configurations: [config],
-    open: jest.fn(async () => {
+    open: vi.fn(async () => {
       if (openThrows) throw new Error('open failed')
     }),
-    close: jest.fn(async () => undefined),
-    reset: jest.fn(async () => undefined),
-    selectConfiguration: jest.fn(async () => undefined),
-    claimInterface: jest.fn(async () => {
+    close: vi.fn(async () => undefined),
+    reset: vi.fn(async () => undefined),
+    selectConfiguration: vi.fn(async () => undefined),
+    claimInterface: vi.fn(async () => {
       if (claimError) throw claimError
     }),
-    releaseInterface: jest.fn(async () => undefined),
+    releaseInterface: vi.fn(async () => undefined),
     controlTransferIn,
     controlTransferOut,
     calls
@@ -134,12 +135,12 @@ describe('isAccessoryMode', () => {
     expect(isAccessoryMode(d as unknown as Device)).toBe(true)
   })
 
-  test('non-Google VID → false', () => {
+  test('non-Google VID → false', async () => {
     const d = makeDevice({ vid: 0x1234, pid: 0x4ee1 })
     expect(isAccessoryMode(d as unknown as Device)).toBe(false)
   })
 
-  test('Google VID + non-accessory PID → false', () => {
+  test('Google VID + non-accessory PID → false', async () => {
     const d = makeDevice({ vid: GOOGLE_VID, pid: 0xabcd })
     expect(isAccessoryMode(d as unknown as Device)).toBe(false)
   })
@@ -229,13 +230,13 @@ describe('runAoapHandshake', () => {
   })
 
   test('times out when the control transfer never completes', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     const d = makeDevice({ pid: 0x4ee1, stuck: true })
     const p = runAoapHandshake(d as unknown as Device)
     // Surface the rejection so an unhandled-rejection warning isn't logged.
     const assertion = expect(p).rejects.toThrow(/timeout/)
-    await jest.advanceTimersByTimeAsync(2_500)
+    await vi.advanceTimersByTimeAsync(2_500)
     await assertion
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 })

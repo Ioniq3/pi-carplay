@@ -4,18 +4,18 @@ import { attachAaAdapter, mapGearToAa } from '../aaAdapter'
 
 function fakeDriver() {
   return {
-    sendSpeedData: jest.fn(),
-    sendRpmData: jest.fn(),
-    sendGearData: jest.fn(),
-    sendNightModeData: jest.fn(),
-    sendParkingBrakeData: jest.fn(),
-    sendDrivingStatusData: jest.fn(),
-    sendLightData: jest.fn(),
-    sendFuelData: jest.fn(),
-    sendOdometerData: jest.fn(),
-    sendEnvironmentData: jest.fn(),
-    sendGpsLocationData: jest.fn(),
-    sendVehicleEnergyModel: jest.fn()
+    sendSpeedData: vi.fn(),
+    sendRpmData: vi.fn(),
+    sendGearData: vi.fn(),
+    sendNightModeData: vi.fn(),
+    sendParkingBrakeData: vi.fn(),
+    sendDrivingStatusData: vi.fn(),
+    sendLightData: vi.fn(),
+    sendFuelData: vi.fn(),
+    sendOdometerData: vi.fn(),
+    sendEnvironmentData: vi.fn(),
+    sendGpsLocationData: vi.fn(),
+    sendVehicleEnergyModel: vi.fn()
   }
 }
 

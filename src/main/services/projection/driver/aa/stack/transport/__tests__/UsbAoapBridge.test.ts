@@ -13,28 +13,28 @@ class MockDevice {
 
   configuration: USBConfiguration | undefined
 
-  open = jest.fn(async () => undefined)
-  close = jest.fn(async () => undefined)
-  reset = jest.fn(async () => undefined)
-  selectConfiguration = jest.fn(async (value: number) => {
+  open = vi.fn(async () => undefined)
+  close = vi.fn(async () => undefined)
+  reset = vi.fn(async () => undefined)
+  selectConfiguration = vi.fn(async (value: number) => {
     this.configuration = makeConfig(value)
   })
-  claimInterface = jest.fn(async (_n: number) => undefined)
-  releaseInterface = jest.fn(async (_n: number) => undefined)
-  clearHalt = jest.fn(async (_dir: USBDirection, _ep: number) => undefined)
+  claimInterface = vi.fn(async (_n: number) => undefined)
+  releaseInterface = vi.fn(async (_n: number) => undefined)
+  clearHalt = vi.fn(async (_dir: USBDirection, _ep: number) => undefined)
 
   // transferIn is gated so the test controls when an IN read resolves. By default
   // it parks forever (a real bulk IN blocks until data or timeout) so the pump
   // loop doesn't busy-spin during the test.
   private _inResolvers: ((r: USBInTransferResult) => void)[] = []
-  transferIn = jest.fn(
+  transferIn = vi.fn(
     (_ep: number, _len: number, _timeoutMs?: number): Promise<USBInTransferResult> =>
       new Promise<USBInTransferResult>((resolve) => {
         this._inResolvers.push(resolve)
       })
   )
 
-  transferOut = jest.fn(
+  transferOut = vi.fn(
     async (_ep: number, data: BufferSource): Promise<USBOutTransferResult> =>
       ({ status: 'ok', bytesWritten: (data as ArrayBufferView).byteLength }) as USBOutTransferResult
   )
@@ -78,18 +78,18 @@ function makeConfig(configurationValue: number, withBulk = true): USBConfigurati
 // ── net mock ───────────────────────────────────────────────────────────────────
 
 class MockServer extends EventEmitter {
-  listen = jest.fn((_port: number, _addr: string, cb: () => void) => cb())
-  close = jest.fn((cb?: () => void) => cb?.())
+  listen = vi.fn((_port: number, _addr: string, cb: () => void) => cb())
+  close = vi.fn((cb?: () => void) => cb?.())
 }
 
 class MockLoopbackSocket extends EventEmitter {
-  setNoDelay = jest.fn()
-  write = jest.fn(() => true)
-  destroy = jest.fn()
+  setNoDelay = vi.fn()
+  write = vi.fn(() => true)
+  destroy = vi.fn()
 }
 
-const createServer = jest.fn()
-jest.mock('net', () => ({
+const createServer = vi.fn()
+vi.mock('net', () => ({
   __esModule: true,
   createServer: (...a: unknown[]) => createServer(...a)
 }))
@@ -98,17 +98,17 @@ jest.mock('net', () => ({
 // non-accessory boot path (waitForAccessoryAttach). Our tests always start from
 // accessory mode, so addEventListener/removeEventListener are never exercised —
 // stub them so the import resolves.
-jest.mock('usb', () => ({
+vi.mock('usb', () => ({
   __esModule: true,
   usb: {
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn()
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn()
   }
 }))
 
-const runAoapHandshakeMock = jest.fn(async () => undefined)
-const isAccessoryModeMock = jest.fn(() => true)
-jest.mock('../../aoap/handshake', () => ({
+const runAoapHandshakeMock = vi.fn(async () => undefined)
+const isAccessoryModeMock = vi.fn(() => true)
+vi.mock('../../aoap/handshake', () => ({
   isAccessoryMode: (...a: unknown[]) => isAccessoryModeMock(...a),
   runAoapHandshake: (...a: unknown[]) => runAoapHandshakeMock(...a)
 }))
@@ -117,15 +117,15 @@ import { UsbAoapBridge } from '../UsbAoapBridge'
 
 type Device = USBDevice
 
-beforeEach(() => {
+beforeEach(async () => {
   createServer.mockReset()
   runAoapHandshakeMock.mockReset()
   isAccessoryModeMock.mockReturnValue(true)
-  jest.spyOn(console, 'log').mockImplementation(() => {})
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
-  jest.spyOn(console, 'error').mockImplementation(() => {})
+  vi.spyOn(console, 'log').mockImplementation(function () {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
+  vi.spyOn(console, 'error').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 /** Wires createServer so the test can grab the connection handler. */
 function newBridge(dev: MockDevice = new MockDevice()): {
@@ -159,7 +159,7 @@ describe('UsbAoapBridge — start', () => {
     const dev = new MockDevice()
     createServer.mockImplementationOnce(() => new MockServer())
     const bridge = new UsbAoapBridge(dev as unknown as Device)
-    const ready = jest.fn()
+    const ready = vi.fn()
     bridge.on('ready', ready)
     await bridge.start(5278)
     expect(dev.open).toHaveBeenCalled()
@@ -173,7 +173,7 @@ describe('UsbAoapBridge — start', () => {
     isAccessoryModeMock.mockReturnValue(true)
     const dev = new MockDevice()
     dev.open.mockRejectedValue(new Error('not found'))
-    const onError = jest.fn()
+    const onError = vi.fn()
     const bridge = new UsbAoapBridge(dev as unknown as Device)
     bridge.on('error', onError)
     await expect(bridge.start()).rejects.toThrow(/Failed to open AOAP accessory/)
@@ -201,7 +201,7 @@ describe('UsbAoapBridge — stop', () => {
     const bridge = new UsbAoapBridge(dev as unknown as Device)
     await bridge.start()
 
-    const closed = jest.fn()
+    const closed = vi.fn()
     bridge.on('closed', closed)
     await bridge.stop()
     expect(dev.releaseInterface).toHaveBeenCalledWith(0)
@@ -294,7 +294,7 @@ describe('UsbAoapBridge — loopback server + pump', () => {
   test('USB IN disconnect error → emit error + destroy socket', async () => {
     const { dev, connect } = newBridge()
     const bridge = new UsbAoapBridge(dev as unknown as Device)
-    const onErr = jest.fn()
+    const onErr = vi.fn()
     bridge.on('error', onErr)
     await bridge.start()
     const sock = new MockLoopbackSocket()
@@ -321,7 +321,7 @@ describe('UsbAoapBridge — loopback server + pump', () => {
   test('socket error is forwarded', async () => {
     const { dev, connect } = newBridge()
     const bridge = new UsbAoapBridge(dev as unknown as Device)
-    const onErr = jest.fn()
+    const onErr = vi.fn()
     bridge.on('error', onErr)
     await bridge.start()
     const sock = new MockLoopbackSocket()
@@ -382,7 +382,7 @@ describe('UsbAoapBridge — pump edge cases', () => {
     const bridge = new UsbAoapBridge(dev as unknown as Device)
     await bridge.start()
     const sock = new MockLoopbackSocket()
-    sock.write = jest.fn(() => false) // signal backpressure
+    sock.write = vi.fn(() => false) // signal backpressure
     connect()(sock as never)
 
     dev.transferIn.mockClear()
@@ -415,7 +415,7 @@ describe('UsbAoapBridge — pump edge cases', () => {
     const { dev, connect } = newBridge()
     dev.transferOut.mockRejectedValue(new Error('USB stall'))
     const bridge = new UsbAoapBridge(dev as unknown as Device)
-    const onErr = jest.fn()
+    const onErr = vi.fn()
     bridge.on('error', onErr)
     await bridge.start()
     const sock = new MockLoopbackSocket()

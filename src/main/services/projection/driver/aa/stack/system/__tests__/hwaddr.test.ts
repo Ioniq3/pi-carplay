@@ -1,29 +1,34 @@
-jest.mock('node:fs', () => ({
-  readFileSync: jest.fn(),
-  readdirSync: jest.fn()
-}))
-jest.mock('node:child_process', () => ({
-  execSync: jest.fn()
+import type { Mock } from 'vitest'
+
+vi.mock('node:fs', () => {
+  const __m = {
+    readFileSync: vi.fn(),
+    readdirSync: vi.fn()
+  }
+  return { ...__m, default: __m }
+})
+vi.mock('node:child_process', () => ({
+  execSync: vi.fn()
 }))
 
 import { execSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import { detectBtMac, detectWifiBssid } from '../hwaddr'
 
-const mockReadFileSync = fs.readFileSync as jest.Mock
-const mockReaddirSync = fs.readdirSync as jest.Mock
-const mockExecSync = execSync as jest.Mock
+const mockReadFileSync = fs.readFileSync as Mock
+const mockReaddirSync = fs.readdirSync as Mock
+const mockExecSync = execSync as Mock
 
 describe('detectBtMac', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
     delete process.env['AA_BT_MAC']
-    jest.spyOn(console, 'log').mockImplementation(() => {})
-    jest.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(console, 'log').mockImplementation(function () {})
+    vi.spyOn(console, 'warn').mockImplementation(function () {})
   })
 
   afterEach(() => {
-    jest.restoreAllMocks()
+    vi.restoreAllMocks()
   })
 
   test('returns AA_BT_MAC env var when set', () => {
@@ -62,7 +67,7 @@ describe('detectBtMac', () => {
 
   test('returns undefined when nothing is detected', () => {
     mockReaddirSync.mockReturnValueOnce([])
-    mockExecSync.mockImplementation(() => {
+    mockExecSync.mockImplementation(function () {
       throw new Error('not found')
     })
     expect(detectBtMac()).toBeUndefined()
@@ -77,10 +82,10 @@ describe('detectBtMac', () => {
 
 describe('detectWifiBssid', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
     delete process.env['AA_WIFI_BSSID']
-    jest.spyOn(console, 'log').mockImplementation(() => {})
-    jest.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(console, 'log').mockImplementation(function () {})
+    vi.spyOn(console, 'warn').mockImplementation(function () {})
   })
 
   test('returns AA_WIFI_BSSID env var when set', () => {

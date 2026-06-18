@@ -3,44 +3,48 @@ import { spawn } from 'child_process'
 import { app } from 'electron'
 import { EventEmitter } from 'events'
 import fs from 'fs'
+import type { Mock } from 'vitest'
 
-jest.mock('child_process', () => ({
-  spawn: jest.fn()
+vi.mock('child_process', () => ({
+  spawn: vi.fn()
 }))
 
-jest.mock('fs', () => ({
-  existsSync: jest.fn()
-}))
+vi.mock('fs', () => {
+  const __m = {
+    existsSync: vi.fn()
+  }
+  return { ...__m, default: __m }
+})
 
-jest.mock('electron', () => ({
+vi.mock('electron', () => ({
   app: {
     isPackaged: false,
-    getAppPath: jest.fn(() => '/mock/app')
+    getAppPath: vi.fn(() => '/mock/app')
   }
 }))
 
 type MockProc = EventEmitter & {
   stdin: EventEmitter & {
     destroyed: boolean
-    write: jest.Mock
-    end: jest.Mock
+    write: Mock
+    end: Mock
   }
   stderr: EventEmitter
-  kill: jest.Mock
+  kill: Mock
 }
 
 function makeProc(): MockProc {
   const stdin = new EventEmitter() as MockProc['stdin']
   stdin.destroyed = false
-  stdin.write = jest.fn(() => true)
-  stdin.end = jest.fn()
+  stdin.write = vi.fn(() => true)
+  stdin.end = vi.fn()
 
   const stderr = new EventEmitter()
 
   const p = new EventEmitter() as MockProc
   p.stdin = stdin
   p.stderr = stderr
-  p.kill = jest.fn()
+  p.kill = vi.fn()
 
   return p
 }
@@ -49,8 +53,8 @@ describe('AudioOutput', () => {
   const originalPlatform = process.platform
   const originalArch = process.arch
 
-  beforeEach(() => {
-    jest.clearAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
 
     Object.defineProperty(process, 'platform', {
       value: 'darwin'
@@ -58,13 +62,13 @@ describe('AudioOutput', () => {
     Object.defineProperty(process, 'arch', {
       value: 'arm64'
     })
-    ;(app.getAppPath as jest.Mock).mockReturnValue('/mock/app')
-    ;(fs.existsSync as jest.Mock).mockImplementation((p: fs.PathLike) => {
+    ;(app.getAppPath as Mock).mockReturnValue('/mock/app')
+    ;(fs.existsSync as Mock).mockImplementation(function (p: fs.PathLike) {
       return String(p).includes('/mock/app/assets/gstreamer/macos-arm64')
     })
   })
 
-  afterAll(() => {
+  afterAll(async () => {
     Object.defineProperty(process, 'platform', {
       value: originalPlatform
     })
@@ -73,9 +77,9 @@ describe('AudioOutput', () => {
     })
   })
 
-  test('start on darwin spawns gst-launch and write sends pcm to stdin', () => {
+  test('start on darwin spawns gst-launch and write sends pcm to stdin', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -100,14 +104,14 @@ describe('AudioOutput', () => {
     expect(proc.stdin.write).toHaveBeenCalledTimes(1)
   })
 
-  test('realtime mode uses small non-leaky queues and sync=false sink args', () => {
+  test('realtime mode uses small non-leaky queues and sync=false sink args', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 16000, channels: 1, mode: 'realtime' })
     out.start()
 
-    const [, args] = (spawn as jest.Mock).mock.calls[0]
+    const [, args] = (spawn as Mock).mock.calls[0]
 
     // Realtime queues are small (40 ms input, 20 ms output) but must NOT be
     // leaky — leaking the oldest buffers would drop the start of every short
@@ -126,11 +130,11 @@ describe('AudioOutput', () => {
     expect(args).not.toContain('leaky=upstream')
   })
 
-  test('stop closes stdin synchronously and SIGTERMs as a fallback after grace period', () => {
-    jest.useFakeTimers()
+  test('stop closes stdin synchronously and SIGTERMs as a fallback after grace period', async () => {
+    vi.useFakeTimers()
     try {
       const proc = makeProc()
-      ;(spawn as jest.Mock).mockReturnValue(proc)
+      ;(spawn as Mock).mockReturnValue(proc)
 
       const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
       out.start()
@@ -143,18 +147,18 @@ describe('AudioOutput', () => {
 
       // After the grace period, if the process hasn't exited on its own, we
       // fall back to SIGTERM.
-      jest.advanceTimersByTime(500)
+      vi.advanceTimersByTime(500)
       expect(proc.kill).toHaveBeenCalledTimes(1)
     } finally {
-      jest.useRealTimers()
+      vi.useRealTimers()
     }
   })
 
-  test('stop fallback SIGTERM is skipped if the process exited cleanly first', () => {
-    jest.useFakeTimers()
+  test('stop fallback SIGTERM is skipped if the process exited cleanly first', async () => {
+    vi.useFakeTimers()
     try {
       const proc = makeProc()
-      ;(spawn as jest.Mock).mockReturnValue(proc)
+      ;(spawn as Mock).mockReturnValue(proc)
 
       const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
       out.start()
@@ -163,19 +167,19 @@ describe('AudioOutput', () => {
       // Simulate the process draining and exiting before the grace timer fires.
       proc.emit('close', 0, null)
 
-      jest.advanceTimersByTime(500)
+      vi.advanceTimersByTime(500)
       expect(proc.kill).not.toHaveBeenCalled()
     } finally {
-      jest.useRealTimers()
+      vi.useRealTimers()
     }
   })
 
-  test('stop fallback SIGTERM is skipped if a new process replaced the old one', () => {
-    jest.useFakeTimers()
+  test('stop fallback SIGTERM is skipped if a new process replaced the old one', async () => {
+    vi.useFakeTimers()
     try {
       const proc1 = makeProc()
       const proc2 = makeProc()
-      ;(spawn as jest.Mock).mockReturnValueOnce(proc1).mockReturnValueOnce(proc2)
+      ;(spawn as Mock).mockReturnValueOnce(proc1).mockReturnValueOnce(proc2)
 
       const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
       out.start()
@@ -188,19 +192,19 @@ describe('AudioOutput', () => {
       const proc1KillCallsBefore = proc1.kill.mock.calls.length
 
       // The deferred fallback fires later but must be a no-op now.
-      jest.advanceTimersByTime(500)
+      vi.advanceTimersByTime(500)
       expect(proc1.kill).toHaveBeenCalledTimes(proc1KillCallsBefore)
       expect(proc2.kill).not.toHaveBeenCalled()
     } finally {
-      jest.useRealTimers()
+      vi.useRealTimers()
     }
   })
 
-  test('darwin start without bundled gstreamer logs error and does not spawn', () => {
-    ;(app.getAppPath as jest.Mock).mockReturnValue('/mock/app')
-    ;(fs.existsSync as jest.Mock).mockReturnValue(false)
+  test('darwin start without bundled gstreamer logs error and does not spawn', async () => {
+    ;(app.getAppPath as Mock).mockReturnValue('/mock/app')
+    ;(fs.existsSync as Mock).mockReturnValue(false)
 
-    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -211,14 +215,14 @@ describe('AudioOutput', () => {
     errSpy.mockRestore()
   })
 
-  test('write does nothing when process is not started', () => {
+  test('write does nothing when process is not started', async () => {
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
 
     expect(() => out.write(new Int16Array([1, 2, 3, 4]))).not.toThrow()
     expect(spawn).not.toHaveBeenCalled()
   })
 
-  test('inferMode chooses realtime for mono low-rate and music otherwise', () => {
+  test('inferMode chooses realtime for mono low-rate and music otherwise', async () => {
     const cls = AudioOutput as any
 
     expect(cls.inferMode(16000, 1)).toBe('realtime')
@@ -226,7 +230,7 @@ describe('AudioOutput', () => {
     expect(cls.inferMode(48000, 2)).toBe('music')
   })
 
-  test('constructor infers mode automatically when mode is omitted', () => {
+  test('constructor infers mode automatically when mode is omitted', async () => {
     const realtime = new AudioOutput({ sampleRate: 16000, channels: 1 }) as any
     const music = new AudioOutput({ sampleRate: 48000, channels: 2 }) as any
 
@@ -234,16 +238,16 @@ describe('AudioOutput', () => {
     expect(music.mode).toBe('music')
   })
 
-  test('constructor clamps channels to at least 1', () => {
+  test('constructor clamps channels to at least 1', async () => {
     const out = new AudioOutput({ sampleRate: 48000, channels: 0, mode: 'music' }) as any
 
     expect(out.channels).toBe(1)
   })
 
-  test('start stops previous process before spawning a new one', () => {
+  test('start stops previous process before spawning a new one', async () => {
     const proc1 = makeProc()
     const proc2 = makeProc()
-    ;(spawn as jest.Mock).mockReturnValueOnce(proc1).mockReturnValueOnce(proc2)
+    ;(spawn as Mock).mockReturnValueOnce(proc1).mockReturnValueOnce(proc2)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -254,9 +258,9 @@ describe('AudioOutput', () => {
     expect(spawn).toHaveBeenCalledTimes(2)
   })
 
-  test('start on unsupported platform logs error and does not spawn', () => {
+  test('start on unsupported platform logs error and does not spawn', async () => {
     Object.defineProperty(process, 'platform', { value: 'freebsd' })
-    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -267,15 +271,15 @@ describe('AudioOutput', () => {
     errSpy.mockRestore()
   })
 
-  test('start on linux uses pulsesink and linux gstreamer env', () => {
+  test('start on linux uses pulsesink and linux gstreamer env', async () => {
     Object.defineProperty(process, 'platform', { value: 'linux' })
     Object.defineProperty(process, 'arch', { value: 'x64' })
-    ;(fs.existsSync as jest.Mock).mockImplementation((p: fs.PathLike) =>
+    ;(fs.existsSync as Mock).mockImplementation((p: fs.PathLike) =>
       String(p).includes('/mock/app/assets/gstreamer/linux-x64')
     )
 
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -293,20 +297,20 @@ describe('AudioOutput', () => {
     )
   })
 
-  test('start on win32 uses wasapisink, exe binary and omits audio/x-raw caps', () => {
+  test('start on win32 uses wasapisink, exe binary and omits audio/x-raw caps', async () => {
     Object.defineProperty(process, 'platform', { value: 'win32' })
     Object.defineProperty(process, 'arch', { value: 'x64' })
-    ;(fs.existsSync as jest.Mock).mockImplementation((p: fs.PathLike) =>
+    ;(fs.existsSync as Mock).mockImplementation((p: fs.PathLike) =>
       String(p).includes('/mock/app/assets/gstreamer/windows-x64')
     )
 
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
 
-    const [cmd, args, opts] = (spawn as jest.Mock).mock.calls[0]
+    const [cmd, args, opts] = (spawn as Mock).mock.calls[0]
 
     expect(cmd).toBe('/mock/app/assets/gstreamer/windows-x64/bin/gst-launch-1.0.exe')
     expect(args).toEqual(expect.arrayContaining(['wasapisink']))
@@ -323,9 +327,9 @@ describe('AudioOutput', () => {
     )
   })
 
-  test('write accepts Buffer chunks', () => {
+  test('write accepts Buffer chunks', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -334,9 +338,9 @@ describe('AudioOutput', () => {
     expect(proc.stdin.write).toHaveBeenCalledWith(Buffer.from([1, 2, 3, 4]))
   })
 
-  test('write ignores null and undefined chunks', () => {
+  test('write ignores null and undefined chunks', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -346,10 +350,10 @@ describe('AudioOutput', () => {
     expect(proc.stdin.write).not.toHaveBeenCalled()
   })
 
-  test('write returns early when stdin is destroyed', () => {
+  test('write returns early when stdin is destroyed', async () => {
     const proc = makeProc()
     proc.stdin.destroyed = true
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -358,10 +362,10 @@ describe('AudioOutput', () => {
     expect(proc.stdin.write).not.toHaveBeenCalled()
   })
 
-  test('flushQueue keeps remaining buffers queued on backpressure and drain flushes them', () => {
+  test('flushQueue keeps remaining buffers queued on backpressure and drain flushes them', async () => {
     const proc = makeProc()
     proc.stdin.write.mockReturnValueOnce(false).mockReturnValueOnce(true).mockReturnValueOnce(true)
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' }) as any
     out.start()
@@ -380,7 +384,7 @@ describe('AudioOutput', () => {
     expect(out.writing).toBe(false)
   })
 
-  test('flushQueue clears queue when process disappears', () => {
+  test('flushQueue clears queue when process disappears', async () => {
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' }) as any
     out.queue = [Buffer.from([1, 2])]
     out.process = null
@@ -392,9 +396,9 @@ describe('AudioOutput', () => {
     expect(out.writing).toBe(false)
   })
 
-  test('stdin error listener does not throw', () => {
+  test('stdin error listener does not throw', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -402,9 +406,9 @@ describe('AudioOutput', () => {
     expect(() => proc.stdin.emit('error', new Error('stdin failed'))).not.toThrow()
   })
 
-  test('process error triggers cleanup', () => {
+  test('process error triggers cleanup', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' }) as any
     out.start()
@@ -418,9 +422,9 @@ describe('AudioOutput', () => {
     expect(out.writing).toBe(false)
   })
 
-  test('process close triggers cleanup', () => {
+  test('process close triggers cleanup', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' }) as any
     out.start()
@@ -434,12 +438,12 @@ describe('AudioOutput', () => {
     expect(out.writing).toBe(false)
   })
 
-  test('dispose immediately tears the process down without waiting for drain', () => {
+  test('dispose immediately tears the process down without waiting for drain', async () => {
     // dispose() is used during app shutdown. We want a synchronous kill so
     // we don't leak a gst-launch zombie past the parent process exit, and we
     // accept that the tail of any in-flight playback is lost.
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -449,23 +453,23 @@ describe('AudioOutput', () => {
     expect(proc.kill).toHaveBeenCalledTimes(1)
   })
 
-  test('stop is a no-op when there is no active process', () => {
+  test('stop is a no-op when there is no active process', async () => {
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
 
     expect(() => out.stop()).not.toThrow()
   })
 
-  test('stop swallows stdin.end and kill errors', () => {
-    jest.useFakeTimers()
+  test('stop swallows stdin.end and kill errors', async () => {
+    vi.useFakeTimers()
     try {
       const proc = makeProc()
-      proc.stdin.end.mockImplementation(() => {
+      proc.stdin.end.mockImplementation(function () {
         throw new Error('end fail')
       })
-      proc.kill.mockImplementation(() => {
+      proc.kill.mockImplementation(function () {
         throw new Error('kill fail')
       })
-      ;(spawn as jest.Mock).mockReturnValue(proc)
+      ;(spawn as Mock).mockReturnValue(proc)
 
       const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
 
@@ -474,13 +478,13 @@ describe('AudioOutput', () => {
       expect(() => out.stop()).not.toThrow()
       // The deferred SIGTERM also fires inside the timer callback and must
       // not propagate the kill error either.
-      expect(() => jest.advanceTimersByTime(500)).not.toThrow()
+      expect(() => vi.advanceTimersByTime(500)).not.toThrow()
     } finally {
-      jest.useRealTimers()
+      vi.useRealTimers()
     }
   })
 
-  test('constructor normalizes fractional and negative channel counts', () => {
+  test('constructor normalizes fractional and negative channel counts', async () => {
     const a = new AudioOutput({ sampleRate: 48000, channels: 2.9, mode: 'music' }) as any
     const b = new AudioOutput({ sampleRate: 48000, channels: -3, mode: 'music' }) as any
 
@@ -488,9 +492,9 @@ describe('AudioOutput', () => {
     expect(b.channels).toBe(1)
   })
 
-  test('write flushes immediately only when not already writing', () => {
+  test('write flushes immediately only when not already writing', async () => {
     const proc = makeProc()
-    ;(spawn as jest.Mock).mockReturnValue(proc)
+    ;(spawn as Mock).mockReturnValue(proc)
 
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' }) as any
     out.start()
@@ -502,12 +506,12 @@ describe('AudioOutput', () => {
     expect(out.queue).toHaveLength(1)
   })
 
-  test('stop does not end stdin when stdin is already destroyed but still SIGTERMs as fallback', () => {
-    jest.useFakeTimers()
+  test('stop does not end stdin when stdin is already destroyed but still SIGTERMs as fallback', async () => {
+    vi.useFakeTimers()
     try {
       const proc = makeProc()
       proc.stdin.destroyed = true
-      ;(spawn as jest.Mock).mockReturnValue(proc)
+      ;(spawn as Mock).mockReturnValue(proc)
 
       const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
       out.start()
@@ -515,14 +519,14 @@ describe('AudioOutput', () => {
 
       expect(proc.stdin.end).not.toHaveBeenCalled()
 
-      jest.advanceTimersByTime(500)
+      vi.advanceTimersByTime(500)
       expect(proc.kill).toHaveBeenCalledTimes(1)
     } finally {
-      jest.useRealTimers()
+      vi.useRealTimers()
     }
   })
 
-  test('cleanup clears queue, writing flag and process', () => {
+  test('cleanup clears queue, writing flag and process', async () => {
     const out = new AudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' }) as any
     out.process = makeProc()
     out.queue = [Buffer.from([1]), Buffer.from([2])]
@@ -535,7 +539,7 @@ describe('AudioOutput', () => {
     expect(out.writing).toBe(false)
   })
 
-  test('linux realtime buildArgs uses pulsesink with sync=false and non-leaky queues', () => {
+  test('linux realtime buildArgs uses pulsesink with sync=false and non-leaky queues', async () => {
     Object.defineProperty(process, 'platform', { value: 'linux' })
 
     const out = new AudioOutput({ sampleRate: 16000, channels: 1, mode: 'realtime' }) as any
@@ -546,17 +550,17 @@ describe('AudioOutput', () => {
     expect(args).not.toContain('leaky=upstream')
   })
 
-  test('emits debug logs for constructor, spawn, stdin error, drain, stderr, process error and close when DEBUG is enabled', () => {
-    jest.resetModules()
+  test('emits debug logs for constructor, spawn, stdin error, drain, stderr, process error and close when DEBUG is enabled', async () => {
+    vi.resetModules()
 
-    jest.doMock('@main/constants', () => ({
+    vi.doMock('@main/constants', () => ({
       DEBUG: true
     }))
 
-    const { spawn: freshSpawn } = require('child_process') as { spawn: jest.Mock }
-    const freshFs = require('fs') as { existsSync: jest.Mock }
-    const { app: freshApp } = require('electron') as {
-      app: { isPackaged: boolean; getAppPath: jest.Mock }
+    const { spawn: freshSpawn } = (await import('child_process')) as { spawn: Mock }
+    const freshFs = (await import('fs')) as { existsSync: Mock }
+    const { app: freshApp } = (await import('electron')) as {
+      app: { isPackaged: boolean; getAppPath: Mock }
     }
 
     Object.defineProperty(process, 'platform', {
@@ -574,15 +578,14 @@ describe('AudioOutput', () => {
       String(p).includes('/mock/app/assets/gstreamer/macos-arm64')
     )
 
-    const { AudioOutput: DebugAudioOutput } =
-      require('@main/services/audio/AudioOutput') as typeof import('@main/services/audio/AudioOutput')
+    const { AudioOutput: DebugAudioOutput } = await import('@main/services/audio/AudioOutput')
 
     const proc = makeProc()
     freshSpawn.mockReturnValue(proc)
 
-    const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => undefined)
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     const out = new DebugAudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -637,17 +640,17 @@ describe('AudioOutput', () => {
     )
   })
 
-  test('logs write queued on first and hundredth write and warns on stdin backpressure when DEBUG is enabled', () => {
-    jest.resetModules()
+  test('logs write queued on first and hundredth write and warns on stdin backpressure when DEBUG is enabled', async () => {
+    vi.resetModules()
 
-    jest.doMock('@main/constants', () => ({
+    vi.doMock('@main/constants', () => ({
       DEBUG: true
     }))
 
-    const { spawn: freshSpawn } = require('child_process') as { spawn: jest.Mock }
-    const freshFs = require('fs') as { existsSync: jest.Mock }
-    const { app: freshApp } = require('electron') as {
-      app: { isPackaged: boolean; getAppPath: jest.Mock }
+    const { spawn: freshSpawn } = (await import('child_process')) as { spawn: Mock }
+    const freshFs = (await import('fs')) as { existsSync: Mock }
+    const { app: freshApp } = (await import('electron')) as {
+      app: { isPackaged: boolean; getAppPath: Mock }
     }
 
     Object.defineProperty(process, 'platform', {
@@ -665,8 +668,7 @@ describe('AudioOutput', () => {
       String(p).includes('/mock/app/assets/gstreamer/macos-arm64')
     )
 
-    const { AudioOutput: DebugAudioOutput } =
-      require('@main/services/audio/AudioOutput') as typeof import('@main/services/audio/AudioOutput')
+    const { AudioOutput: DebugAudioOutput } = await import('@main/services/audio/AudioOutput')
 
     const proc = makeProc()
     proc.stdin.write
@@ -675,8 +677,8 @@ describe('AudioOutput', () => {
 
     freshSpawn.mockReturnValue(proc)
 
-    const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => undefined)
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
     const out = new DebugAudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
     out.start()
@@ -719,17 +721,17 @@ describe('AudioOutput', () => {
     )
   })
 
-  test('warns when stdin.end and kill throw while stopping in DEBUG mode', () => {
-    jest.resetModules()
+  test('warns when stdin.end and kill throw while stopping in DEBUG mode', async () => {
+    vi.resetModules()
 
-    jest.doMock('@main/constants', () => ({
+    vi.doMock('@main/constants', () => ({
       DEBUG: true
     }))
 
-    const { spawn: freshSpawn } = require('child_process') as { spawn: jest.Mock }
-    const freshFs = require('fs') as { existsSync: jest.Mock }
-    const { app: freshApp } = require('electron') as {
-      app: { isPackaged: boolean; getAppPath: jest.Mock }
+    const { spawn: freshSpawn } = (await import('child_process')) as { spawn: Mock }
+    const freshFs = (await import('fs')) as { existsSync: Mock }
+    const { app: freshApp } = (await import('electron')) as {
+      app: { isPackaged: boolean; getAppPath: Mock }
     }
 
     Object.defineProperty(process, 'platform', {
@@ -747,22 +749,21 @@ describe('AudioOutput', () => {
       String(p).includes('/mock/app/assets/gstreamer/macos-arm64')
     )
 
-    const { AudioOutput: DebugAudioOutput } =
-      require('@main/services/audio/AudioOutput') as typeof import('@main/services/audio/AudioOutput')
+    const { AudioOutput: DebugAudioOutput } = await import('@main/services/audio/AudioOutput')
 
     const proc = makeProc()
-    proc.stdin.end.mockImplementation(() => {
+    proc.stdin.end.mockImplementation(function () {
       throw new Error('end fail')
     })
-    proc.kill.mockImplementation(() => {
+    proc.kill.mockImplementation(function () {
       throw new Error('kill fail')
     })
 
     freshSpawn.mockReturnValue(proc)
 
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     try {
       const out = new DebugAudioOutput({ sampleRate: 48000, channels: 2, mode: 'music' })
       out.start()
@@ -772,13 +773,13 @@ describe('AudioOutput', () => {
       expect(warnSpy).toHaveBeenCalledWith('[AudioOutput] failed to end stdin:', expect.any(Error))
 
       // kill throws inside the deferred SIGTERM callback
-      jest.advanceTimersByTime(500)
+      vi.advanceTimersByTime(500)
       expect(warnSpy).toHaveBeenCalledWith(
         '[AudioOutput] failed to kill process:',
         expect.any(Error)
       )
     } finally {
-      jest.useRealTimers()
+      vi.useRealTimers()
     }
   })
 })

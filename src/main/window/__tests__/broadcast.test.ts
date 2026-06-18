@@ -1,11 +1,11 @@
-const getMainWindowMock = jest.fn()
-const getSecondaryWindowMock = jest.fn()
+const getMainWindowMock = vi.fn()
+const getSecondaryWindowMock = vi.fn()
 
-jest.mock('@main/window/createWindow', () => ({
+vi.mock('@main/window/createWindow', () => ({
   getMainWindow: () => getMainWindowMock()
 }))
 
-jest.mock('@main/window/secondaryWindows', () => ({
+vi.mock('@main/window/secondaryWindows', () => ({
   getSecondaryWindow: (role: string) => getSecondaryWindowMock(role)
 }))
 
@@ -18,9 +18,9 @@ import {
 
 function fakeWin(over: { destroyed?: boolean; sendThrows?: boolean } = {}) {
   return {
-    isDestroyed: jest.fn(() => over.destroyed ?? false),
+    isDestroyed: vi.fn(() => over.destroyed ?? false),
     webContents: {
-      send: jest.fn(() => {
+      send: vi.fn(function () {
         if (over.sendThrows) throw new Error('detached')
       })
     }
@@ -30,9 +30,9 @@ function fakeWin(over: { destroyed?: boolean; sendThrows?: boolean } = {}) {
 beforeEach(() => {
   getMainWindowMock.mockReset()
   getSecondaryWindowMock.mockReset()
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(() => vi.restoreAllMocks())
 
 describe('getAllRendererWebContents', () => {
   test('returns the main webContents when alive', () => {

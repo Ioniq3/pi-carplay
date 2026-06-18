@@ -1,44 +1,48 @@
 import { EventEmitter } from 'events'
+import type { Mock } from 'vitest'
 
-jest.mock('fs', () => ({
-  createWriteStream: jest.fn(),
-  existsSync: jest.fn(() => false),
-  promises: { unlink: jest.fn(() => Promise.resolve()) }
-}))
+vi.mock('fs', () => {
+  const __m = {
+    createWriteStream: vi.fn(),
+    existsSync: vi.fn(() => false),
+    promises: { unlink: vi.fn(() => Promise.resolve()) }
+  }
+  return { ...__m, default: __m }
+})
 
-jest.mock('node:https', () => ({
-  get: jest.fn()
+vi.mock('node:https', () => ({
+  get: vi.fn()
 }))
 
 import * as https from 'node:https'
 import { downloadWithProgress } from '@main/ipc/update/downloader'
 import { createWriteStream, existsSync, promises as fsp } from 'fs'
 
-function makeReq(): EventEmitter & { destroy: jest.Mock } {
-  const req = new EventEmitter() as EventEmitter & { destroy: jest.Mock }
-  req.destroy = jest.fn()
+function makeReq(): EventEmitter & { destroy: Mock } {
+  const req = new EventEmitter() as EventEmitter & { destroy: Mock }
+  req.destroy = vi.fn()
   return req
 }
 
-function makeFile(): EventEmitter & { destroy: jest.Mock; close: (cb: () => void) => void } {
+function makeFile(): EventEmitter & { destroy: Mock; close: (cb: () => void) => void } {
   const file = new EventEmitter() as EventEmitter & {
-    destroy: jest.Mock
+    destroy: Mock
     close: (cb: () => void) => void
   }
-  file.destroy = jest.fn()
+  file.destroy = vi.fn()
   file.close = (cb) => cb()
   return file
 }
 
 describe('downloadWithProgress', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
   })
 
   test('downloads file and reports progress', async () => {
     const file = makeFile()
-    ;(createWriteStream as jest.Mock).mockReturnValue(file)
-    ;(https.get as jest.Mock).mockImplementation((_url, cb) => {
+    ;(createWriteStream as Mock).mockReturnValue(file)
+    ;(https.get as Mock).mockImplementation(function (_url, cb) {
       const req = makeReq()
       const res = new EventEmitter() as EventEmitter & {
         statusCode: number
@@ -56,7 +60,7 @@ describe('downloadWithProgress', () => {
       return req
     })
 
-    const progress = jest.fn()
+    const progress = vi.fn()
     const { promise } = downloadWithProgress('https://example.com/a', '/tmp/file', progress)
 
     await expect(promise).resolves.toBeUndefined()
@@ -65,7 +69,7 @@ describe('downloadWithProgress', () => {
   })
 
   test('rejects on non-200 response', async () => {
-    ;(https.get as jest.Mock).mockImplementation((_url, cb) => {
+    ;(https.get as Mock).mockImplementation(function (_url, cb) {
       const req = makeReq()
       const res = new EventEmitter() as EventEmitter & {
         statusCode: number
@@ -83,9 +87,9 @@ describe('downloadWithProgress', () => {
 
   test('cancel aborts request and removes partial file', async () => {
     const file = makeFile()
-    ;(createWriteStream as jest.Mock).mockReturnValue(file)
-    ;(existsSync as jest.Mock).mockReturnValue(true)
-    ;(https.get as jest.Mock).mockImplementation((_url, cb) => {
+    ;(createWriteStream as Mock).mockReturnValue(file)
+    ;(existsSync as Mock).mockReturnValue(true)
+    ;(https.get as Mock).mockImplementation(function (_url, cb) {
       const req = makeReq()
       const res = new EventEmitter() as EventEmitter & {
         statusCode: number
@@ -105,13 +109,13 @@ describe('downloadWithProgress', () => {
     cancel()
 
     await expect(promise).rejects.toThrow('aborted')
-    expect(fsp.unlink as jest.Mock).toHaveBeenCalledWith('/tmp/file')
+    expect(fsp.unlink as Mock).toHaveBeenCalledWith('/tmp/file')
   })
 
   test('follows redirect and resolves downloaded file', async () => {
     const file = makeFile()
-    ;(createWriteStream as jest.Mock).mockReturnValue(file)
-    ;(https.get as jest.Mock)
+    ;(createWriteStream as Mock).mockReturnValue(file)
+    ;(https.get as Mock)
       .mockImplementationOnce((_url, cb) => {
         const req = makeReq()
         const res = new EventEmitter() as EventEmitter & {
@@ -141,7 +145,7 @@ describe('downloadWithProgress', () => {
         return req
       })
 
-    const progress = jest.fn()
+    const progress = vi.fn()
     const { promise } = downloadWithProgress('https://example.com/a', '/tmp/file', progress)
 
     await expect(promise).resolves.toBeUndefined()
@@ -157,8 +161,8 @@ describe('downloadWithProgress', () => {
 
   test('rejects on response stream error', async () => {
     const file = makeFile()
-    ;(createWriteStream as jest.Mock).mockReturnValue(file)
-    ;(https.get as jest.Mock).mockImplementation((_url, cb) => {
+    ;(createWriteStream as Mock).mockReturnValue(file)
+    ;(https.get as Mock).mockImplementation(function (_url, cb) {
       const req = makeReq()
       const res = new EventEmitter() as EventEmitter & {
         statusCode: number
@@ -181,8 +185,8 @@ describe('downloadWithProgress', () => {
 
   test('rejects on file stream error', async () => {
     const file = makeFile()
-    ;(createWriteStream as jest.Mock).mockReturnValue(file)
-    ;(https.get as jest.Mock).mockImplementation((_url, cb) => {
+    ;(createWriteStream as Mock).mockReturnValue(file)
+    ;(https.get as Mock).mockImplementation(function (_url, cb) {
       const req = makeReq()
       const res = new EventEmitter() as EventEmitter & {
         statusCode: number
@@ -204,7 +208,7 @@ describe('downloadWithProgress', () => {
   })
 
   test('rejects on request error', async () => {
-    ;(https.get as jest.Mock).mockImplementation((_url, cb) => {
+    ;(https.get as Mock).mockImplementation(function (_url, cb) {
       const req = makeReq()
       const res = new EventEmitter() as EventEmitter & {
         statusCode: number
@@ -230,11 +234,11 @@ describe('downloadWithProgress', () => {
 
   test('cancel is idempotent', async () => {
     const file = makeFile()
-    ;(createWriteStream as jest.Mock).mockReturnValue(file)
-    ;(existsSync as jest.Mock).mockReturnValue(true)
+    ;(createWriteStream as Mock).mockReturnValue(file)
+    ;(existsSync as Mock).mockReturnValue(true)
 
     let reqRef: ReturnType<typeof makeReq> | undefined
-    ;(https.get as jest.Mock).mockImplementation((_url, cb) => {
+    ;(https.get as Mock).mockImplementation(function (_url, cb) {
       const req = makeReq()
       reqRef = req
       const res = new EventEmitter() as EventEmitter & {
@@ -257,7 +261,7 @@ describe('downloadWithProgress', () => {
     await expect(promise).rejects.toThrow('aborted')
     expect(reqRef?.destroy).toHaveBeenCalledTimes(1)
     expect(file.destroy).toHaveBeenCalledTimes(1)
-    expect(fsp.unlink as jest.Mock).toHaveBeenCalledTimes(1)
+    expect(fsp.unlink as Mock).toHaveBeenCalledTimes(1)
   })
 
   test('cancel propagates through redirect download', async () => {
@@ -265,9 +269,9 @@ describe('downloadWithProgress', () => {
     const secondReq = makeReq()
     const redirectedFile = makeFile()
 
-    ;(createWriteStream as jest.Mock).mockReturnValue(redirectedFile)
-    ;(existsSync as jest.Mock).mockReturnValue(true)
-    ;(https.get as jest.Mock)
+    ;(createWriteStream as Mock).mockReturnValue(redirectedFile)
+    ;(existsSync as Mock).mockReturnValue(true)
+    ;(https.get as Mock)
       .mockImplementationOnce((_url, cb) => {
         const res = new EventEmitter() as EventEmitter & {
           statusCode: number
@@ -303,8 +307,8 @@ describe('downloadWithProgress', () => {
 
   test('ignores response, file and request events after cancel', async () => {
     const file = makeFile()
-    ;(createWriteStream as jest.Mock).mockReturnValue(file)
-    ;(existsSync as jest.Mock).mockReturnValue(false)
+    ;(createWriteStream as Mock).mockReturnValue(file)
+    ;(existsSync as Mock).mockReturnValue(false)
 
     let reqRef!: ReturnType<typeof makeReq>
     let resRef!: EventEmitter & {
@@ -312,7 +316,7 @@ describe('downloadWithProgress', () => {
       headers: Record<string, unknown>
       pipe: (dest: EventEmitter) => void
     }
-    ;(https.get as jest.Mock).mockImplementation((_url, cb) => {
+    ;(https.get as Mock).mockImplementation(function (_url, cb) {
       const req = makeReq()
       reqRef = req
 
@@ -330,7 +334,7 @@ describe('downloadWithProgress', () => {
       return req
     })
 
-    const progress = jest.fn()
+    const progress = vi.fn()
     const { promise, cancel } = downloadWithProgress('https://example.com/a', '/tmp/file', progress)
 
     cancel()
@@ -348,17 +352,17 @@ describe('downloadWithProgress', () => {
 
   test('cancel cleanup swallows destroy and unlink errors', async () => {
     const file = makeFile()
-    file.destroy.mockImplementation(() => {
+    file.destroy.mockImplementation(function () {
       throw new Error('file destroy failed')
     })
-    ;(createWriteStream as jest.Mock).mockReturnValue(file)
-    ;(existsSync as jest.Mock).mockReturnValue(true)
-    ;(fsp.unlink as jest.Mock).mockRejectedValue(new Error('unlink failed'))
+    ;(createWriteStream as Mock).mockReturnValue(file)
+    ;(existsSync as Mock).mockReturnValue(true)
+    ;(fsp.unlink as Mock).mockRejectedValue(new Error('unlink failed'))
 
     let reqRef!: ReturnType<typeof makeReq>
-    ;(https.get as jest.Mock).mockImplementation((_url, cb) => {
+    ;(https.get as Mock).mockImplementation(function (_url, cb) {
       const req = makeReq()
-      req.destroy.mockImplementation(() => {
+      req.destroy.mockImplementation(function () {
         throw new Error('req destroy failed')
       })
       reqRef = req
@@ -382,13 +386,13 @@ describe('downloadWithProgress', () => {
 
     expect(reqRef.destroy).toHaveBeenCalledTimes(1)
     expect(file.destroy).toHaveBeenCalledTimes(1)
-    expect(fsp.unlink as jest.Mock).toHaveBeenCalledWith('/tmp/file')
+    expect(fsp.unlink as Mock).toHaveBeenCalledWith('/tmp/file')
   })
 
   test('handles zero content-length progress as percent 0', async () => {
     const file = makeFile()
-    ;(createWriteStream as jest.Mock).mockReturnValue(file)
-    ;(https.get as jest.Mock).mockImplementation((_url, cb) => {
+    ;(createWriteStream as Mock).mockReturnValue(file)
+    ;(https.get as Mock).mockImplementation(function (_url, cb) {
       const req = makeReq()
       const res = new EventEmitter() as EventEmitter & {
         statusCode: number
@@ -405,7 +409,7 @@ describe('downloadWithProgress', () => {
       return req
     })
 
-    const progress = jest.fn()
+    const progress = vi.fn()
     const { promise } = downloadWithProgress('https://example.com/a', '/tmp/file', progress)
 
     await expect(promise).resolves.toBeUndefined()

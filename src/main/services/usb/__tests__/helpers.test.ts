@@ -1,17 +1,18 @@
 import { findDongle } from '@main/services/usb/helpers'
 import { usb } from 'usb'
+import type { Mock } from 'vitest'
 
-jest.mock('usb', () => ({
+vi.mock('usb', () => ({
   usb: {
-    getDevices: jest.fn(async () => [])
+    getDevices: vi.fn(async () => [])
   }
 }))
 
 describe('findDongle', () => {
-  const getDevices = usb.getDevices as jest.Mock
+  const getDevices = usb.getDevices as Mock
 
-  beforeEach(() => {
-    jest.clearAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
   })
 
   test('returns matching dongle when supported VID/PID is present', async () => {

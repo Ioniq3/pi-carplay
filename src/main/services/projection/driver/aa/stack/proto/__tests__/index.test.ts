@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import protobuf from 'protobufjs'
 import { decode, encode } from '../index'
 
@@ -11,27 +12,27 @@ describe('proto/encode + decode helpers', () => {
     return t
   }
 
-  test('encode produces a Buffer', () => {
+  test('encode produces a Buffer', async () => {
     const t = tinyType()
     const buf = encode(t, { value: 42 })
     expect(Buffer.isBuffer(buf)).toBe(true)
   })
 
-  test('encode throws on verification failure', () => {
+  test('encode throws on verification failure', async () => {
     const t = tinyType()
     expect(() => encode(t, { value: 'not-a-number' as unknown as number })).toThrow(
       /Proto encode error/
     )
   })
 
-  test('encode → decode round-trip preserves fields', () => {
+  test('encode → decode round-trip preserves fields', async () => {
     const t = tinyType()
     const buf = encode(t, { value: 1234 })
     const obj = decode(t, buf)
     expect(obj.value).toBe(1234)
   })
 
-  test('decode of an empty buffer yields an empty object', () => {
+  test('decode of an empty buffer yields an empty object', async () => {
     const t = tinyType()
     expect(decode(t, Buffer.alloc(0))).toEqual({})
   })
@@ -39,13 +40,13 @@ describe('proto/encode + decode helpers', () => {
 
 describe('loadProtos — integration', () => {
   // resolveProtoRoot() picks `process.resourcesPath/aa/protos` first. Point it
-  // at the in-tree protos so the loader can actually run in jest.
+  // at the in-tree protos so the loader can actually run in vi.
   // process.resourcesPath/aa/protos must resolve to the in-tree protos dir
   // (.../driver/aa/protos), so resourcesPath = .../driver
-  const PROTO_PARENT = require('path').resolve(__dirname, '..', '..', '..', '..')
+  const PROTO_PARENT = resolve(__dirname, '..', '..', '..', '..')
 
-  beforeEach(() => {
-    jest.resetModules()
+  beforeEach(async () => {
+    vi.resetModules()
     Object.defineProperty(process, 'resourcesPath', {
       value: PROTO_PARENT,
       configurable: true
@@ -53,7 +54,7 @@ describe('loadProtos — integration', () => {
   })
 
   test('loads the real proto tree and exposes every declared type', async () => {
-    const { loadProtos } = require('../index') as typeof import('../index')
+    const { loadProtos } = await import('../index')
     const types = await loadProtos()
     expect(types.ServiceDiscoveryResponse).toBeDefined()
     expect(types.ServiceDiscoveryRequest).toBeDefined()
@@ -81,14 +82,14 @@ describe('loadProtos — integration', () => {
   })
 
   test('second call returns the cached instance (no re-load)', async () => {
-    const { loadProtos } = require('../index') as typeof import('../index')
+    const { loadProtos } = await import('../index')
     const a = await loadProtos()
     const b = await loadProtos()
     expect(a).toBe(b)
   })
 
   test('encode + decode round-trip a loaded ServiceDiscoveryRequest', async () => {
-    const { loadProtos, encode, decode } = require('../index') as typeof import('../index')
+    const { loadProtos, encode, decode } = await import('../index')
     const types = await loadProtos()
     const buf = encode(types.ServiceDiscoveryRequest, { deviceName: 'phone' })
     const obj = decode(types.ServiceDiscoveryRequest, buf)

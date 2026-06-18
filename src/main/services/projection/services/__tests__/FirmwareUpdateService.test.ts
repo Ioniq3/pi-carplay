@@ -2,37 +2,41 @@ import { SendTmpFile } from '@main/services/projection/messages/sendable'
 import { FirmwareUpdateService } from '@main/services/projection/services/FirmwareUpdateService'
 import { app } from 'electron'
 import { existsSync, promises as fsp } from 'fs'
+import type { Mock } from 'vitest'
 
-jest.mock('electron', () => ({
+vi.mock('electron', () => ({
   app: {
-    getPath: jest.fn(() => '/tmp/app-user-data')
+    getPath: vi.fn(() => '/tmp/app-user-data')
   },
   net: {
-    request: jest.fn()
+    request: vi.fn()
   }
 }))
 
-jest.mock('fs', () => ({
-  existsSync: jest.fn(() => false),
-  createWriteStream: jest.fn(),
-  promises: {
-    mkdir: jest.fn(),
-    unlink: jest.fn(),
-    rename: jest.fn(),
-    writeFile: jest.fn(),
-    readFile: jest.fn(),
-    stat: jest.fn()
+vi.mock('fs', () => {
+  const __m = {
+    existsSync: vi.fn(() => false),
+    createWriteStream: vi.fn(),
+    promises: {
+      mkdir: vi.fn(),
+      unlink: vi.fn(),
+      rename: vi.fn(),
+      writeFile: vi.fn(),
+      readFile: vi.fn(),
+      stat: vi.fn()
+    }
   }
-}))
+  return { ...__m, default: __m }
+})
 
 describe('FirmwareUpdateService', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-    ;(existsSync as jest.Mock).mockReturnValue(false)
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    ;(existsSync as Mock).mockReturnValue(false)
   })
 
-  afterEach(() => {
-    jest.restoreAllMocks()
+  afterEach(async () => {
+    vi.restoreAllMocks()
   })
 
   test('checkForUpdate validates required fields before network call', async () => {
@@ -90,7 +94,7 @@ describe('FirmwareUpdateService', () => {
 
   test('checkForUpdate parses API payload and computes hasUpdate', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.httpPostForm = jest.fn(async () =>
+    svc.httpPostForm = vi.fn(async () =>
       JSON.stringify({
         err: 0,
         ver: '2.0.0',
@@ -128,7 +132,7 @@ describe('FirmwareUpdateService', () => {
 
   test('checkForUpdate accepts stringified boxInfo json', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.httpPostForm = jest.fn(async () => JSON.stringify({ err: 0, ver: '2.0.0' }))
+    svc.httpPostForm = vi.fn(async () => JSON.stringify({ err: 0, ver: '2.0.0' }))
 
     const result = await svc.checkForUpdate({
       appVer: '1.0.0',
@@ -146,7 +150,7 @@ describe('FirmwareUpdateService', () => {
 
   test('checkForUpdate returns no update when versions match', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.httpPostForm = jest.fn(async () =>
+    svc.httpPostForm = vi.fn(async () =>
       JSON.stringify({
         err: 0,
         ver: '1.0.0',
@@ -170,7 +174,7 @@ describe('FirmwareUpdateService', () => {
 
   test('checkForUpdate returns error when API err is non-zero', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.httpPostForm = jest.fn(async () => JSON.stringify({ err: 7 }))
+    svc.httpPostForm = vi.fn(async () => JSON.stringify({ err: 7 }))
 
     await expect(
       svc.checkForUpdate({
@@ -186,7 +190,7 @@ describe('FirmwareUpdateService', () => {
 
   test('checkForUpdate handles invalid json response', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.httpPostForm = jest.fn(async () => 'not-json')
+    svc.httpPostForm = vi.fn(async () => 'not-json')
 
     await expect(
       svc.checkForUpdate({
@@ -202,7 +206,7 @@ describe('FirmwareUpdateService', () => {
 
   test('checkForUpdate returns network error message when request throws', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.httpPostForm = jest.fn(async () => {
+    svc.httpPostForm = vi.fn(async () => {
       throw new Error('network down')
     })
 
@@ -261,7 +265,7 @@ describe('FirmwareUpdateService', () => {
 
   test('downloadFirmwareToHost returns error when destination file exists and overwrite is false', async () => {
     const svc = new FirmwareUpdateService()
-    ;(existsSync as jest.Mock).mockReturnValue(true)
+    ;(existsSync as Mock).mockReturnValue(true)
 
     const out = await svc.downloadFirmwareToHost({
       ok: true,
@@ -288,9 +292,9 @@ describe('FirmwareUpdateService', () => {
 
   test('downloadFirmwareToHost removes existing destination when overwrite is true', async () => {
     const svc = new FirmwareUpdateService() as any
-    ;(existsSync as jest.Mock).mockReturnValue(true)
-    svc.downloadToFile = jest.fn(async () => ({ bytes: 10 }))
-    svc.writeManifest = jest.fn(async () => undefined)
+    ;(existsSync as Mock).mockReturnValue(true)
+    svc.downloadToFile = vi.fn(async () => ({ bytes: 10 }))
+    svc.writeManifest = vi.fn(async () => undefined)
 
     const out = await svc.downloadFirmwareToHost(
       {
@@ -329,8 +333,8 @@ describe('FirmwareUpdateService', () => {
 
   test('downloadFirmwareToHost returns mismatch error and deletes tmp file when size differs', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.downloadToFile = jest.fn(async () => ({ bytes: 9 }))
-    svc.writeManifest = jest.fn(async () => undefined)
+    svc.downloadToFile = vi.fn(async () => ({ bytes: 9 }))
+    svc.writeManifest = vi.fn(async () => undefined)
 
     const out = await svc.downloadFirmwareToHost({
       ok: true,
@@ -361,10 +365,10 @@ describe('FirmwareUpdateService', () => {
 
   test('downloadFirmwareToHost succeeds and writes manifest', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.downloadToFile = jest.fn(async () => ({ bytes: 10 }))
-    svc.writeManifest = jest.fn(async () => undefined)
+    svc.downloadToFile = vi.fn(async () => ({ bytes: 10 }))
+    svc.writeManifest = vi.fn(async () => undefined)
 
-    const onProgress = jest.fn()
+    const onProgress = vi.fn()
 
     const out = await svc.downloadFirmwareToHost(
       {
@@ -419,8 +423,8 @@ describe('FirmwareUpdateService', () => {
 
   test('downloadFirmwareToHost uses fallback file name when req.fwn is empty', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.downloadToFile = jest.fn(async () => ({ bytes: 10 }))
-    svc.writeManifest = jest.fn(async () => undefined)
+    svc.downloadToFile = vi.fn(async () => ({ bytes: 10 }))
+    svc.writeManifest = vi.fn(async () => undefined)
 
     const out = await svc.downloadFirmwareToHost({
       ok: true,
@@ -450,7 +454,7 @@ describe('FirmwareUpdateService', () => {
 
   test('downloadFirmwareToHost returns thrown error message', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.downloadToFile = jest.fn(async () => {
+    svc.downloadToFile = vi.fn(async () => {
       throw new Error('download broken')
     })
 
@@ -479,7 +483,7 @@ describe('FirmwareUpdateService', () => {
 
   test('getLocalFirmwareStatus returns not-ready when manifest missing', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.readManifest = jest.fn(async () => null)
+    svc.readManifest = vi.fn(async () => null)
 
     const out = await svc.getLocalFirmwareStatus({
       boxInfo: { productType: 'A', uuid: 'u', MFD: 'm' }
@@ -515,7 +519,7 @@ describe('FirmwareUpdateService', () => {
 
   test('getLocalFirmwareStatus detects model mismatch', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.readManifest = jest.fn(async () => ({
+    svc.readManifest = vi.fn(async () => ({
       path: '/tmp/firmware/B15W_Update.img',
       expectedSize: 10,
       latestVer: '2.0.0',
@@ -537,7 +541,7 @@ describe('FirmwareUpdateService', () => {
 
   test('getLocalFirmwareStatus detects uuid mismatch', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.readManifest = jest.fn(async () => ({
+    svc.readManifest = vi.fn(async () => ({
       path: '/tmp/firmware/A15W_Update.img',
       expectedSize: 10,
       latestVer: '2.0.0',
@@ -559,7 +563,7 @@ describe('FirmwareUpdateService', () => {
 
   test('getLocalFirmwareStatus detects mfd mismatch', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.readManifest = jest.fn(async () => ({
+    svc.readManifest = vi.fn(async () => ({
       path: '/tmp/firmware/A15W_Update.img',
       expectedSize: 10,
       latestVer: '2.0.0',
@@ -581,7 +585,7 @@ describe('FirmwareUpdateService', () => {
 
   test('getLocalFirmwareStatus detects file name mismatch', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.readManifest = jest.fn(async () => ({
+    svc.readManifest = vi.fn(async () => ({
       path: '/tmp/firmware/WRONG.img',
       expectedSize: 10,
       latestVer: '2.0.0',
@@ -603,7 +607,7 @@ describe('FirmwareUpdateService', () => {
 
   test('getLocalFirmwareStatus returns not-ready when firmware file is missing', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.readManifest = jest.fn(async () => ({
+    svc.readManifest = vi.fn(async () => ({
       path: '/tmp/firmware/A15W_Update.img',
       expectedSize: 10,
       latestVer: '2.0.0',
@@ -612,7 +616,7 @@ describe('FirmwareUpdateService', () => {
       mfd: 'm'
     }))
 
-    jest.spyOn(fsp, 'stat').mockRejectedValue(new Error('missing'))
+    vi.spyOn(fsp, 'stat').mockRejectedValue(new Error('missing'))
 
     const out = await svc.getLocalFirmwareStatus({
       boxInfo: { productType: 'A15W', uuid: 'u', MFD: 'm' }
@@ -627,7 +631,7 @@ describe('FirmwareUpdateService', () => {
 
   test('getLocalFirmwareStatus returns not-ready when stat is not a file', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.readManifest = jest.fn(async () => ({
+    svc.readManifest = vi.fn(async () => ({
       path: '/tmp/firmware/A15W_Update.img',
       expectedSize: 10,
       latestVer: '2.0.0',
@@ -636,7 +640,7 @@ describe('FirmwareUpdateService', () => {
       mfd: 'm'
     }))
 
-    jest.spyOn(fsp, 'stat').mockResolvedValue({
+    vi.spyOn(fsp, 'stat').mockResolvedValue({
       isFile: () => false,
       size: 10
     } as any)
@@ -654,7 +658,7 @@ describe('FirmwareUpdateService', () => {
 
   test('getLocalFirmwareStatus returns not-ready when size mismatches', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.readManifest = jest.fn(async () => ({
+    svc.readManifest = vi.fn(async () => ({
       path: '/tmp/firmware/A15W_Update.img',
       expectedSize: 11,
       latestVer: '2.0.0',
@@ -663,7 +667,7 @@ describe('FirmwareUpdateService', () => {
       mfd: 'm'
     }))
 
-    jest.spyOn(fsp, 'stat').mockResolvedValue({
+    vi.spyOn(fsp, 'stat').mockResolvedValue({
       isFile: () => true,
       size: 10
     } as any)
@@ -681,7 +685,7 @@ describe('FirmwareUpdateService', () => {
 
   test('getLocalFirmwareStatus returns ready when manifest and file match', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.readManifest = jest.fn(async () => ({
+    svc.readManifest = vi.fn(async () => ({
       path: '/tmp/firmware/A15W_Update.img',
       expectedSize: 10,
       latestVer: '2.0.0',
@@ -690,7 +694,7 @@ describe('FirmwareUpdateService', () => {
       mfd: 'm'
     }))
 
-    jest.spyOn(fsp, 'stat').mockResolvedValue({
+    vi.spyOn(fsp, 'stat').mockResolvedValue({
       isFile: () => true,
       size: 10
     } as any)
@@ -711,13 +715,13 @@ describe('FirmwareUpdateService', () => {
 
   test('startUpdate returns reason when local firmware is not ready', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: true,
       ready: false,
       reason: 'No downloaded firmware manifest'
     }))
 
-    const driver = { send: jest.fn() }
+    const driver = { send: vi.fn() }
 
     const out = await svc.startUpdate({ appVer: '1.0.0' } as any, driver as any)
 
@@ -730,12 +734,12 @@ describe('FirmwareUpdateService', () => {
 
   test('startUpdate returns status error when getLocalFirmwareStatus fails', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: false,
       error: 'status broken'
     }))
 
-    const driver = { send: jest.fn() }
+    const driver = { send: vi.fn() }
 
     const out = await svc.startUpdate({ appVer: '1.0.0' } as any, driver as any)
 
@@ -747,7 +751,7 @@ describe('FirmwareUpdateService', () => {
 
   test('startUpdate rejects firmware files above maxBytes', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: true,
       ready: true,
       path: '/tmp/firmware/A15W_Update.img',
@@ -756,7 +760,7 @@ describe('FirmwareUpdateService', () => {
       latestVer: '2.0.0'
     }))
 
-    const driver = { send: jest.fn() }
+    const driver = { send: vi.fn() }
 
     const out = await svc.startUpdate({ appVer: '1.0.0' } as any, driver as any, { maxBytes: 100 })
 
@@ -769,7 +773,7 @@ describe('FirmwareUpdateService', () => {
 
   test('startUpdate returns error when driver send fails', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: true,
       ready: true,
       path: '/tmp/firmware/A15W_Update.img',
@@ -778,9 +782,9 @@ describe('FirmwareUpdateService', () => {
       latestVer: '2.0.0'
     }))
 
-    jest.spyOn(fsp, 'readFile').mockResolvedValue(Buffer.from([1, 2, 3, 4]))
-    const driver = { send: jest.fn(async () => false) }
-    const onProgress = jest.fn()
+    vi.spyOn(fsp, 'readFile').mockResolvedValue(Buffer.from([1, 2, 3, 4]))
+    const driver = { send: vi.fn(async () => false) }
+    const onProgress = vi.fn()
 
     const out = await svc.startUpdate({ appVer: '1.0.0' } as any, driver as any, { onProgress })
 
@@ -794,7 +798,7 @@ describe('FirmwareUpdateService', () => {
 
   test('startUpdate succeeds and reports progress', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: true,
       ready: true,
       path: '/tmp/firmware/A15W_Update.img',
@@ -803,9 +807,9 @@ describe('FirmwareUpdateService', () => {
       latestVer: '2.0.0'
     }))
 
-    jest.spyOn(fsp, 'readFile').mockResolvedValue(Buffer.from([1, 2, 3, 4]))
-    const driver = { send: jest.fn(async () => true) }
-    const onProgress = jest.fn()
+    vi.spyOn(fsp, 'readFile').mockResolvedValue(Buffer.from([1, 2, 3, 4]))
+    const driver = { send: vi.fn(async () => true) }
+    const onProgress = vi.fn()
 
     const out = await svc.startUpdate({ appVer: '1.0.0' } as any, driver as any, { onProgress })
 
@@ -817,7 +821,7 @@ describe('FirmwareUpdateService', () => {
 
   test('startUpdate returns thrown readFile error message', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.getLocalFirmwareStatus = jest.fn(async () => ({
+    svc.getLocalFirmwareStatus = vi.fn(async () => ({
       ok: true,
       ready: true,
       path: '/tmp/firmware/A15W_Update.img',
@@ -826,8 +830,8 @@ describe('FirmwareUpdateService', () => {
       latestVer: '2.0.0'
     }))
 
-    jest.spyOn(fsp, 'readFile').mockRejectedValue(new Error('read failed'))
-    const driver = { send: jest.fn(async () => true) }
+    vi.spyOn(fsp, 'readFile').mockRejectedValue(new Error('read failed'))
+    const driver = { send: vi.fn(async () => true) }
 
     const out = await svc.startUpdate({ appVer: '1.0.0' } as any, driver as any)
 
@@ -873,7 +877,7 @@ describe('FirmwareUpdateService', () => {
 
   test('readManifest returns parsed manifest', async () => {
     const svc = new FirmwareUpdateService() as any
-    jest.spyOn(fsp, 'readFile').mockResolvedValue(
+    vi.spyOn(fsp, 'readFile').mockResolvedValue(
       JSON.stringify({
         createdAt: '2024-01-01T00:00:00.000Z',
         path: '/tmp/app-user-data/firmware/A15W_Update.img',
@@ -900,14 +904,14 @@ describe('FirmwareUpdateService', () => {
 
   test('readManifest returns null on invalid json', async () => {
     const svc = new FirmwareUpdateService() as any
-    jest.spyOn(fsp, 'readFile').mockResolvedValue('not-json' as any)
+    vi.spyOn(fsp, 'readFile').mockResolvedValue('not-json' as any)
 
     await expect(svc.readManifest()).resolves.toBeNull()
   })
 
   test('readManifest returns null when parsed value is falsy or non-object', async () => {
     const svc = new FirmwareUpdateService() as any
-    jest.spyOn(fsp, 'readFile').mockResolvedValue('null' as any)
+    vi.spyOn(fsp, 'readFile').mockResolvedValue('null' as any)
 
     await expect(svc.readManifest()).resolves.toBeNull()
   })
@@ -922,7 +926,7 @@ describe('FirmwareUpdateService', () => {
 
   test('getLocalFirmwareStatus catches and returns unexpected Error exceptions', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.readManifest = jest.fn(async () => {
+    svc.readManifest = vi.fn(async () => {
       throw new Error('unexpected db error')
     })
 
@@ -935,7 +939,7 @@ describe('FirmwareUpdateService', () => {
 
   test('getLocalFirmwareStatus catches non-Error thrown values', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.readManifest = jest.fn(async () => {
+    svc.readManifest = vi.fn(async () => {
       throw 'raw string error'
     })
 
@@ -948,8 +952,8 @@ describe('FirmwareUpdateService', () => {
 
   test('downloadFirmwareToHost handles non-number size via toInt (string size)', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.downloadToFile = jest.fn(async () => ({ bytes: 10 }))
-    svc.writeManifest = jest.fn(async () => undefined)
+    svc.downloadToFile = vi.fn(async () => ({ bytes: 10 }))
+    svc.writeManifest = vi.fn(async () => undefined)
 
     const out = await svc.downloadFirmwareToHost({
       ok: true,
@@ -979,8 +983,8 @@ describe('FirmwareUpdateService', () => {
 
   test('downloadFirmwareToHost handles null size via toInt', async () => {
     const svc = new FirmwareUpdateService() as any
-    svc.downloadToFile = jest.fn(async () => ({ bytes: 0 }))
-    svc.writeManifest = jest.fn(async () => undefined)
+    svc.downloadToFile = vi.fn(async () => ({ bytes: 0 }))
+    svc.writeManifest = vi.fn(async () => undefined)
 
     const out = await svc.downloadFirmwareToHost({
       ok: true,
@@ -1010,15 +1014,15 @@ describe('FirmwareUpdateService', () => {
 
   test('httpPostForm resolves with accumulated response body', async () => {
     const svc = new FirmwareUpdateService() as any
-    const { net } = require('electron')
+    const { net } = await import('electron')
 
-    const mockReq = { on: jest.fn(), write: jest.fn(), end: jest.fn() }
-    ;(net.request as jest.Mock).mockReturnValue(mockReq)
+    const mockReq = { on: vi.fn(), write: vi.fn(), end: vi.fn() }
+    ;(net.request as Mock).mockReturnValue(mockReq)
 
     const promise = svc.httpPostForm('http://test.com/api', 'key=value')
 
     const responseHandler = mockReq.on.mock.calls.find(([e]: [string]) => e === 'response')?.[1]
-    const mockRes = { on: jest.fn() }
+    const mockRes = { on: vi.fn() }
     responseHandler(mockRes)
 
     const dataHandler = mockRes.on.mock.calls.find(([e]: [string]) => e === 'data')?.[1]
@@ -1034,10 +1038,10 @@ describe('FirmwareUpdateService', () => {
 
   test('httpPostForm rejects on request error', async () => {
     const svc = new FirmwareUpdateService() as any
-    const { net } = require('electron')
+    const { net } = await import('electron')
 
-    const mockReq = { on: jest.fn(), write: jest.fn(), end: jest.fn() }
-    ;(net.request as jest.Mock).mockReturnValue(mockReq)
+    const mockReq = { on: vi.fn(), write: vi.fn(), end: vi.fn() }
+    ;(net.request as Mock).mockReturnValue(mockReq)
 
     const promise = svc.httpPostForm('http://test.com/api', 'key=value')
 
@@ -1049,21 +1053,21 @@ describe('FirmwareUpdateService', () => {
 
   test('downloadToFile resolves with byte count on successful 200 response', async () => {
     const svc = new FirmwareUpdateService() as any
-    const { net } = require('electron')
-    const { createWriteStream } = require('fs')
+    const { net } = await import('electron')
+    const { createWriteStream } = await import('fs')
 
     const mockStream = {
-      on: jest.fn(),
-      write: jest.fn(),
-      end: jest.fn((cb: () => void) => cb()),
-      destroy: jest.fn()
+      on: vi.fn(),
+      write: vi.fn(),
+      end: vi.fn((cb: () => void) => cb()),
+      destroy: vi.fn()
     }
-    ;(createWriteStream as jest.Mock).mockReturnValue(mockStream)
+    ;(createWriteStream as Mock).mockReturnValue(mockStream)
 
-    const mockReq = { on: jest.fn(), write: jest.fn(), end: jest.fn() }
-    ;(net.request as jest.Mock).mockReturnValue(mockReq)
+    const mockReq = { on: vi.fn(), write: vi.fn(), end: vi.fn() }
+    ;(net.request as Mock).mockReturnValue(mockReq)
 
-    const onProgress = jest.fn()
+    const onProgress = vi.fn()
     const promise = svc.downloadToFile({
       url: 'http://test.com/down',
       body: 'key=value',
@@ -1076,7 +1080,7 @@ describe('FirmwareUpdateService', () => {
     const mockRes = {
       statusCode: 200,
       headers: { 'content-length': '5' },
-      on: jest.fn()
+      on: vi.fn()
     }
     resHandler(mockRes)
 
@@ -1093,10 +1097,10 @@ describe('FirmwareUpdateService', () => {
 
   test('downloadToFile rejects on non-200 HTTP status', async () => {
     const svc = new FirmwareUpdateService() as any
-    const { net } = require('electron')
+    const { net } = await import('electron')
 
-    const mockReq = { on: jest.fn(), write: jest.fn(), end: jest.fn() }
-    ;(net.request as jest.Mock).mockReturnValue(mockReq)
+    const mockReq = { on: vi.fn(), write: vi.fn(), end: vi.fn() }
+    ;(net.request as Mock).mockReturnValue(mockReq)
 
     const promise = svc.downloadToFile({
       url: 'http://test.com/down',
@@ -1106,17 +1110,17 @@ describe('FirmwareUpdateService', () => {
     })
 
     const resHandler = mockReq.on.mock.calls.find(([e]: [string]) => e === 'response')?.[1]
-    resHandler({ statusCode: 404, headers: {}, on: jest.fn() })
+    resHandler({ statusCode: 404, headers: {}, on: vi.fn() })
 
     await expect(promise).rejects.toThrow('HTTP 404')
   })
 
   test('downloadToFile rejects on request-level error', async () => {
     const svc = new FirmwareUpdateService() as any
-    const { net } = require('electron')
+    const { net } = await import('electron')
 
-    const mockReq = { on: jest.fn(), write: jest.fn(), end: jest.fn() }
-    ;(net.request as jest.Mock).mockReturnValue(mockReq)
+    const mockReq = { on: vi.fn(), write: vi.fn(), end: vi.fn() }
+    ;(net.request as Mock).mockReturnValue(mockReq)
 
     const promise = svc.downloadToFile({
       url: 'http://test.com/down',
@@ -1133,21 +1137,21 @@ describe('FirmwareUpdateService', () => {
 
   test('downloadToFile handles missing content-length header (total=0)', async () => {
     const svc = new FirmwareUpdateService() as any
-    const { net } = require('electron')
-    const { createWriteStream } = require('fs')
+    const { net } = await import('electron')
+    const { createWriteStream } = await import('fs')
 
     const mockStream = {
-      on: jest.fn(),
-      write: jest.fn(),
-      end: jest.fn((cb: () => void) => cb()),
-      destroy: jest.fn()
+      on: vi.fn(),
+      write: vi.fn(),
+      end: vi.fn((cb: () => void) => cb()),
+      destroy: vi.fn()
     }
-    ;(createWriteStream as jest.Mock).mockReturnValue(mockStream)
+    ;(createWriteStream as Mock).mockReturnValue(mockStream)
 
-    const mockReq = { on: jest.fn(), write: jest.fn(), end: jest.fn() }
-    ;(net.request as jest.Mock).mockReturnValue(mockReq)
+    const mockReq = { on: vi.fn(), write: vi.fn(), end: vi.fn() }
+    ;(net.request as Mock).mockReturnValue(mockReq)
 
-    const onProgress = jest.fn()
+    const onProgress = vi.fn()
     const promise = svc.downloadToFile({
       url: 'http://test.com/down',
       body: 'key=value',
@@ -1158,7 +1162,7 @@ describe('FirmwareUpdateService', () => {
 
     const resHandler = mockReq.on.mock.calls.find(([e]: [string]) => e === 'response')?.[1]
     // No content-length header → total defaults to 0
-    const mockRes = { statusCode: 200, headers: {}, on: jest.fn() }
+    const mockRes = { statusCode: 200, headers: {}, on: vi.fn() }
     resHandler(mockRes)
 
     const dataHandler = mockRes.on.mock.calls.find(([e]: [string]) => e === 'data')?.[1]

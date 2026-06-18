@@ -1,10 +1,11 @@
 import { EventEmitter } from 'node:events'
+import type { Mock } from 'vitest'
 
 class MockSocket extends EventEmitter {
-  destroy = jest.fn()
-  end = jest.fn()
-  setKeepAlive = jest.fn()
-  write = jest.fn((_data: Buffer, cb?: () => void) => {
+  destroy = vi.fn()
+  end = vi.fn()
+  setKeepAlive = vi.fn()
+  write = vi.fn((_data: Buffer, cb?: () => void) => {
     cb?.()
     return true
   })
@@ -43,28 +44,28 @@ function forceRunning(session: Session): void {
   ;(session as unknown as { _state: number })._state = RUNNING_STATE
 }
 
-function captureEncrypted(session: Session): jest.Mock {
-  const fn = jest.fn()
-  ;(session as unknown as { _sendEncrypted: jest.Mock })._sendEncrypted = fn
+function captureEncrypted(session: Session): Mock {
+  const fn = vi.fn()
+  ;(session as unknown as { _sendEncrypted: Mock })._sendEncrypted = fn
   return fn
 }
 
-beforeEach(() => {
-  jest.spyOn(console, 'log').mockImplementation(() => {})
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
-  jest.spyOn(console, 'error').mockImplementation(() => {})
+beforeEach(async () => {
+  vi.spyOn(console, 'log').mockImplementation(function () {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
+  vi.spyOn(console, 'error').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => vi.restoreAllMocks())
 
 describe('Session — construction', () => {
-  test('sets TCP keepalive on the socket', () => {
+  test('sets TCP keepalive on the socket', async () => {
     const { sock } = makeSession()
     expect(sock.setKeepAlive).toHaveBeenCalledWith(true, 5_000)
   })
 
-  test('keepalive failure is swallowed', () => {
+  test('keepalive failure is swallowed', async () => {
     const sock = new MockSocket()
-    sock.setKeepAlive = jest.fn(() => {
+    sock.setKeepAlive = vi.fn(function () {
       throw new Error('not a real socket')
     })
     expect(() => new Session(sock as unknown as import('net').Socket, baseCfg())).not.toThrow()
@@ -72,14 +73,14 @@ describe('Session — construction', () => {
 })
 
 describe('Session.close', () => {
-  test('destroys the socket and transitions to CLOSED', () => {
+  test('destroys the socket and transitions to CLOSED', async () => {
     const { session, sock } = makeSession()
     session.close()
     expect(sock.destroy).toHaveBeenCalled()
     expect((session as unknown as { _state: number })._state).toBe(7) // CLOSED
   })
 
-  test('is idempotent — second close is silent', () => {
+  test('is idempotent — second close is silent', async () => {
     const { session, sock } = makeSession()
     session.close()
     sock.destroy.mockClear()
@@ -87,9 +88,9 @@ describe('Session.close', () => {
     expect(sock.destroy).toHaveBeenCalled() // still calls destroy
   })
 
-  test('survives destroy() throwing', () => {
+  test('survives destroy() throwing', async () => {
     const { session, sock } = makeSession()
-    sock.destroy = jest.fn(() => {
+    sock.destroy = vi.fn(function () {
       throw new Error('already destroyed')
     })
     expect(() => session.close()).not.toThrow()
@@ -105,7 +106,7 @@ describe('Session — socket events', () => {
 
   test('socket "error" event emits + transitions to CLOSED', () => {
     const { session, sock } = makeSession()
-    const onError = jest.fn()
+    const onError = vi.fn()
     session.on('error', onError)
     sock.emit('error', new Error('reset'))
     expect(onError).toHaveBeenCalledWith(new Error('reset'))
@@ -129,58 +130,58 @@ describe('Session — socket events', () => {
 })
 
 describe('Session — outbound input API gated by state', () => {
-  test('sendTouch is a no-op outside RUNNING', () => {
+  test('sendTouch is a no-op outside RUNNING', async () => {
     const { session } = makeSession()
-    const input = { sendTouch: jest.fn() }
-    ;(session as unknown as { _input?: { sendTouch: jest.Mock } })._input = input
+    const input = { sendTouch: vi.fn() }
+    ;(session as unknown as { _input?: { sendTouch: Mock } })._input = input
     session.sendTouch(0, [{ x: 0, y: 0, id: 0 }])
     expect(input.sendTouch).not.toHaveBeenCalled()
   })
 
-  test('sendTouch delegates to InputChannel when RUNNING', () => {
+  test('sendTouch delegates to InputChannel when RUNNING', async () => {
     const { session } = makeSession()
     forceRunning(session)
-    const input = { sendTouch: jest.fn() }
+    const input = { sendTouch: vi.fn() }
     ;(session as unknown as { _input: typeof input })._input = input
     const pointers = [{ x: 5, y: 5, id: 0 }]
     session.sendTouch(0, pointers, 1)
     expect(input.sendTouch).toHaveBeenCalledWith(0, pointers, 1)
   })
 
-  test('sendButton delegates when RUNNING', () => {
+  test('sendButton delegates when RUNNING', async () => {
     const { session } = makeSession()
     forceRunning(session)
-    const input = { sendButton: jest.fn() }
+    const input = { sendButton: vi.fn() }
     ;(session as unknown as { _input: typeof input })._input = input
     session.sendButton(3, true)
     expect(input.sendButton).toHaveBeenCalledWith(3, true)
   })
 
-  test('sendRotary delegates when RUNNING', () => {
+  test('sendRotary delegates when RUNNING', async () => {
     const { session } = makeSession()
     forceRunning(session)
-    const input = { sendRotary: jest.fn() }
+    const input = { sendRotary: vi.fn() }
     ;(session as unknown as { _input: typeof input })._input = input
     session.sendRotary(1)
     expect(input.sendRotary).toHaveBeenCalledWith(1)
   })
 
-  test('sendMicPcm delegates to MicChannel when RUNNING', () => {
+  test('sendMicPcm delegates to MicChannel when RUNNING', async () => {
     const { session } = makeSession()
     forceRunning(session)
-    const mic = { pushPcm: jest.fn() }
+    const mic = { pushPcm: vi.fn() }
     ;(session as unknown as { _mic: typeof mic })._mic = mic
     session.sendMicPcm(Buffer.from([1, 2, 3]), 42n)
     expect(mic.pushPcm).toHaveBeenCalledWith(Buffer.from([1, 2, 3]), 42n)
   })
 
-  test('sendMicPcm without _mic is a no-op even in RUNNING', () => {
+  test('sendMicPcm without _mic is a no-op even in RUNNING', async () => {
     const { session } = makeSession()
     forceRunning(session)
     expect(() => session.sendMicPcm(Buffer.alloc(0))).not.toThrow()
   })
 
-  test('requestVideoFocus / requestClusterKeyframe are no-ops outside RUNNING', () => {
+  test('requestVideoFocus / requestClusterKeyframe are no-ops outside RUNNING', async () => {
     const { session } = makeSession()
     const sent = captureEncrypted(session)
     session.requestVideoFocus()
@@ -188,7 +189,7 @@ describe('Session — outbound input API gated by state', () => {
     expect(sent).not.toHaveBeenCalled()
   })
 
-  test('requestVideoFocus emits a VIDEO_FOCUS_REQUEST(mode=PROJECTED) on the video channel', () => {
+  test('requestVideoFocus emits a VIDEO_FOCUS_REQUEST(mode=PROJECTED) on the video channel', async () => {
     const { session } = makeSession()
     forceRunning(session)
     const sent = captureEncrypted(session)
@@ -202,7 +203,7 @@ describe('Session — outbound input API gated by state', () => {
     )
   })
 
-  test('requestClusterKeyframe holds the cluster focus until the first main frame', () => {
+  test('requestClusterKeyframe holds the cluster focus until the first main frame', async () => {
     const { session } = makeSession()
     forceRunning(session)
     const sent = captureEncrypted(session)
@@ -222,14 +223,14 @@ describe('Session — outbound input API gated by state', () => {
 })
 
 describe('Session — sensor pushes', () => {
-  function setup(): { session: Session; sent: jest.Mock } {
+  function setup(): { session: Session; sent: Mock } {
     const { session } = makeSession()
     forceRunning(session)
     const sent = captureEncrypted(session)
     return { session, sent }
   }
 
-  test('all sensor methods are no-ops outside RUNNING', () => {
+  test('all sensor methods are no-ops outside RUNNING', async () => {
     const { session } = makeSession()
     const sent = captureEncrypted(session)
     session.sendFuelData(50)
@@ -247,7 +248,7 @@ describe('Session — sensor pushes', () => {
     expect(sent).not.toHaveBeenCalled()
   })
 
-  test('sendFuelData writes a SensorBatch on CH.SENSOR', () => {
+  test('sendFuelData writes a SensorBatch on CH.SENSOR', async () => {
     const { session, sent } = setup()
     session.sendFuelData(50, 200, true)
     expect(sent).toHaveBeenCalledTimes(1)
@@ -271,19 +272,19 @@ describe('Session — sensor pushes', () => {
     expect(sent).toHaveBeenCalledTimes(1)
   })
 
-  test('sendLightData with no args writes nothing', () => {
+  test('sendLightData with no args writes nothing', async () => {
     const { session, sent } = setup()
     session.sendLightData()
     expect(sent).not.toHaveBeenCalled()
   })
 
-  test('sendEnvironmentData with no args writes nothing', () => {
+  test('sendEnvironmentData with no args writes nothing', async () => {
     const { session, sent } = setup()
     session.sendEnvironmentData()
     expect(sent).not.toHaveBeenCalled()
   })
 
-  test('sendGpsLocationData encodes lat/lon × 1e7 + optional fields', () => {
+  test('sendGpsLocationData encodes lat/lon × 1e7 + optional fields', async () => {
     const { session, sent } = setup()
     session.sendGpsLocationData({
       latDeg: 52.5,
@@ -296,13 +297,13 @@ describe('Session — sensor pushes', () => {
     expect(sent).toHaveBeenCalledTimes(1)
   })
 
-  test('sendVehicleEnergyModel is a no-op when capacity/current/range are non-positive', () => {
+  test('sendVehicleEnergyModel is a no-op when capacity/current/range are non-positive', async () => {
     const { session, sent } = setup()
     session.sendVehicleEnergyModel(0, 0, 0)
     expect(sent).not.toHaveBeenCalled()
   })
 
-  test('sendVehicleEnergyModel writes one SensorBatch frame with valid inputs', () => {
+  test('sendVehicleEnergyModel writes one SensorBatch frame with valid inputs', async () => {
     const { session, sent } = setup()
     session.sendVehicleEnergyModel(50_000, 30_000, 200_000, {
       maxChargePowerW: 11_000,
@@ -333,18 +334,18 @@ describe('Session.requestShutdown', () => {
 })
 
 describe('Session — pre-TLS data dispatch (raw parser)', () => {
-  test('passes raw socket data to the frame parser before TLS handshake', () => {
+  test('passes raw socket data to the frame parser before TLS handshake', async () => {
     const { session, sock } = makeSession()
-    const push = jest.fn()
-    ;(session as unknown as { _rawParser: { push: jest.Mock } })._rawParser.push = push
+    const push = vi.fn()
+    ;(session as unknown as { _rawParser: { push: Mock } })._rawParser.push = push
     sock.emit('data', Buffer.from([0xde, 0xad]))
     expect(push).toHaveBeenCalled()
   })
 
   test('routes raw VERSION_RESPONSE frames through _onVersionResponse', async () => {
     const { session } = makeSession()
-    const onVer = jest.fn(async () => {})
-    ;(session as unknown as { _onVersionResponse: jest.Mock })._onVersionResponse = onVer
+    const onVer = vi.fn(async () => {})
+    ;(session as unknown as { _onVersionResponse: Mock })._onVersionResponse = onVer
     await (
       session as unknown as { _handleRawFrame: (f: unknown) => Promise<void> }
     )._handleRawFrame({
@@ -359,8 +360,8 @@ describe('Session — pre-TLS data dispatch (raw parser)', () => {
 
   test('routes SSL_HANDSHAKE bytes through the TLS bridge', async () => {
     const { session } = makeSession()
-    const injectHandshakeBytes = jest.fn()
-    ;(session as unknown as { _tls?: { injectHandshakeBytes: jest.Mock } })._tls = {
+    const injectHandshakeBytes = vi.fn()
+    ;(session as unknown as { _tls?: { injectHandshakeBytes: Mock } })._tls = {
       injectHandshakeBytes
     }
     await (
@@ -377,10 +378,10 @@ describe('Session — pre-TLS data dispatch (raw parser)', () => {
 })
 
 describe('Session — post-TLS dispatch (control channel)', () => {
-  test('CONTROL channel forwards to ControlChannel.handleMessage', () => {
+  test('CONTROL channel forwards to ControlChannel.handleMessage', async () => {
     const { session } = makeSession()
-    const handleMessage = jest.fn()
-    ;(session as unknown as { _control?: { handleMessage: jest.Mock } })._control = {
+    const handleMessage = vi.fn()
+    ;(session as unknown as { _control?: { handleMessage: Mock } })._control = {
       handleMessage
     }
     ;(
@@ -391,7 +392,7 @@ describe('Session — post-TLS dispatch (control channel)', () => {
     expect(handleMessage).toHaveBeenCalledWith(0xabcd, Buffer.from([1]))
   })
 
-  test('CHANNEL_OPEN_REQUEST on a service channel triggers an encrypted response', () => {
+  test('CHANNEL_OPEN_REQUEST on a service channel triggers an encrypted response', async () => {
     const { session } = makeSession()
     const sent = captureEncrypted(session)
     ;(session as unknown as { _proto: { ChannelOpenResponse: unknown } })._proto = {
@@ -408,20 +409,20 @@ describe('Session — post-TLS dispatch (control channel)', () => {
     expect(sent.mock.calls[0][2]).toBe(CTRL_MSG.CHANNEL_OPEN_RESPONSE)
   })
 
-  test('VIDEO channel messages delegate to _video.handleMessage', () => {
+  test('VIDEO channel messages delegate to _video.handleMessage', async () => {
     const { session } = makeSession()
-    const handleMessage = jest.fn()
-    ;(session as unknown as { _video?: { handleMessage: jest.Mock } })._video = { handleMessage }
+    const handleMessage = vi.fn()
+    ;(session as unknown as { _video?: { handleMessage: Mock } })._video = { handleMessage }
     ;(
       session as unknown as { _handleDecryptedMessage: (...args: unknown[]) => void }
     )._handleDecryptedMessage(CH.VIDEO, 0, 0x0001, Buffer.from([1, 2]))
     expect(handleMessage).toHaveBeenCalled()
   })
 
-  test('audio channel messages delegate to the matching AudioChannel instance', () => {
+  test('audio channel messages delegate to the matching AudioChannel instance', async () => {
     const { session } = makeSession()
-    const handleMessage = jest.fn()
-    const audioMap = new Map<number, { handleMessage: jest.Mock }>()
+    const handleMessage = vi.fn()
+    const audioMap = new Map<number, { handleMessage: Mock }>()
     audioMap.set(CH.MEDIA_AUDIO, { handleMessage })
     ;(session as unknown as { _audio: Map<number, unknown> })._audio = audioMap
     ;(
@@ -430,20 +431,20 @@ describe('Session — post-TLS dispatch (control channel)', () => {
     expect(handleMessage).toHaveBeenCalled()
   })
 
-  test('NAVIGATION channel delegates to _nav.handleMessage', () => {
+  test('NAVIGATION channel delegates to _nav.handleMessage', async () => {
     const { session } = makeSession()
-    const handleMessage = jest.fn()
-    ;(session as unknown as { _nav?: { handleMessage: jest.Mock } })._nav = { handleMessage }
+    const handleMessage = vi.fn()
+    ;(session as unknown as { _nav?: { handleMessage: Mock } })._nav = { handleMessage }
     ;(
       session as unknown as { _handleDecryptedMessage: (...args: unknown[]) => void }
     )._handleDecryptedMessage(CH.NAVIGATION, 0, 0x8001, Buffer.alloc(0))
     expect(handleMessage).toHaveBeenCalled()
   })
 
-  test('MEDIA_INFO channel delegates to _media.handleMessage', () => {
+  test('MEDIA_INFO channel delegates to _media.handleMessage', async () => {
     const { session } = makeSession()
-    const handleMessage = jest.fn()
-    ;(session as unknown as { _media?: { handleMessage: jest.Mock } })._media = { handleMessage }
+    const handleMessage = vi.fn()
+    ;(session as unknown as { _media?: { handleMessage: Mock } })._media = { handleMessage }
     ;(
       session as unknown as { _handleDecryptedMessage: (...args: unknown[]) => void }
     )._handleDecryptedMessage(CH.MEDIA_INFO, 0, 0x8003, Buffer.alloc(0))
@@ -452,10 +453,10 @@ describe('Session — post-TLS dispatch (control channel)', () => {
 })
 
 describe('Session — _stripHeaderAndInjectTls header parsing', () => {
-  test('routes plaintext frames through _handleDecryptedMessage', () => {
+  test('routes plaintext frames through _handleDecryptedMessage', async () => {
     const { session } = makeSession()
-    const handle = jest.fn()
-    ;(session as unknown as { _handleDecryptedMessage: jest.Mock })._handleDecryptedMessage = handle
+    const handle = vi.fn()
+    ;(session as unknown as { _handleDecryptedMessage: Mock })._handleDecryptedMessage = handle
 
     // SHORT frame: [ch=3][flags=0x03 (FIRST|LAST)][payloadSize=4 BE][msgId=0x1234 BE][2-byte data]
     const buf = Buffer.alloc(4 + 2 + 2)
@@ -470,10 +471,10 @@ describe('Session — _stripHeaderAndInjectTls header parsing', () => {
     expect(handle).toHaveBeenCalledWith(3, 0x03, 0x1234, expect.any(Buffer))
   })
 
-  test('encrypted frames are pushed into the TLS bridge', () => {
+  test('encrypted frames are pushed into the TLS bridge', async () => {
     const { session } = makeSession()
-    const injectEncrypted = jest.fn()
-    ;(session as unknown as { _tls?: { injectEncrypted: jest.Mock } })._tls = { injectEncrypted }
+    const injectEncrypted = vi.fn()
+    ;(session as unknown as { _tls?: { injectEncrypted: Mock } })._tls = { injectEncrypted }
 
     // bit 3 (0x08) set marks the frame as encrypted
     const buf = Buffer.alloc(4 + 2)
@@ -490,55 +491,56 @@ describe('Session — _stripHeaderAndInjectTls header parsing', () => {
 
 describe('Session.requestShutdown — write-and-end semantics', () => {
   test('falls back through the timeouts when the phone never sends ByeByeResponse', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     const { session, sock } = makeSession()
     forceRunning(session)
     captureEncrypted(session)
     const p = session.requestShutdown()
-    await jest.advanceTimersByTimeAsync(2_000)
+    await vi.advanceTimersByTimeAsync(2_000)
     await p
     expect((session as unknown as { _state: number })._state).toBe(7) // CLOSED
     expect(sock.end).toHaveBeenCalled()
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   test('closes promptly once the phone acks with shutdown-complete', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     const { session, sock } = makeSession()
     forceRunning(session)
     captureEncrypted(session)
     // Provide a ControlChannel stub so requestShutdown can await its ByeByeResponse ack.
-    const control = new (require('node:events').EventEmitter)()
+    const { EventEmitter } = await import('node:events')
+    const control = new EventEmitter()
     ;(session as unknown as { _control: unknown })._control = control
 
     const p = session.requestShutdown()
     // Let the drain race settle, then have the phone ack.
-    await jest.advanceTimersByTimeAsync(600)
+    await vi.advanceTimersByTimeAsync(600)
     control.emit('shutdown-complete')
     await p
 
     expect((session as unknown as { _state: number })._state).toBe(7) // CLOSED
     expect(sock.end).toHaveBeenCalled()
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   test('still closes when the encrypted send throws', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     const { session, sock } = makeSession()
     forceRunning(session)
-    ;(session as unknown as { _sendEncrypted: jest.Mock })._sendEncrypted = jest.fn(() => {
+    ;(session as unknown as { _sendEncrypted: Mock })._sendEncrypted = vi.fn(function () {
       throw new Error('not writable')
     })
     const p = session.requestShutdown()
-    await jest.advanceTimersByTimeAsync(2_000)
+    await vi.advanceTimersByTimeAsync(2_000)
     await p
     expect(sock.end).toHaveBeenCalled()
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 })
 
 describe('Session._sendAA / _sendEncrypted', () => {
-  test('plaintext flags → write frame on socket', () => {
+  test('plaintext flags → write frame on socket', async () => {
     const { session, sock } = makeSession()
     ;(session as unknown as { _sendAA: (...args: unknown[]) => void })._sendAA(
       0,
@@ -549,7 +551,7 @@ describe('Session._sendAA / _sendEncrypted', () => {
     expect(sock.write).toHaveBeenCalled()
   })
 
-  test('encrypted flags without TLS state warn and drop', () => {
+  test('encrypted flags without TLS state warn and drop', async () => {
     const { session, sock } = makeSession()
     ;(session as unknown as { _sendAA: (...args: unknown[]) => void })._sendAA(
       3,
@@ -565,7 +567,7 @@ describe('Session._sendAA / _sendEncrypted', () => {
 describe('Session._transition', () => {
   test('emits "disconnected" on transition into CLOSED', () => {
     const { session } = makeSession()
-    const cb = jest.fn()
+    const cb = vi.fn()
     session.on('disconnected', cb)
     ;(session as unknown as { _transition: (s: number, r?: string) => void })._transition(7, 'why')
     expect(cb).toHaveBeenCalledWith('why')
@@ -573,7 +575,7 @@ describe('Session._transition', () => {
 
   test('does not emit "disconnected" for non-closed transitions', () => {
     const { session } = makeSession()
-    const cb = jest.fn()
+    const cb = vi.fn()
     session.on('disconnected', cb)
     ;(session as unknown as { _transition: (s: number, r?: string) => void })._transition(3)
     expect(cb).not.toHaveBeenCalled()
@@ -583,8 +585,8 @@ describe('Session._transition', () => {
 describe('Session._onVersionResponse', () => {
   test('short payload is ignored', async () => {
     const { session } = makeSession()
-    const transition = jest.fn()
-    ;(session as unknown as { _transition: jest.Mock })._transition = transition
+    const transition = vi.fn()
+    ;(session as unknown as { _transition: Mock })._transition = transition
     await (
       session as unknown as { _onVersionResponse: (b: Buffer) => Promise<void> }
     )._onVersionResponse(Buffer.alloc(2))
@@ -593,8 +595,8 @@ describe('Session._onVersionResponse', () => {
 
   test('version mismatch transitions to CLOSED', async () => {
     const { session } = makeSession()
-    const transition = jest.fn()
-    ;(session as unknown as { _transition: jest.Mock })._transition = transition
+    const transition = vi.fn()
+    ;(session as unknown as { _transition: Mock })._transition = transition
     const payload = Buffer.alloc(6)
     payload.writeUInt16BE(1, 0)
     payload.writeUInt16BE(0, 2)
@@ -607,10 +609,10 @@ describe('Session._onVersionResponse', () => {
 
   test('happy path transitions to TLS_HANDSHAKE + invokes _startTls', async () => {
     const { session } = makeSession()
-    const transition = jest.fn()
-    const startTls = jest.fn(async () => undefined)
-    ;(session as unknown as { _transition: jest.Mock })._transition = transition
-    ;(session as unknown as { _startTls: jest.Mock })._startTls = startTls
+    const transition = vi.fn()
+    const startTls = vi.fn(async () => undefined)
+    ;(session as unknown as { _transition: Mock })._transition = transition
+    ;(session as unknown as { _startTls: Mock })._startTls = startTls
 
     const payload = Buffer.alloc(6)
     payload.writeUInt16BE(1, 0)
@@ -625,7 +627,7 @@ describe('Session._onVersionResponse', () => {
 })
 
 describe('Session._sendVersionRequest', () => {
-  test('writes a VERSION_REQUEST frame on the socket', () => {
+  test('writes a VERSION_REQUEST frame on the socket', async () => {
     const { session, sock } = makeSession()
     ;(session as unknown as { _sendVersionRequest: () => void })._sendVersionRequest()
     expect(sock.write).toHaveBeenCalled()
@@ -633,12 +635,12 @@ describe('Session._sendVersionRequest', () => {
 })
 
 describe('Session._handleSensorStartRequest', () => {
-  function setupForSensor(session: Session): jest.Mock {
+  function setupForSensor(session: Session): Mock {
     const sent = captureEncrypted(session)
     return sent
   }
 
-  test('responds with SUCCESS for an unknown sensor type', () => {
+  test('responds with SUCCESS for an unknown sensor type', async () => {
     const { session } = makeSession()
     const sent = setupForSensor(session)
     ;(
@@ -649,7 +651,7 @@ describe('Session._handleSensorStartRequest', () => {
     expect(sent.mock.calls[0][2]).toBe(0x8002)
   })
 
-  test('DrivingStatus sensor (type=13) emits an extra SensorBatch', () => {
+  test('DrivingStatus sensor (type=13) emits an extra SensorBatch', async () => {
     const { session } = makeSession()
     const sent = captureEncrypted(session)
     ;(
@@ -659,7 +661,7 @@ describe('Session._handleSensorStartRequest', () => {
     expect(sent.mock.calls[1][2]).toBe(0x8003)
   })
 
-  test('NightMode sensor (type=10) uses initialNightMode from config', () => {
+  test('NightMode sensor (type=10) uses initialNightMode from config', async () => {
     const sock = new MockSocket()
     const cfg = baseCfg({ initialNightMode: true })
     const session = new Session(sock as unknown as import('net').Socket, cfg)
@@ -674,7 +676,7 @@ describe('Session._handleSensorStartRequest', () => {
 })
 
 describe('Session._handleWifiCredentialsRequest', () => {
-  test('sends a WifiCredentialsResponse including ssid + password + security + type', () => {
+  test('sends a WifiCredentialsResponse including ssid + password + security + type', async () => {
     const sock = new MockSocket()
     const cfg = baseCfg({ wifiSsid: 'LIVI-AP', wifiPassword: 'secret123' })
     const session = new Session(sock as unknown as import('net').Socket, cfg)
@@ -688,7 +690,7 @@ describe('Session._handleWifiCredentialsRequest', () => {
     expect(buf.toString('utf8')).toContain('secret123')
   })
 
-  test('omits empty password field', () => {
+  test('omits empty password field', async () => {
     const sock = new MockSocket()
     const cfg = baseCfg({ wifiSsid: 'LIVI', wifiPassword: '' })
     const session = new Session(sock as unknown as import('net').Socket, cfg)
@@ -700,7 +702,7 @@ describe('Session._handleWifiCredentialsRequest', () => {
     expect(buf.toString('utf8')).toContain('LIVI')
   })
 
-  test('warns when ssid is missing', () => {
+  test('warns when ssid is missing', async () => {
     const sock = new MockSocket()
     const cfg = baseCfg({ wifiSsid: '', wifiPassword: 'x' })
     const session = new Session(sock as unknown as import('net').Socket, cfg)
@@ -714,11 +716,11 @@ describe('Session._handleWifiCredentialsRequest', () => {
 })
 
 describe('Session._handleAVSetupRequest', () => {
-  function setupSession(): { session: Session; sent: jest.Mock; proto: Record<string, unknown> } {
+  function setupSession(): { session: Session; sent: Mock; proto: Record<string, unknown> } {
     const { session } = makeSession()
     const sent = captureEncrypted(session)
     const proto = {
-      AVChannelSetupRequest: { decode: jest.fn(), toObject: jest.fn((m: unknown) => m) },
+      AVChannelSetupRequest: { decode: vi.fn(), toObject: vi.fn((m: unknown) => m) },
       AVChannelSetupResponse: {
         verify: () => null,
         create: (f: Record<string, unknown>) => f,
@@ -727,14 +729,14 @@ describe('Session._handleAVSetupRequest', () => {
     }
     ;(session as unknown as { _proto: typeof proto })._proto = proto
     // Stub decode() helper to return a deterministic object
-    ;(proto.AVChannelSetupRequest.decode as jest.Mock).mockReturnValue({ mediaCodecType: 1 })
+    ;(proto.AVChannelSetupRequest.decode as Mock).mockReturnValue({ mediaCodecType: 1 })
     return { session, sent, proto }
   }
 
-  test('video channel selects h264 + transitions to RUNNING', () => {
+  test('video channel selects h264 + transitions to RUNNING', async () => {
     const { session, sent } = setupSession()
     ;(session as unknown as { _videoCodecByIndex: string[] })._videoCodecByIndex = ['h264', 'h265']
-    const cb = jest.fn()
+    const cb = vi.fn()
     session.on('video-codec', cb)
     session.on('connected', () => cb('connected'))
 
@@ -747,10 +749,10 @@ describe('Session._handleAVSetupRequest', () => {
     expect((session as unknown as { _state: number })._state).toBe(6) // RUNNING
   })
 
-  test('cluster channel selects + emits cluster-video-codec, holds focus until main frame', () => {
+  test('cluster channel selects + emits cluster-video-codec, holds focus until main frame', async () => {
     const { session, sent } = setupSession()
     ;(session as unknown as { _clusterCodecByIndex: string[] })._clusterCodecByIndex = ['h264']
-    const cb = jest.fn()
+    const cb = vi.fn()
     session.on('cluster-video-codec', cb)
 
     ;(
@@ -769,10 +771,10 @@ describe('Session._handleAVSetupRequest', () => {
     )
   })
 
-  test('audio channel forwards format to AudioChannel.handleSetupRequest', () => {
+  test('audio channel forwards format to AudioChannel.handleSetupRequest', async () => {
     const { session } = setupSession()
-    const audio = new Map<number, { handleSetupRequest: jest.Mock }>()
-    audio.set(4, { handleSetupRequest: jest.fn() })
+    const audio = new Map<number, { handleSetupRequest: Mock }>()
+    audio.set(4, { handleSetupRequest: vi.fn() })
     ;(session as unknown as { _audio: typeof audio })._audio = audio
     ;(
       session as unknown as { _handleAVSetupRequest: (chId: number, p: Buffer) => void }
@@ -780,9 +782,9 @@ describe('Session._handleAVSetupRequest', () => {
     expect(audio.get(4)!.handleSetupRequest).toHaveBeenCalledWith(1, 48000, 2)
   })
 
-  test('mic channel forwards format to MicChannel.handleSetupRequest', () => {
+  test('mic channel forwards format to MicChannel.handleSetupRequest', async () => {
     const { session } = setupSession()
-    const mic = { handleSetupRequest: jest.fn() }
+    const mic = { handleSetupRequest: vi.fn() }
     ;(session as unknown as { _mic: typeof mic })._mic = mic
     ;(
       session as unknown as { _handleAVSetupRequest: (chId: number, p: Buffer) => void }
@@ -795,8 +797,8 @@ describe('Session._postTlsSetup', () => {
   test('sends AUTH_COMPLETE and transitions to SERVICE_DISCOVERY', async () => {
     const { session } = makeSession()
     const sent = captureEncrypted(session)
-    const sendAA = jest.fn()
-    ;(session as unknown as { _sendAA: jest.Mock })._sendAA = sendAA
+    const sendAA = vi.fn()
+    ;(session as unknown as { _sendAA: Mock })._sendAA = sendAA
     ;(session as unknown as { _proto: Record<string, unknown> })._proto = {
       AuthCompleteIndication: {
         verify: () => null,
@@ -812,7 +814,7 @@ describe('Session._postTlsSetup', () => {
 })
 
 describe('Session._openChannels', () => {
-  test('transitions to CHANNEL_SETUP', () => {
+  test('transitions to CHANNEL_SETUP', async () => {
     const { session } = makeSession()
     ;(session as unknown as { _openChannels: () => void })._openChannels()
     expect((session as unknown as { _state: number })._state).toBe(5) // CHANNEL_SETUP
@@ -847,31 +849,31 @@ describe('Session.start() — channel wiring', () => {
   }
 
   test('start() wires every channel and sends VERSION_REQUEST', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     const { session } = makeSession()
-    const send = jest.fn()
-    ;(session as unknown as { _sendVersionRequest: jest.Mock })._sendVersionRequest = send
-    const loadProtosMod = jest.requireActual(
+    const send = vi.fn()
+    ;(session as unknown as { _sendVersionRequest: Mock })._sendVersionRequest = send
+    const loadProtosMod = (await vi.importActual(
       '../../proto/index'
-    ) as typeof import('../../proto/index')
-    const spy = jest.spyOn(loadProtosMod, 'loadProtos').mockResolvedValue({} as never)
+    )) as typeof import('../../proto/index')
+    const spy = vi.spyOn(loadProtosMod, 'loadProtos').mockResolvedValue({} as never)
     patchProto(session)
     await session.start()
     expect(send).toHaveBeenCalled()
     spy.mockRestore()
     session.close()
-    jest.clearAllTimers()
-    jest.useRealTimers()
+    vi.clearAllTimers()
+    vi.useRealTimers()
   })
 
   test('first main frame releases a held cluster stream request', async () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     const { session } = makeSession()
-    ;(session as unknown as { _sendVersionRequest: jest.Mock })._sendVersionRequest = jest.fn()
-    const loadProtosMod = jest.requireActual(
+    ;(session as unknown as { _sendVersionRequest: Mock })._sendVersionRequest = vi.fn()
+    const loadProtosMod = (await vi.importActual(
       '../../proto/index'
-    ) as typeof import('../../proto/index')
-    const spy = jest.spyOn(loadProtosMod, 'loadProtos').mockResolvedValue({} as never)
+    )) as typeof import('../../proto/index')
+    const spy = vi.spyOn(loadProtosMod, 'loadProtos').mockResolvedValue({} as never)
     patchProto(session)
     await session.start()
     spy.mockRestore()
@@ -890,13 +892,13 @@ describe('Session.start() — channel wiring', () => {
     )
     expect(clusterFocus).toBeDefined()
     session.close()
-    jest.clearAllTimers()
-    jest.useRealTimers()
+    vi.clearAllTimers()
+    vi.useRealTimers()
   })
 })
 
 describe('Session — RUNNING state guarded methods', () => {
-  test('requestVideoFocus still does nothing when state is CLOSED', () => {
+  test('requestVideoFocus still does nothing when state is CLOSED', async () => {
     const { session } = makeSession()
     session.close()
     const sent = captureEncrypted(session)
@@ -906,10 +908,10 @@ describe('Session — RUNNING state guarded methods', () => {
 })
 
 describe('Session._stripHeaderAndInjectTls — EXTENDED frames', () => {
-  test('parses an EXTENDED (FIRST-only) frame', () => {
+  test('parses an EXTENDED (FIRST-only) frame', async () => {
     const { session } = makeSession()
-    const handle = jest.fn()
-    ;(session as unknown as { _handleDecryptedMessage: jest.Mock })._handleDecryptedMessage = handle
+    const handle = vi.fn()
+    ;(session as unknown as { _handleDecryptedMessage: Mock })._handleDecryptedMessage = handle
 
     // EXTENDED header is 8 bytes: ch + flags(FIRST) + payloadSize(2) + totalSize(4)
     const buf = Buffer.alloc(8 + 4)
@@ -926,11 +928,11 @@ describe('Session._stripHeaderAndInjectTls — EXTENDED frames', () => {
     expect(handle).toHaveBeenCalled()
   })
 
-  test('plaintext payload shorter than 2 bytes is logged + skipped', () => {
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+  test('plaintext payload shorter than 2 bytes is logged + skipped', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(function () {})
     const { session } = makeSession()
-    const handle = jest.fn()
-    ;(session as unknown as { _handleDecryptedMessage: jest.Mock })._handleDecryptedMessage = handle
+    const handle = vi.fn()
+    ;(session as unknown as { _handleDecryptedMessage: Mock })._handleDecryptedMessage = handle
     const buf = Buffer.alloc(4 + 1)
     buf.writeUInt8(3, 0)
     buf.writeUInt8(0x03, 1)
@@ -945,40 +947,38 @@ describe('Session._stripHeaderAndInjectTls — EXTENDED frames', () => {
 })
 
 describe('Session._handleDecryptedMessage — extra dispatch paths', () => {
-  test('SENSOR channel SENSOR_MESSAGE_REQUEST → _handleSensorStartRequest', () => {
+  test('SENSOR channel SENSOR_MESSAGE_REQUEST → _handleSensorStartRequest', async () => {
     const { session } = makeSession()
-    const sensor = jest.fn()
-    ;(session as unknown as { _handleSensorStartRequest: jest.Mock })._handleSensorStartRequest =
-      sensor
+    const sensor = vi.fn()
+    ;(session as unknown as { _handleSensorStartRequest: Mock })._handleSensorStartRequest = sensor
     ;(
       session as unknown as { _handleDecryptedMessage: (...args: unknown[]) => void }
     )._handleDecryptedMessage(1 /* CH.SENSOR */, 0, 0x8001, Buffer.from([0x08, 13]))
     expect(sensor).toHaveBeenCalled()
   })
 
-  test('MIC_INPUT routes non-SETUP messages to MicChannel', () => {
+  test('MIC_INPUT routes non-SETUP messages to MicChannel', async () => {
     const { session } = makeSession()
-    const handleMessage = jest.fn()
-    ;(session as unknown as { _mic: { handleMessage: jest.Mock } })._mic = { handleMessage }
+    const handleMessage = vi.fn()
+    ;(session as unknown as { _mic: { handleMessage: Mock } })._mic = { handleMessage }
     ;(
       session as unknown as { _handleDecryptedMessage: (...args: unknown[]) => void }
     )._handleDecryptedMessage(9 /* CH.MIC_INPUT */, 0, 0x0001, Buffer.from([0]))
     expect(handleMessage).toHaveBeenCalled()
   })
 
-  test('WIFI WIFI_CREDENTIALS_REQUEST → _handleWifiCredentialsRequest', () => {
+  test('WIFI WIFI_CREDENTIALS_REQUEST → _handleWifiCredentialsRequest', async () => {
     const { session } = makeSession()
-    const wifi = jest.fn()
-    ;(
-      session as unknown as { _handleWifiCredentialsRequest: jest.Mock }
-    )._handleWifiCredentialsRequest = wifi
+    const wifi = vi.fn()
+    ;(session as unknown as { _handleWifiCredentialsRequest: Mock })._handleWifiCredentialsRequest =
+      wifi
     ;(
       session as unknown as { _handleDecryptedMessage: (...args: unknown[]) => void }
     )._handleDecryptedMessage(18 /* CH.WIFI */, 0, 0x8001, Buffer.alloc(0))
     expect(wifi).toHaveBeenCalled()
   })
 
-  test('INPUT KEY_BINDING_REQUEST → replies BindingResponse OK', () => {
+  test('INPUT KEY_BINDING_REQUEST → replies BindingResponse OK', async () => {
     const { session } = makeSession()
     const sent = captureEncrypted(session)
     ;(
@@ -988,10 +988,10 @@ describe('Session._handleDecryptedMessage — extra dispatch paths', () => {
     expect(sent.mock.calls[0][2]).toBe(0x8003)
   })
 
-  test('START_INDICATION on VIDEO routes to _video.handleMessage (not the codec selector)', () => {
+  test('START_INDICATION on VIDEO routes to _video.handleMessage (not the codec selector)', async () => {
     const { session } = makeSession()
-    const handleMessage = jest.fn()
-    ;(session as unknown as { _video?: { handleMessage: jest.Mock } })._video = { handleMessage }
+    const handleMessage = vi.fn()
+    ;(session as unknown as { _video?: { handleMessage: Mock } })._video = { handleMessage }
     const payload = Buffer.from([0x08, 0x07, 0x10, 0x01])
     ;(
       session as unknown as { _handleDecryptedMessage: (...args: unknown[]) => void }
@@ -999,7 +999,7 @@ describe('Session._handleDecryptedMessage — extra dispatch paths', () => {
     expect(handleMessage).toHaveBeenCalled()
   })
 
-  test('SENSOR for unhandled msgId is logged but not crashed', () => {
+  test('SENSOR for unhandled msgId is logged but not crashed', async () => {
     const { session } = makeSession()
     expect(() =>
       (
@@ -1008,30 +1008,30 @@ describe('Session._handleDecryptedMessage — extra dispatch paths', () => {
     ).not.toThrow()
   })
 
-  test('VIDEO setup request is forwarded to _handleAVSetupRequest', () => {
+  test('VIDEO setup request is forwarded to _handleAVSetupRequest', async () => {
     const { session } = makeSession()
-    const avSetup = jest.fn()
-    ;(session as unknown as { _handleAVSetupRequest: jest.Mock })._handleAVSetupRequest = avSetup
+    const avSetup = vi.fn()
+    ;(session as unknown as { _handleAVSetupRequest: Mock })._handleAVSetupRequest = avSetup
     ;(
       session as unknown as { _handleDecryptedMessage: (...args: unknown[]) => void }
     )._handleDecryptedMessage(3, 0, 0x8000 /* SETUP_REQUEST */, Buffer.alloc(0))
     expect(avSetup).toHaveBeenCalled()
   })
 
-  test('CLUSTER_VIDEO setup request is forwarded to _handleAVSetupRequest', () => {
+  test('CLUSTER_VIDEO setup request is forwarded to _handleAVSetupRequest', async () => {
     const { session } = makeSession()
-    const avSetup = jest.fn()
-    ;(session as unknown as { _handleAVSetupRequest: jest.Mock })._handleAVSetupRequest = avSetup
+    const avSetup = vi.fn()
+    ;(session as unknown as { _handleAVSetupRequest: Mock })._handleAVSetupRequest = avSetup
     ;(
       session as unknown as { _handleDecryptedMessage: (...args: unknown[]) => void }
     )._handleDecryptedMessage(19, 0, 0x8000, Buffer.alloc(0))
     expect(avSetup).toHaveBeenCalled()
   })
 
-  test('audio SETUP_REQUEST on a non-mapped channel still forwards to _handleAVSetupRequest', () => {
+  test('audio SETUP_REQUEST on a non-mapped channel still forwards to _handleAVSetupRequest', async () => {
     const { session } = makeSession()
-    const avSetup = jest.fn()
-    ;(session as unknown as { _handleAVSetupRequest: jest.Mock })._handleAVSetupRequest = avSetup
+    const avSetup = vi.fn()
+    ;(session as unknown as { _handleAVSetupRequest: Mock })._handleAVSetupRequest = avSetup
     // Channel 4 (MEDIA_AUDIO) but _audio map empty
     ;(session as unknown as { _audio: Map<number, unknown> })._audio = new Map()
     ;(

@@ -2,57 +2,62 @@ import { execFileSync, spawn } from 'child_process'
 import { BrowserWindow, dialog } from 'electron'
 import fs from 'fs'
 import os from 'os'
+import type { Mock } from 'vitest'
 import { checkAndInstallUdevRule, udevRuleExists } from '../udevRule'
 
-jest.mock('electron', () => ({
-  BrowserWindow: jest.fn(),
+vi.mock('electron', () => ({
+  BrowserWindow: vi.fn(),
   dialog: {
-    showMessageBox: jest.fn(),
-    showErrorBox: jest.fn()
+    showMessageBox: vi.fn(),
+    showErrorBox: vi.fn()
   }
 }))
 
-jest.mock('child_process', () => ({
-  execFileSync: jest.fn(),
-  spawn: jest.fn()
+vi.mock('child_process', () => ({
+  execFileSync: vi.fn(),
+  spawn: vi.fn()
 }))
 
-jest.mock('fs', () => {
-  const real = jest.requireActual('fs') as typeof import('fs')
-  return {
-    existsSync: jest.fn(),
-    readFileSync: jest.fn((p: string, enc?: string) => {
+vi.mock('fs', async () => {
+  const real = (await vi.importActual('fs')) as typeof import('fs')
+  const mock = {
+    existsSync: vi.fn(),
+    readFileSync: vi.fn(function (p: string, enc?: string) {
       if (typeof p === 'string' && p.endsWith('.rules.template')) {
         return real.readFileSync(p, (enc as BufferEncoding) ?? 'utf8')
       }
       return ''
     })
   }
+  return { ...mock, default: mock }
 })
 
 describe('udevRule', () => {
   const originalPlatform = process.platform
-  const mockExistsSync = fs.existsSync as jest.Mock
-  const mockReadFileSync = fs.readFileSync as jest.Mock
-  const mockExecFileSync = execFileSync as jest.Mock
-  const mockSpawn = spawn as jest.Mock
-  const mockShowMessageBox = dialog.showMessageBox as jest.Mock
+  const mockExistsSync = fs.existsSync as Mock
+  const mockReadFileSync = fs.readFileSync as Mock
+  const mockExecFileSync = execFileSync as Mock
+  const mockSpawn = spawn as Mock
+  const mockShowMessageBox = dialog.showMessageBox as Mock
   const mockWindow = {} as BrowserWindow
 
   const mkProc = (exitCode: number) => {
     const listeners: Record<string, (code: number) => void> = {}
     return {
-      on: jest.fn((event: string, cb: (code: number) => void) => {
+      on: vi.fn((event: string, cb: (code: number) => void) => {
         listeners[event] = cb
         if (event === 'close') setTimeout(() => cb(exitCode), 0)
       })
     }
   }
 
-  const realFs = jest.requireActual('fs') as typeof fs
+  let realFs: typeof fs
+  beforeAll(async () => {
+    realFs = (await vi.importActual('fs')) as typeof fs
+  })
 
   const ruleFileFake = (content = '') => {
-    mockReadFileSync.mockImplementation((p: string, enc?: string) => {
+    mockReadFileSync.mockImplementation(function (p: string, enc?: string) {
       if (typeof p === 'string' && p.endsWith('.rules.template')) {
         return realFs.readFileSync(p, (enc as BufferEncoding) ?? 'utf8')
       }
@@ -60,10 +65,10 @@ describe('udevRule', () => {
     })
   }
 
-  beforeEach(() => {
-    jest.clearAllMocks()
+  beforeEach(async () => {
+    vi.clearAllMocks()
     Object.defineProperty(process, 'platform', { value: 'linux', configurable: true })
-    mockExistsSync.mockImplementation((p: string) => {
+    mockExistsSync.mockImplementation(function (p: string) {
       if (typeof p === 'string' && p.endsWith('.rules.template')) return true
       return false
     })
@@ -73,30 +78,30 @@ describe('udevRule', () => {
     mockSpawn.mockReturnValue(mkProc(0))
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true })
   })
 
   const existsFake = (ruleFileExists: boolean) => {
-    mockExistsSync.mockImplementation((p: string) => {
+    mockExistsSync.mockImplementation(function (p: string) {
       if (typeof p === 'string' && p.endsWith('.rules.template')) return true
       return ruleFileExists
     })
   }
 
   describe('udevRuleExists', () => {
-    test('returns true when rule file exists', () => {
+    test('returns true when rule file exists', async () => {
       existsFake(true)
       expect(udevRuleExists()).toBe(true)
     })
 
-    test('returns false when rule file does not exist', () => {
+    test('returns false when rule file does not exist', async () => {
       existsFake(false)
       expect(udevRuleExists()).toBe(false)
     })
 
-    test('returns false when existsSync throws', () => {
-      mockExistsSync.mockImplementation(() => {
+    test('returns false when existsSync throws', async () => {
+      mockExistsSync.mockImplementation(function () {
         throw new Error('permission denied')
       })
       expect(udevRuleExists()).toBe(false)
@@ -151,7 +156,7 @@ describe('udevRule', () => {
     })
 
     test('does nothing when pkexec is not available', async () => {
-      mockExecFileSync.mockImplementation(() => {
+      mockExecFileSync.mockImplementation(function () {
         throw new Error('not found')
       })
       await checkAndInstallUdevRule(mockWindow)
@@ -198,7 +203,7 @@ describe('udevRule', () => {
 
     test('shows error dialog with Retry/Skip when spawn emits an error', async () => {
       const proc = {
-        on: jest.fn((event: string, cb: (arg: unknown) => void) => {
+        on: vi.fn((event: string, cb: (arg: unknown) => void) => {
           if (event === 'error') setTimeout(() => cb(new Error('spawn failed')), 0)
         })
       }

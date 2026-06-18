@@ -5,8 +5,8 @@ import { attachDongleAdapter } from '../dongleAdapter'
 
 function fakeDriver() {
   return {
-    send: jest.fn(async () => true),
-    sendGnssData: jest.fn(async () => true)
+    send: vi.fn(async () => true),
+    sendGnssData: vi.fn(async () => true)
   }
 }
 

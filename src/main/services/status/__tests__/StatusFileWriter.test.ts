@@ -3,8 +3,8 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 
-jest.mock('electron', () => ({
-  app: { getPath: jest.fn(() => os.tmpdir()) }
+vi.mock('electron', () => ({
+  app: { getPath: vi.fn(() => os.tmpdir()) }
 }))
 
 import { STATUS_VERSION, StatusFileWriter } from '../StatusFileWriter'
@@ -21,9 +21,9 @@ function readStatus(file: string): { version: number; timestamp: string; payload
 }
 
 beforeEach(() => {
-  jest.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.spyOn(console, 'warn').mockImplementation(function () {})
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(() => vi.restoreAllMocks())
 
 describe('StatusFileWriter — initial write', () => {
   test('writes the INITIAL state on construction', () => {
@@ -167,40 +167,40 @@ describe('StatusFileWriter — applyAudioCommand mapping', () => {
 
 describe('StatusFileWriter — debounce + atomic write', () => {
   test('multiple setters within debounce window coalesce into a single write', () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     const file = tmpFile()
     const w = new StatusFileWriter(file, { debounceMs: 50, writeInitial: false })
-    const spy = jest.spyOn(fs, 'renameSync')
+    const spy = vi.spyOn(fs, 'renameSync')
     w.setProjection('aa', 'AndroidAuto')
     w.setStreaming(true)
     w.setAudio('media', true)
     w.setPhoneCall(true)
     expect(spy).not.toHaveBeenCalled()
-    jest.advanceTimersByTime(50)
+    vi.advanceTimersByTime(50)
     expect(spy).toHaveBeenCalledTimes(1)
-    jest.useRealTimers()
+    vi.useRealTimers()
     if (fs.existsSync(file)) fs.unlinkSync(file)
   })
 
   test('flush() forces an immediate write and clears any pending timer', () => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     const file = tmpFile()
     const w = new StatusFileWriter(file, { debounceMs: 50, writeInitial: false })
     w.setProjection('aa', 'AndroidAuto')
     w.flush()
     expect(fs.existsSync(file)).toBe(true)
     // Pending timer should have been cleared — advancing time must not cause another write
-    const spy = jest.spyOn(fs, 'renameSync')
-    jest.advanceTimersByTime(1000)
+    const spy = vi.spyOn(fs, 'renameSync')
+    vi.advanceTimersByTime(1000)
     expect(spy).not.toHaveBeenCalled()
-    jest.useRealTimers()
+    vi.useRealTimers()
     fs.unlinkSync(file)
   })
 
   test('write uses an atomic tmp + rename', () => {
     const file = tmpFile()
-    const writeSpy = jest.spyOn(fs, 'writeFileSync')
-    const renameSpy = jest.spyOn(fs, 'renameSync')
+    const writeSpy = vi.spyOn(fs, 'writeFileSync')
+    const renameSpy = vi.spyOn(fs, 'renameSync')
     new StatusFileWriter(file, { debounceMs: 0 })
     expect(writeSpy.mock.calls[0][0]).toBe(file + '.tmp')
     expect(renameSpy.mock.calls[0]).toEqual([file + '.tmp', file])
@@ -209,7 +209,7 @@ describe('StatusFileWriter — debounce + atomic write', () => {
 
   test('write failure is swallowed and logged', () => {
     const file = tmpFile()
-    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(function () {
       throw new Error('ENOSPC')
     })
     const w = new StatusFileWriter(file, { debounceMs: 0, writeInitial: false })

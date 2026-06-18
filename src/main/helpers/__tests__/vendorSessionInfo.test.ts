@@ -9,12 +9,12 @@ import {
 const VENDOR_SESSION_KEY = Buffer.from('573245433158314e625a35385458746e', 'hex')
 
 describe('vendorSessionInfo helpers', () => {
-  test('decodeVendorSessionAscii removes trailing null bytes', () => {
+  test('decodeVendorSessionAscii removes trailing null bytes', async () => {
     const raw = Buffer.from('YWJjZA==\0\0\0', 'ascii')
     expect(decodeVendorSessionAscii(raw)).toBe('YWJjZA==')
   })
 
-  test('decodeVendorSessionBase64 decodes base64 ascii to buffer', () => {
+  test('decodeVendorSessionBase64 decodes base64 ascii to buffer', async () => {
     const decoded = decodeVendorSessionBase64('YWJjZA==')
     expect(decoded.equals(Buffer.from('abcd'))).toBe(true)
   })

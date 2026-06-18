@@ -4,7 +4,7 @@ import { decodeFields, decodeVarintValue } from '../protoEnc'
 
 function freshSend() {
   const calls: { channelId: number; flags: number; msgId: number; data: Buffer }[] = []
-  const send = jest.fn((channelId: number, flags: number, msgId: number, data: Buffer) => {
+  const send = vi.fn(function (channelId: number, flags: number, msgId: number, data: Buffer) {
     calls.push({ channelId, flags, msgId, data })
   })
   return { send, calls }
