@@ -127,3 +127,41 @@ describe('audioSchema', () => {
     expect(paths).not.toContain('micType')
   })
 })
+
+describe('audio device loaders', () => {
+  afterEach(() => {
+    ;(window as any).projection = undefined
+  })
+
+  test('output loader returns only the system default without an audio api', async () => {
+    ;(window as any).projection = {}
+    const opts = await schema.children[5].loadOptions()
+    expect(opts).toHaveLength(1)
+    expect(opts[0].value).toBe('')
+  })
+
+  test('output loader prepends the system default to the listed sinks', async () => {
+    ;(window as any).projection = {
+      audio: { listSinks: vi.fn(async () => [{ id: 'sink1', name: 'Speakers', offline: false }]) }
+    }
+    const opts = await schema.children[5].loadOptions()
+    expect(opts).toHaveLength(2)
+    expect(opts[0].value).toBe('')
+    expect(opts[1]).toMatchObject({ value: 'sink1', label: 'Speakers' })
+  })
+
+  test('input loader prepends the system default to the listed sources', async () => {
+    ;(window as any).projection = {
+      audio: { listSources: vi.fn(async () => [{ id: 'mic1', name: 'Mic', offline: true }]) }
+    }
+    const opts = await schema.children[6].loadOptions()
+    expect(opts).toHaveLength(2)
+    expect(opts[1]).toMatchObject({ value: 'mic1', label: 'Mic', offline: true })
+  })
+
+  test('input loader falls back to the system default without an audio api', async () => {
+    ;(window as any).projection = {}
+    const opts = await schema.children[6].loadOptions()
+    expect(opts).toHaveLength(1)
+  })
+})
