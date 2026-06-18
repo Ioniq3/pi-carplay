@@ -26,13 +26,22 @@ const INITIAL: TransportState = {
   preference: 'auto'
 }
 
+type TransportEventHandler = (evt: unknown, ...args: unknown[]) => void
+type TransportApi = {
+  ipc?: {
+    getTransportState?(): Promise<TransportState>
+    onEvent?(handler: TransportEventHandler): unknown
+    offEvent?(handler: TransportEventHandler): void
+  }
+}
+
 export function useTransportState(): TransportState {
   const [state, setState] = useState<TransportState>(INITIAL)
 
   useEffect(() => {
     let cancelled = false
 
-    const api = (window as { projection?: any }).projection
+    const api = (window as unknown as { projection?: TransportApi }).projection
     if (!api?.ipc?.getTransportState || !api?.ipc?.onEvent) return
 
     api.ipc
@@ -51,7 +60,7 @@ export function useTransportState(): TransportState {
 
     return () => {
       cancelled = true
-      api.ipc.offEvent?.(handler)
+      api.ipc?.offEvent?.(handler)
     }
   }, [])
 
