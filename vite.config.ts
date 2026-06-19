@@ -91,8 +91,7 @@ export default defineConfig({
             rolldownOptions: {
               external: ['electron', 'usb', 'gst-video', 'node-gyp-build', ...NODE_BUILTINS],
               input: {
-                main: resolve(__dirname, 'src/main/index.ts'),
-                usbWorker: resolve(__dirname, 'src/main/services/usb/USBWorker.ts')
+                main: resolve(__dirname, 'src/main/index.ts')
               },
               output: {
                 format: 'cjs',

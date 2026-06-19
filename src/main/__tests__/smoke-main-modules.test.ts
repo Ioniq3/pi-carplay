@@ -5,8 +5,7 @@ const entries = Object.entries(modules).filter(
     !p.includes('/__tests__/') &&
     !p.endsWith('.test.ts') &&
     !p.endsWith('.d.ts') &&
-    p !== '../index.ts' &&
-    p !== '../services/usb/USBWorker.ts'
+    p !== '../index.ts'
 )
 
 describe('main module smoke imports', () => {
