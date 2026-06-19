@@ -1,6 +1,6 @@
 {
   "name": "LIVI",
-  "version": "7.1.1",
+  "version": "7.1.2",
   "description": "LIVI - Linux In-Vehicle Infotainment",
   "desktopName": "dev.f-io.livi.desktop",
   "main": "./out/main/main.js",
@@ -84,7 +84,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/events": "^3.0.3",
     "@types/lodash.debounce": "^4.0.9",
-    "@types/node": "^25.9.3",
+    "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/w3c-web-usb": "^1.0.14",
